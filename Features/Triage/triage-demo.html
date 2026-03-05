@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1">
+<title>OrchestrateOS — Triage Demo</title>
+<link rel="stylesheet" href="../../demo-shell/themes/theme.base.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page); color: var(--text-primary); font-size: 13px; line-height: 1.5; user-select: none;
+}
+/* :root tokens loaded from ../../demo-shell/themes/theme.base.css */
+::selection { background: rgba(0,145,234,0.3); }
+
+/* ═══════════════════════════════════════════════════════════════
+   VIEW SWITCHER
+   ═══════════════════════════════════════════════════════════════ */
+.view-switcher { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: #0d1017; border-bottom: 1px solid var(--border); z-index: 100; position: relative; }
+.view-switcher .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px; }
+.view-btn { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.view-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.view-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOP BAR (44px)
+   ═══════════════════════════════════════════════════════════════ */
+.top-bar { display: flex; align-items: center; height: 44px; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 16px; gap: 10px; }
+.logo-wrap { display: flex; align-items: center; gap: 8px; padding: 3px 12px 3px 6px; border-radius: 6px; white-space: nowrap; }
+.logo-icon-svg { width: 26px; height: 26px; background: linear-gradient(135deg, #26a69a 0%, #4fc3f7 40%, #7c4dff 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; position: relative; }
+.logo-icon-svg::after { content: ''; width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.7); border-radius: 2px; transform: rotate(45deg); }
+.logo-text { font-weight: 700; font-size: 14px; color: var(--text-primary); letter-spacing: -0.3px; }
+.beta-badge { font-size: 9px; background: var(--teal); color: #fff; padding: 1px 6px; border-radius: 3px; font-weight: 700; letter-spacing: 0.5px; margin-left: 2px; }
+.triage-pill { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 14px; font-size: 12px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.spacer { flex: 1; }
+.rp-search { display: flex; align-items: center; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; }
+.rp-search input { background: transparent; border: none; color: var(--text-primary); font-size: 12px; outline: none; width: 140px; font-family: inherit; }
+.header-btn { padding: 5px 14px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 500; white-space: nowrap; }
+.header-btn:hover { background: var(--bg-card); }
+
+/* ═══════════════════════════════════════════════════════════════
+   APP LAYOUT
+   ═══════════════════════════════════════════════════════════════ */
+.app-layout { display: flex; height: calc(100vh - 78px); }
+.sidebar { width: 200px; min-width: 200px; background: var(--bg-page); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px 0; overflow-y: auto; }
+.sb-logo { display: flex; align-items: center; padding: 4px 12px 10px; }
+.sb-logo svg { width: 160px; height: 44px; flex-shrink: 0; }
+.sb-section-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 16px 4px; }
+.sb-nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 16px; font-size: 12px; color: var(--text-secondary); cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s; }
+.sb-nav-item:hover { background: var(--bg-card); }
+.sb-nav-item.active { color: var(--accent-blue); background: rgba(0,145,234,0.06); border-left-color: var(--accent-blue); font-weight: 600; }
+.sb-nav-item .sb-nav-icon { width: 18px; text-align: center; font-size: 14px; }
+.sb-nav-item .sb-nav-badge { margin-left: auto; font-size: 9px; font-weight: 700; background: var(--accent-blue); color: #fff; padding: 1px 6px; border-radius: 8px; min-width: 18px; text-align: center; }
+.sb-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+.sb-bottom { margin-top: auto; padding: 8px 16px; border-top: 1px solid var(--border); }
+.sb-bottom .sb-user { display: flex; align-items: center; gap: 8px; }
+.sb-bottom .sb-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.sb-progress-row { display: flex; align-items: center; gap: 8px; padding: 3px 16px; font-size: 12px; color: var(--text-secondary); }
+.sb-prog-count { font-weight: 700; font-size: 14px; min-width: 22px; }
+.sb-prog-count.todo { color: var(--text-muted); }
+.sb-prog-count.review { color: var(--amber); }
+.sb-prog-count.done { color: var(--green); }
+.sb-prog-label { font-size: 11px; }
+.sb-mini-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin: 4px 16px 2px; background: var(--border); }
+.sb-bar-done { background: var(--green); }
+.sb-bar-review { background: var(--amber); }
+.sb-bar-todo { background: var(--text-muted); }
+.sb-role-row { display: flex; gap: 4px; padding: 6px 0; }
+.sb-rpill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 10px; cursor: pointer; font-family: inherit; }
+.sb-rpill.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.sb-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text-secondary); }
+.toggle { width: 34px; height: 18px; border-radius: 9px; background: var(--border); position: relative; cursor: pointer; transition: background 0.2s; }
+.toggle.on { background: var(--accent-blue); }
+.toggle::after { content: ''; width: 14px; height: 14px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; }
+.toggle.on::after { left: 18px; }
+.sandbox-badge { font-size: 9px; font-weight: 700; background: rgba(255,152,0,0.15); color: var(--amber); padding: 2px 6px; border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CONTENT
+   ═══════════════════════════════════════════════════════════════ */
+.main-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+.main-content::-webkit-scrollbar { width: 5px; }
+.main-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   LIFECYCLE RAIL
+   ═══════════════════════════════════════════════════════════════ */
+.lc-rail { display: flex; align-items: center; gap: 0; margin-bottom: 20px; }
+.lc-stage { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; text-align: center; }
+.lc-stage:hover { background: var(--bg-card-hover); }
+.lc-stage.active { border-color: var(--accent-blue); box-shadow: 0 0 0 1px var(--accent-blue); }
+.lc-stage .lc-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.lc-stage .lc-count { font-size: 22px; font-weight: 700; color: var(--text-primary); margin: 4px 0; }
+.lc-stage .lc-pct { font-size: 11px; color: var(--text-muted); }
+.lc-arrow { color: var(--text-muted); font-size: 18px; padding: 0 6px; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   LANE HEALTH SUMMARY
+   ═══════════════════════════════════════════════════════════════ */
+.lane-health { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.lane-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.lane-card .lh-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.lane-card .lh-stat { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+.lane-card .lh-stat .lh-label { color: var(--text-secondary); }
+.lane-card .lh-stat .lh-value { color: var(--text-primary); font-weight: 600; font-family: var(--mono); }
+.lane-card .lh-total { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   READINESS CARDS
+   ═══════════════════════════════════════════════════════════════ */
+.readiness-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+.readiness-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.15s; }
+.readiness-card:hover { background: var(--bg-card-hover); }
+.readiness-card.active { border-color: var(--accent-blue); box-shadow: 0 0 0 1px var(--accent-blue); }
+.readiness-card .rc-name { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.readiness-card .rc-status { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.readiness-card .rc-status.fail { color: var(--red); }
+.readiness-card .rc-status.review { color: var(--amber); }
+.readiness-card .rc-status.pass { color: var(--green); }
+.readiness-card .rc-detail { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.readiness-card .health-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.readiness-card .bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MODE TOGGLE + FILTER CHIPS
+   ═══════════════════════════════════════════════════════════════ */
+.table-controls { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.triage-mode-toggle { display: flex; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.triage-mode-btn { padding: 6px 18px; font-size: 12px; font-weight: 600; color: var(--text-secondary); background: transparent; border: none; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.triage-mode-btn.active { background: var(--accent-blue); color: #fff; }
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.triage-filter-chip { padding: 4px 12px; border-radius: 14px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.triage-filter-chip:hover { background: var(--bg-card); }
+.triage-filter-chip.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.triage-filter-chip .chip-count { font-family: var(--mono); font-size: 10px; margin-left: 4px; opacity: 0.8; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD MODE
+   ═══════════════════════════════════════════════════════════════ */
+.dashboard-groups { display: flex; flex-direction: column; gap: 12px; }
+.dashboard-group { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.group-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: background 0.15s; }
+.group-header:hover { background: var(--bg-card-hover); }
+.group-header .gh-chevron { color: var(--text-muted); font-size: 12px; transition: transform 0.2s; width: 16px; }
+.group-header.expanded .gh-chevron { transform: rotate(90deg); }
+.group-header .gh-name { font-size: 13px; font-weight: 600; color: var(--text-primary); flex: 1; }
+.group-header .gh-count { font-size: 11px; color: var(--text-muted); }
+.group-header .gh-health { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.group-header .gh-health-bar { width: 40px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.group-header .gh-health-fill { height: 100%; border-radius: 2px; }
+.group-header .gh-stats { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
+.group-header .section-dots { display: flex; gap: 3px; }
+.section-dot { width: 8px; height: 8px; border-radius: 50%; }
+.section-dot.pass { background: var(--green); }
+.section-dot.review { background: var(--amber); }
+.section-dot.fail { background: var(--red); }
+.group-contracts { display: none; border-top: 1px solid var(--border); }
+.group-contracts.visible { display: block; }
+.contract-row { display: grid; grid-template-columns: 1fr 80px 80px 100px 100px 60px; align-items: center; gap: 8px; padding: 10px 16px 10px 32px; border-bottom: 1px solid var(--border); font-size: 12px; }
+.contract-row:last-child { border-bottom: none; }
+.contract-row:hover { background: rgba(0,145,234,0.03); }
+.contract-row .cr-name { color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contract-row .cr-issues { color: var(--text-secondary); font-family: var(--mono); }
+.contract-row .cr-severity { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 3px; text-align: center; }
+.contract-row .cr-severity.critical { background: rgba(244,67,54,0.15); color: var(--red); }
+.contract-row .cr-severity.at-risk { background: rgba(255,152,0,0.15); color: var(--amber); }
+.contract-row .cr-severity.review { background: rgba(0,145,234,0.15); color: var(--accent-blue); }
+.contract-row .cr-severity.healthy { background: rgba(76,175,80,0.15); color: var(--green); }
+.contract-row .cr-health { font-family: var(--mono); font-size: 11px; color: var(--text-secondary); }
+.contract-row .cr-open { color: var(--accent-blue); cursor: pointer; font-size: 11px; }
+.contract-row .cr-open:hover { text-decoration: underline; }
+.contract-row-header { display: grid; grid-template-columns: 1fr 80px 80px 100px 100px 60px; align-items: center; gap: 8px; padding: 6px 16px 6px 32px; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+
+/* ═══════════════════════════════════════════════════════════════
+   WORK QUEUE MODE
+   ═══════════════════════════════════════════════════════════════ */
+.wq-table { width: 100%; border-collapse: collapse; }
+.wq-table thead th { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.wq-row { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+.wq-row:hover { background: rgba(0,145,234,0.03); }
+.wq-row td { padding: 10px 12px; font-size: 12px; }
+.wq-rank { color: var(--text-muted); font-family: var(--mono); font-weight: 600; width: 40px; }
+.wq-name { color: var(--text-primary); font-weight: 500; }
+.wq-name .new-badge { display: inline-block; font-size: 9px; font-weight: 700; background: var(--accent-blue); color: #fff; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+.wq-name .ready-badge { display: inline-block; font-size: 9px; font-weight: 700; background: rgba(76,175,80,0.15); color: var(--green); padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+.wq-issues { color: var(--text-secondary); font-family: var(--mono); }
+.wq-issues .blk { color: var(--red); font-size: 10px; }
+.health-dots { display: flex; gap: 3px; }
+.health-band { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+.health-band.critical { background: rgba(244,67,54,0.15); color: var(--red); }
+.health-band.at-risk { background: rgba(255,152,0,0.15); color: var(--amber); }
+.health-band.review { background: rgba(0,145,234,0.15); color: var(--accent-blue); }
+.health-band.healthy { background: rgba(76,175,80,0.15); color: var(--green); }
+
+/* ═══════════════════════════════════════════════════════════════
+   ACTIVE FILTER INDICATOR
+   ═══════════════════════════════════════════════════════════════ */
+.active-filter-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; margin-bottom: 12px; background: rgba(0,145,234,0.06); border: 1px solid rgba(0,145,234,0.2); border-radius: 6px; font-size: 12px; color: var(--accent-blue); }
+.active-filter-bar .clear-filter { margin-left: auto; cursor: pointer; font-size: 11px; opacity: 0.7; }
+.active-filter-bar .clear-filter:hover { opacity: 1; text-decoration: underline; }
+
+/* ═══════════════════════════════════════════════════════════════
+   OTTO FAB + CHAT PANEL
+   ═══════════════════════════════════════════════════════════════ */
+.otto-fab { position: fixed; bottom: 24px; right: 24px; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00C2FF, #3CB88B); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,194,255,0.3); z-index: 49; transition: transform 0.2s, box-shadow 0.2s; }
+.otto-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,194,255,0.4); }
+.otto-chat-panel { position: fixed; bottom: 84px; right: 24px; width: 380px; height: 480px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); z-index: 55; display: none; flex-direction: column; }
+.otto-chat-panel.open { display: flex; }
+.kc-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, rgba(0,194,255,0.08), rgba(60,184,139,0.08)); }
+.kc-header svg { width: 22px; height: 22px; flex-shrink: 0; }
+.kc-header-text { flex: 1; }
+.kc-header-text .kc-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.kc-header-text .kc-sub { font-size: 10px; color: var(--text-muted); }
+.kc-close { color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 4px; }
+.kc-body { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.kc-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 12px; line-height: 1.5; }
+.kc-msg.system { align-self: center; max-width: 90%; background: rgba(0,194,255,0.06); border: 1px solid rgba(0,194,255,0.15); color: var(--text-muted); font-size: 11px; text-align: center; border-radius: 8px; }
+.kc-msg.user { align-self: flex-end; background: var(--accent-blue); color: #fff; border-bottom-right-radius: 4px; }
+.kc-msg.otto { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); border-bottom-left-radius: 4px; }
+.kc-msg.otto .kc-field-ref { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,145,234,0.1); color: var(--accent-blue); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 4px 0; cursor: pointer; }
+.kc-footer { padding: 10px 16px; border-top: 1px solid var(--border); }
+.kc-input-row { display: flex; gap: 8px; align-items: center; }
+.kc-input { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text-primary); font-size: 12px; font-family: inherit; outline: none; }
+.kc-input:focus { border-color: var(--accent-blue); }
+.kc-send { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #00C2FF, #3CB88B); border: none; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.kc-powered { text-align: center; font-size: 9px; color: var(--text-muted); margin-top: 6px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════════ */
+.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--bg-card); border: 1px solid var(--accent-blue); color: var(--text-primary); padding: 8px 20px; border-radius: 8px; font-size: 12px; opacity: 0; transition: all 0.3s; z-index: 999; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- VIEW SWITCHER -->
+<div class="view-switcher">
+  <span class="label">View:</span>
+  <button class="view-btn active" data-view="default">Default View</button>
+  <button class="view-btn" data-view="workqueue">Work Queue</button>
+  <button class="view-btn" data-view="filtered">Filtered</button>
+  <button class="view-btn" data-view="section">Section Drill-Down</button>
+  <button class="view-btn" data-view="otto">Otto Open</button>
+</div>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="logo-wrap">
+    <img width="26" height="26" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAAjEAYAAACLO/WLAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAABmJLR0QAAAAAAAD5Q7t/AAAAB3RJTUUH6gMBFhESPNwCawAACLJJREFUaN7t2nl0l9WZB/DPzUJYEgKEIAmLIBJAFlEIbiCVFsSlM7ZULccpdKj2VOs249DKaWec6nGj1XHs0R7cF9Qq6kToiKdFRUF0UFCogMWIrCYQdhKykbzzxy8R9IdQlLwRjt9/3nOe9733Wb7vvfe5z70haoBGLPCa55Gvq97ooZeBjn6st8b7aKudY9BWtlyMUBC9h+P1DafiYTNVxWdWSpKkldaykK6FjOaOWoy4zqVRL7zqJdP2iqO7oht9F09E90VXx29WMkEnKTQaXXRT0FzRagYURdP9ApuVKt4rDmcZ60coDKc5L36zUr56F0cJLg3XhkfRzyCj9pFPDjeG2Zjo5+He+M0KSWvQN/gsBsqOpqGPAUbhWW+E3vGp/2YENaLEBstQbqeyfeS1qmxFrRo74jfr6CVouRXm4H/M8h/7eb/LTqUos8lKlCm1EuXKP0NQWkOqlCa9Odw4eglKlaYFWsqQuZ/373rbk3jKIyZgkCG+h87ynYAqlXYQzYgeiS7BRiXei9+Nb9agRtSqVYm0BmKDIBX9ZEX/gkLDTcJjZocY94XJI6jSbrsk5twYN2RfGWO8Zy3GWWrNl2j/jv9zPzYr8+E+8s666IUWMqTG71YyQf9qkgI87RG/jt+gQ8Unj1VPrR3NPZlrX1/fmD/0XVe67jo2ldRsqT624aMFf0dHw5zmcnSU+5n9X6b2OqC1LNnx+5c8xe1WbrvEothC4s9pHb9hX4TyYXserb+RF8/cOH5LFbO3bO24eS0bllfPr/orqc+EUTXj6LGgVYE2/KD+mFEdWjNiTIcnut9Ci9zwcca6AymwSyneMN+d+LNno8nI1z0MxXVu+FIj9EsieQS1lqmdrx0xO2eXP151PdeOfX71ghXc/syyu4r/m8zR0fr0sbS7L+1X6Z0YcFvWeRX9+fZNOWduXMKcDZtHFP+RB15eExbnsGdiNGXPgabuSCRCvXp7sMJSRfjYyujV+P0+YrK44tKKf6ycyFvDn1kx709suq1o0pIprLt21QWbBnL1P3eb3P1Krijp/mL3C2l3eUqX0hPJGZPaPjuLV+4tKcm6lMrL6q4x+gCKsrSVh3Oc5060kqE9MqTvNxtsYqQ1T7gPHVEPFTaRuzhrUMtHKJjYYlVaNmf8eOfsmicYPjUno+1UUNa2nuc6rB7VehFvjdm+cPd/Ub2k9pTwE+pTo6pw7iEo7qKb09BRbujfICs7hPZfEUfMCLJWsVWkPpxSl/JLsrIy17dszweZq5aX/Btb++4YULGd7RtqZ9ZfxbIHt+2pS2HFX8p61J3LztdrssJVRKP1NeEQ9C6z2Ex85IPotfjd3n+avRM1qlXGb9AXIf2S9FtT89hdUjmiagmVj1VtqS1kZ3HFxVU38KPp/zno6elccuOLi1Zcw47fVf20/m7Sz6wZ6lKiO/ecGK0hZYrVYX/Z6e3ucDbescjz+8jTpGiJdKlaxe93MkFvmuspFPvAm/Eb9EXIndD+1Kw6plZed8n3xhFdXffvNdNZ55M5W/L56OINN207mWVr1vXb8RyVQ2tH1s/lpHPya9rcxm+vHHpVfmfazkhfmDJlPwrOMtJlEmtOGzzlYZNAfcMX9UL8fien2Y1ZzKdfCE1qWL06exCkSP379e3uU3lP9TRm/W2upf25J/2FiYvLiF449eKTt3PVbcPP73UX50/rub49WvdLvTks2aeDXXbZjAoVtqOTXD2w2kfewBiDo+fRU2cF6G2AsbjXzNCr6Yn5NPzNXuqZ5yV3o4+BRqOTLvodejfbLtv1XFUW9b8IG8Pl5PTOvCJj6gH1vmoallriT1jslehunOP74WYUeSyahBzZuqKr48IwTHaH0vjCk0zQLE+7VeJsvhNGOttPmtCCGtUqJGpgGUiRGktuOdWvFeCPHoom4CIXhTswwDDjUeYTyzDPzOg36OZ4Z+A3Hgox1rWTQ1Ful60SlYQ47iS0aJjz48YIZ/kZOukYZuFBN0c/xTG6hPnYZpNi7Gh4tpejsXTUMz4zk5OE1Ia1oPF5tCJLlo7I1kY7zFMWbkeBAc4lOj3KqB+PcjtskCBsZfxmJo+gllrJ9LUr9Rx2bLTG21hpUfQUlhscnkSuPCcQHgjLwyB8x4VhsMTa2HjMcHZ8ZiYT9A/GHwlV7K+MDK1kI1tO6Il3vKIb8hzrFLzuBTNwnAHR/eiuwMhE0ziz7eQprtxOWyROFMubMYDFlpiJLUosb4L+C33bZEwwxVJUN/ibI08/PODNcL7EFFeGctttjD8MyQQtNN9zWGWlt+M36FN00FkftJIptwn6n+Uh/4TrfT/6CBXKbbO3grJdmdXorq/RyNcrDI8/DM2/D2ou/NK4aC0ejm5WiBw9jMRF4YowA/P9b3SrBGF1OM4JzsKjFoTTJTb09fZu7FOaJqk6eLF0o08U4zUvebC5o3oY8TM3hQ8xJ2wNvyUarzCaiwX+HP0ePzYlLMBgI1yGvoaEi/Zpv9pKb+ItL7uv6cw8+JawjSwd0F0vg5stnAdHvTq1eN9CM3CCQuPs3QB/HrX2qMEmJYoJV4S/pCzABdZ4Fz+IhkTHoW34lUfRx4nR7ETTAN30MhT5jnVi07l1cIIyGwhqfH59EaRI3B3oKBHFA6VbG23wAT70vleRp6dCZMrWGc+GReEMovyoKLqGMMTwRJIQ+J29xH/RD3CYcOScBx3ck8QacLwBxth7L+7zqFalXILODFzuBvPw3WhwtBiLvGEGBjnFhdhssy3YYL2P43friDlRPWxoJK6rnk7aR35LeCCUIldX/THZRHmEojDdnRhroG9BvNcXj54R9Hn8zV+9jCKPu34fedqnIytIw0KveRInO914ZGrrGMzydHQLWmojF21ky4vfjWSCXlTkfiyxyNz4DTpsyJWnN/obYn93EK50cZRJFEUr63+ICwyLVuNdbynC4+aETKKfRz+Mcoluj673nfjd+H8m2AEPSBmtNgAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNi0wMy0wMVQyMjoxNzoxOCswMDowMC520OwAAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjYtMDMtMDFUMjI6MTc6MTgrMDA6MDBfK2hQAAAAAElFTkSuQmCC" style="border-radius:4px;" />
+    <span class="logo-text">OrchestrateOS</span>
+    <span class="beta-badge">BETA</span>
+  </div>
+  <div class="triage-pill"><span>Triage</span></div>
+  <div class="rp-search"><span style="color:var(--text-muted);font-size:12px;">&#128269;</span><input placeholder="Search contracts..." /></div>
+  <span class="spacer"></span>
+  <button class="header-btn">Upload</button>
+  <button class="header-btn">Export</button>
+</div>
+
+<!-- APP LAYOUT -->
+<div class="app-layout">
+  <div class="sidebar">
+    <div class="sb-logo">
+      <svg width="160" height="44" viewBox="0 0 160 44"><defs><linearGradient id="slg1" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#1565c0"/><stop offset="40%" stop-color="#00acc1"/><stop offset="75%" stop-color="#4db6ac"/><stop offset="100%" stop-color="#aed581"/></linearGradient><linearGradient id="slg2" x1="0" y1="0.8" x2="0.8" y2="0"><stop offset="0%" stop-color="#0d47a1"/><stop offset="50%" stop-color="#0097a7"/><stop offset="100%" stop-color="#26a69a"/></linearGradient><linearGradient id="slg3" x1="0.2" y1="1" x2="0.8" y2="0"><stop offset="0%" stop-color="#0d47a1"/><stop offset="40%" stop-color="#00838f"/><stop offset="100%" stop-color="#1b5e20"/></linearGradient></defs><g transform="translate(2,2) scale(0.5)"><polygon points="40,0 72,18 72,58 40,40" fill="url(#slg1)"/><polygon points="40,0 8,18 8,58 40,40" fill="url(#slg2)"/><polygon points="8,58 40,76 72,58 40,40" fill="url(#slg3)"/><polygon points="40,16 56,25 56,43 40,52 40,40 52,33 52,25 40,18" fill="#12161f"/><polygon points="40,16 24,25 24,43 40,52 40,40 28,33 28,25 40,18" fill="#12161f"/><line x1="40" y1="16" x2="56" y2="25" stroke="#29b6f6" stroke-width="1" opacity="0.5"/><line x1="40" y1="16" x2="24" y2="25" stroke="#29b6f6" stroke-width="1" opacity="0.5"/><line x1="24" y1="43" x2="40" y2="52" stroke="#0d47a1" stroke-width="1" opacity="0.4"/><line x1="56" y1="43" x2="40" y2="52" stroke="#0d47a1" stroke-width="1" opacity="0.4"/></g><text x="42" y="18" fill="#e8eaed" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="13" font-weight="700" letter-spacing="-0.3">Orchestrate OS</text><text x="42" y="34" fill="#26a69a" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">BETA</text></svg>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Progress</div>
+    <div class="sb-progress-row"><span class="sb-prog-count todo">16</span><span class="sb-prog-label">To Do</span></div>
+    <div class="sb-progress-row"><span class="sb-prog-count review">40</span><span class="sb-prog-label">Review</span></div>
+    <div class="sb-progress-row"><span class="sb-prog-count done">7</span><span class="sb-prog-label">Done</span></div>
+    <div class="sb-mini-bar"><div class="sb-bar-done" style="width:11%"></div><div class="sb-bar-review" style="width:63%"></div><div class="sb-bar-todo" style="width:26%"></div></div>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Navigation</div>
+    <div class="sb-nav-item active"><span class="sb-nav-icon">&#9776;</span> Triage</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#128269;</span> Record Inspector</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#9638;</span> Org Overview</div>
+    <div class="sb-divider admin-section"></div>
+    <div class="sb-section-label admin-section">Admin</div>
+    <div class="sb-nav-item admin-section"><span class="sb-nav-icon">&#9881;</span> Admin Dashboard</div>
+    <div class="sb-bottom">
+      <div class="sb-divider" style="margin:0 0 8px;"></div>
+      <div class="sb-role-row"><button class="sb-rpill active">Analyst</button><button class="sb-rpill">Verifier</button><button class="sb-rpill">Admin</button></div>
+      <div class="sb-toggle-row"><span>Dark Mode</span><div class="toggle on"></div></div>
+      <div class="sb-user"><div class="sb-avatar">ZH</div><div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">Zachary Holwerda</div><div style="font-size:10px;color:var(--text-muted);">Sandbox</div></div><span class="sandbox-badge" style="margin-left:auto;">SANDBOX</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content" id="mainContent"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- OTTO CHAT FAB -->
+<div class="otto-fab" id="ottoFab" onclick="toggleOttoChat()">
+  <svg width="26" height="26" viewBox="0 0 96 96" fill="none"><path d="M48 31.35C47.79 35.54 46.09 39.68 42.88 42.88C39.68 46.09 35.54 47.79 31.35 48C35.54 48.21 39.68 49.91 42.88 53.12C46.09 56.32 47.8 60.46 48 64.65C48.21 60.46 49.91 56.32 53.12 53.12C56.32 49.91 60.46 48.21 64.65 48C60.46 47.79 56.32 46.09 53.12 42.88C49.91 39.68 48.21 35.54 48 31.35Z" fill="#fff"/></svg>
+</div>
+
+<!-- OTTO CHAT PANEL -->
+<div class="otto-chat-panel" id="ottoPanel">
+  <div class="kc-header">
+    <svg width="22" height="22" viewBox="0 0 96 96" fill="none"><path d="M48 31.35C47.79 35.54 46.09 39.68 42.88 42.88C39.68 46.09 35.54 47.79 31.35 48C35.54 48.21 39.68 49.91 42.88 53.12C46.09 56.32 47.8 60.46 48 64.65C48.21 60.46 49.91 56.32 53.12 53.12C56.32 49.91 60.46 48.21 64.65 48C60.46 47.79 56.32 46.09 53.12 42.88C49.91 39.68 48.21 35.54 48 31.35Z" fill="url(#kch0)"/><defs><linearGradient id="kch0" x1="40" y1="40" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#00C2FF"/><stop offset="1" stop-color="#3CB88B"/></linearGradient></defs></svg>
+    <div class="kc-header-text"><div class="kc-title">Contract Operations Coach</div><div class="kc-sub">Powered by Otto</div></div>
+    <span class="kc-close" onclick="toggleOttoChat()">&times;</span>
+  </div>
+  <div class="kc-body">
+    <div class="kc-msg system">Otto is analyzing your batch of 63 contracts...</div>
+    <div class="kc-msg otto">I've scanned the Ostereo batch. Here's a quick summary:<br><br>&bull; 58 of 63 contracts have pre-flight issues<br>&bull; 4 contracts have blockers that need resolution before they can advance<br>&bull; The Accounts and Schedule sections have the most failures (12 and 15 respectively)<br>&bull; V2 Add Ons section is fully clean &mdash; all 63 pass</div>
+    <div class="kc-msg otto">I'd recommend starting with <b>Ostereo_Brawny_Media</b> &mdash; it has the worst health score (22) and 3 blockers.</div>
+    <div class="kc-msg user">What are the blockers on Brawny Media?</div>
+    <div class="kc-msg otto">Brawny Media has 3 blockers:<br><br>1. <b>Unknown Column in Accounts:</b> "Revenue Share %" not mapped to any Salesforce field<br>2. <b>OCR corruption in Schedule:</b> garbled text in rows 14-18 (encoding issue)<br>3. <b>Missing Doc Type:</b> contract_subtype could not be determined &mdash; affecting RecordTypeId mapping<br><br>Want me to open the Record Inspector for this contract?<br><span class="kc-field-ref">&#128279; Open Record Inspector &rarr;</span></div>
+  </div>
+  <div class="kc-footer">
+    <div class="kc-input-row"><input class="kc-input" placeholder="Ask Otto about this batch..." /><button class="kc-send">&#9654;</button></div>
+    <div class="kc-powered">Powered by Otto &middot; Contract Operations Coach</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA — 63 Real Ostereo Contracts from Production DB
+// ═══════════════════════════════════════════════════════════════
+// Pre-assign lifecycles to match spec: 15 discovery, 28 standardize, 14 verify, 6 release
+// Contracts are sorted by health ascending; distribute accordingly
+const LC_DISTRIBUTION = { discovery: 15, standardize: 28, verify: 14, release: 6 };
+const LC_ORDER = ["discovery", "standardize", "verify", "release"];
+function assignLifecycles(rawArr) {
+  const sorted = [...rawArr].sort((a,b) => a.health - b.health);
+  const map = {};
+  let idx = 0;
+  for (const stage of LC_ORDER) {
+    const count = LC_DISTRIBUTION[stage];
+    for (let i = 0; i < count && idx < sorted.length; i++, idx++) {
+      map[sorted[idx].name] = stage;
+    }
+  }
+  return map;
+}
+function assignLifecycle(health) { return "standardize"; /* placeholder, overridden below */ }
+function healthToBand(h) {
+  if (h < 25) return "critical";
+  if (h < 45) return "at-risk";
+  if (h < 65) return "review";
+  return "healthy";
+}
+function genSections(health) {
+  if (health >= 60) return ["pass","pass","pass","pass","pass"];
+  if (health >= 50) return ["pass","review","pass","pass","pass"];
+  if (health >= 40) return ["review","pass","review","pass","pass"];
+  if (health >= 30) return ["review","review","fail","review","pass"];
+  if (health >= 15) return ["fail","review","fail","review","pass"];
+  return ["fail","fail","fail","review","pass"];
+}
+function issuesFromHealth(h) { return Math.max(1, Math.round((100 - h) * 0.7)); }
+function blockersFromHealth(h) { return h < 20 ? 2 : (h < 35 ? 1 : 0); }
+
+const RAW = [
+  // Daniele Leoni / Purple Lions (10)
+  { name: "Daniele_Leoni_-_Chasing_Pavements_-_Producer_Agreement_SIGNED_copy.pdf", cp: "Daniele Leoni / Purple Lions", health: 33 },
+  { name: "Daniele_Leoni_(Purple_Lions)_-_Love_Again_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Daniele_Leoni_(Purple_Lions)_-_Save_Your_Tears_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Daniele_Leoni_-_Clocks_-_Producer_Agreement_SIGNED_FINAL.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Purple_Lions_-_Wonderful_Christmastime_-_Producer_Agreement.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Daniele_Leoni_-_Light_Switch_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Daniele_Leoni_-_Rockin_Around_The_Christmas_Tree_-_Producer_Agreement.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Daniele_Leoni_-_Rockin_Around_The_Christmas_Tree_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Daniele Leoni / Purple Lions", health: 35 },
+  { name: "Like_a_Prayer_(Daniele_Leoni)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Daniele Leoni / Purple Lions", health: 37 },
+  { name: "Harvest_Moon_Landslide_(Purple_Lions)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Daniele Leoni / Purple Lions", health: 37 },
+  // Michael Bibo / Dreams On Ivories (4)
+  { name: "Michael_Bibo_(Dreams_On_Ivories)_-_Hallelujah_-_Producer_Agreement_countersigned.pdf", cp: "Michael Bibo / Dreams On Ivories", health: 44 },
+  { name: "Michael_Bibo_(Dreams_On_Ivories)_-_All_of_Me_-_Producer_Agreement_signed_final.pdf", cp: "Michael Bibo / Dreams On Ivories", health: 58 },
+  { name: "See_You_Again_Wildflower_Iris_(Dreams_On_Ivories)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Michael Bibo / Dreams On Ivories", health: 59 },
+  { name: "Congratulations_Pink_Pony_Club_(Dreams_On_Ivories)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Michael Bibo / Dreams On Ivories", health: 59 },
+  // Marcus Chow (4)
+  { name: "Marcus_Chow_-_Another_Day_in_Paradise_-_Producer_Agreement_-_Countersigned.pdf", cp: "Marcus Chow", health: 59 },
+  { name: "Pretty_Little_Baby_(Marcus_Chow)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Marcus Chow", health: 60 },
+  { name: "Sofia_(Marcus_Chow)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Marcus Chow", health: 60 },
+  { name: "Undressed_(Marcus_Chow)_-_Producer_Agreement_FINAL_SIGNED.pdf", cp: "Marcus Chow", health: 60 },
+  // The Theorist (3)
+  { name: "The_Theorist_-_Increased_Payout_Threshold_Request.pdf", cp: "The Theorist", health: 5 },
+  { name: "The_Theorist_two_Singles_Agreement_-_FINAL_SIGNED.pdf", cp: "The Theorist", health: 38 },
+  { name: "The_Theorist_-_Bad_Habits_-_Producer_Agreement_COUNTERSIGNED.pdf", cp: "The Theorist", health: 41 },
+  // Slowhands (3)
+  { name: "Slowhands_Agreement_(Signed_Ryan___Max).pdf", cp: "Slowhands", health: 30 },
+  { name: "Slowhands_Distribution_Agreement_(Max_-_Final_Signed_with_Schedule).pdf", cp: "Slowhands", health: 46 },
+  { name: "Slowhands_Distribution_Agreement_(Ryan_-_Final_Signed_with_Schedule).pdf", cp: "Slowhands", health: 46 },
+  // Sonic Enterprise (2)
+  { name: "Sonic_Enterprise_x_Ostereo_Distribution_Agreement_(SIGNATURE).pdf", cp: "Sonic Enterprise", health: 0 },
+  { name: "Sonic_Enterprisee_x_Ostereo_(Distribution_Agreement)_FINAL_SIGNED.pdf", cp: "Sonic Enterprise", health: 0 },
+  // Brawny Media (2)
+  { name: "Termination_Notice_-_Brawny_Media.pdf", cp: "Brawny Media", health: 16 },
+  { name: "Brawny_Media_X_Ostereo_Digital_Distribution_Agreement_[COUNTERSIGNED].pdf", cp: "Brawny Media", health: 61 },
+  // Distroplay (2)
+  { name: "Distroplay_Variation_(signed)_copy.pdf", cp: "Distroplay", health: 17 },
+  { name: "Distroplay_X_Ostereo_Label_Services_and_Distribution_Agreement_(signed).pdf", cp: "Distroplay", health: 50 },
+  // Jaguar Music (2)
+  { name: "Termination_Notice_-_Jaguar_Music.pdf", cp: "Jaguar Music", health: 12 },
+  { name: "Ostereo_Distribution_Agreement_-_Jaguar_Music_(FINAL_SIGNED).pdf", cp: "Jaguar Music", health: 55 },
+  // Sting Tune (2)
+  { name: "Termination_Notice_-_Sting_Tune.pdf", cp: "Sting Tune", health: 9 },
+  { name: "Ostereo_Distribution_Agreement_-_Sting_Tune_(FINAL_SIGNED).pdf", cp: "Sting Tune", health: 58 },
+  // Ravel Music (2)
+  { name: "Ravel_Music_-_Termination_Notice.pdf", cp: "Ravel Music", health: 6 },
+  { name: "Ostereo_Agreement_(Ravel_Music_-_Signed).pdf", cp: "Ravel Music", health: 61 },
+  // Single-contract counterparties (27)
+  { name: "Ostereo_Distribution_Agreement_-_BrandRoute_Media_(FINAL_SIGNED).pdf", cp: "BrandRoute Media", health: 0 },
+  { name: "Ostereo_Distribution_Agreement_-_Mayur_Music_(FINAL_SIGNED).pdf", cp: "Mayur Music", health: 0 },
+  { name: "Xmart_x_Ostereo_Distribution_Agreement_(FINAL_SIGNED).pdf", cp: "Xmart", health: 16 },
+  { name: "(sample_agr)_Break_My_Heart_Again_Exclusive_License_Agreement_by_Justin_Hayward.pdf", cp: "Justin Hayward", health: 30 },
+  { name: "Shania_Stanley_-_Distribution_Agreement_(FINAL_SIGNED).pdf", cp: "Shania Stanley", health: 33 },
+  { name: "Good_Luck,_Babe!_Kiss_Me_(Pumpkin_Guitar)_-_ARTIST_FINAL_SIGNED.pdf", cp: "Pumpkin Guitar", health: 37 },
+  { name: "Javi_Lobe_-_Where_Is_My_Mind_-_Producer_Agreement_-_FINAL_SIGNED.pdf", cp: "Javi Lobe", health: 40 },
+  { name: "groan_room_x_Ostereo_Label_Services_and_Distribution_Agreement.pdf", cp: "Groan Room", health: 44 },
+  { name: "Ostereo_Distribution_Agreement_-_Krishna_Creations_SIGNED.pdf", cp: "Krishna Creations", health: 46 },
+  { name: "Ostereo_Distribution_Agreement_-_SK_Entertainment_(FINAL_SIGNED).pdf", cp: "SK Entertainment", health: 48 },
+  { name: "Ostereo_Distribution_Agreement_-_Nick_Kirkby_(FINAL_SIGNED).pdf", cp: "Nick Kirkby", health: 49 },
+  { name: "SIGNED_Jalraj_X_Label_Services_and_Distribution_Agreement.pdf", cp: "Jalraj", health: 49 },
+  { name: "Ostereo_Distribution_Agreement_-_Aryan_GFX_FINAL_SIGNED.pdf", cp: "Aryan GFX", health: 49 },
+  { name: "Sardhana_Music_-_Label_Services_and_Distribution_Agreements.pdf", cp: "Sardhana Music", health: 49 },
+  { name: "Issa_Records_x_Ostereo_Distribution_Agreement.pdf", cp: "Issa Records", health: 50 },
+  { name: "The_Music_Digital_X_Ostereo_Digital_Distribution_Agreement_[COUNTERSIGNED].pdf", cp: "The Music Digital", health: 51 },
+  { name: "Bainsla_Music_X_Ostereo_Distribution_Agreement_[FINAL_SIGNED].pdf", cp: "Bainsla Music", health: 51 },
+  { name: "Ostereo_Distribution_Agreement_-_1888_Records_FINAL_SIGNED.pdf", cp: "1888 Records", health: 52 },
+  { name: "Ostereo_Distribution_Agreement_-_Lona_Network_FINAL_SIGNED.pdf", cp: "Lona Network", health: 52 },
+  { name: "Ostereo_Distribution_Agreement_-_Deep_House_Natural_FINAL_SIGNED.pdf", cp: "Deep House Natural", health: 55 },
+  { name: "PT_1-part-4.pdf", cp: "PT (unknown)", health: 55 },
+  { name: "Ostereo_Distribution_Agreement_-_Aakriti_Digital_(FINAL_SIGNED).pdf", cp: "Aakriti Digital", health: 56 },
+  { name: "KS_ARMY_COUNTERSIGNED.pdf", cp: "KS Army", health: 57 },
+  { name: "Orko-Multimedia-Ltd_-X-Ostereo-Distribution-Agreement_Final_CounterSign.pdf", cp: "Orko Multimedia", health: 57 },
+  { name: "SIGNED_NTMedia_Studio_X_Ostereo_Distribution_Agreement_copy.pdf", cp: "NTMedia Studio", health: 57 },
+  { name: "SP_Brothers_X_Ostereo_Distribution_Agreement_-_Signed.pdf", cp: "SP Brothers", health: 57 },
+  { name: "Ostereo_Distribution_Agreement_-_Amurco_Music_Limited_(FINAL_SIGNED).pdf", cp: "Amurco Music", health: 61 },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// CONTRACT NAMING CONVENTION — mirrors server/contract_namer.py
+// Pattern: {LegalEntity}_{Counterparty}_{RecordTypeAlias}_{StatusTag}.pdf
+// ═══════════════════════════════════════════════════════════════
+const KNOWN_COUNTERPARTIES = new Set([
+  "Daniele Leoni", "Purple Lions", "Michael Bibo", "Dreams On Ivories",
+  "Marcus Chow", "The Theorist", "Slowhands", "Sonic Enterprise",
+  "Brawny Media", "Distroplay", "Jaguar Music", "Sting Tune",
+  "Ravel Music", "BrandRoute Media", "Mayur Music", "Xmart",
+  "Jalraj", "Krishna Creations", "SK Entertainment", "Nick Kirkby",
+  "Aryan GFX", "Sardhana Music", "Issa Records", "The Music Digital",
+  "Bainsla Music", "1888 Records", "Lona Network", "Deep House Natural",
+  "Aakriti Digital", "KS Army", "Orko Multimedia", "NTMedia Studio",
+  "SP Brothers", "Amurco Music"
+]);
+// These counterparties are "new" — not yet in Salesforce address book
+const NEW_COUNTERPARTIES = new Set([
+  "Justin Hayward", "Shania Stanley", "Pumpkin Guitar", "Javi Lobe",
+  "Groan Room", "PT (unknown)"
+]);
+
+function inferRecordType(origName) {
+  const lower = origName.toLowerCase();
+  if (lower.includes('termination')) return 'Term';
+  if (lower.includes('producer_agreement') || lower.includes('producer agreement')) return 'Prod';
+  if (lower.includes('label_services') || lower.includes('label services')) return 'LblSvc';
+  if (lower.includes('exclusive_license') || lower.includes('exclusive license')) return 'ExcLic';
+  if (lower.includes('threshold') || lower.includes('variation')) return 'Amend';
+  return 'Distro';
+}
+function inferStatus(origName) {
+  const lower = origName.toLowerCase();
+  if (lower.includes('countersign') || lower.includes('counter_sign')) return 'COUNTERSIGNED';
+  if (lower.includes('final_signed') || lower.includes('final signed')) return 'SIGNED';
+  if (lower.includes('signed') || lower.includes('_signed')) return 'SIGNED';
+  return '';
+}
+function sanitizeSegment(s) {
+  return s.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+}
+function standardizeName(origName, counterparty) {
+  const cpName = counterparty.split(' / ')[0]; // Use first name before slash
+  const alias = inferRecordType(origName);
+  const status = inferStatus(origName);
+  const parts = ['Ostereo', sanitizeSegment(cpName), alias];
+  if (status) parts.push(status);
+  return parts.join('_') + '.pdf';
+}
+
+// Build full CONTRACTS array from RAW
+const LC_MAP = assignLifecycles(RAW);
+const CONTRACTS = RAW.map((r, i) => {
+  const isNewCp = NEW_COUNTERPARTIES.has(r.cp.split(' / ')[0]);
+  return {
+    id: i + 1,
+    name: r.name,
+    displayName: standardizeName(r.name, r.cp),
+    counterparty: r.cp,
+    lifecycle: LC_MAP[r.name] || "standardize",
+    issues: issuesFromHealth(r.health),
+    blockers: blockersFromHealth(r.health),
+    health: r.health,
+    band: healthToBand(r.health),
+    sections: genSections(r.health),
+    newCp: isNewCp,
+    status: r.health >= 60 ? "system_pass" : "needs_review",
+  };
+});
+
+const SECTION_NAMES = ["Accounts", "Opportunities", "Schedule", "Financials", "V2 Add Ons"];
+
+const LIFECYCLE_STAGES = [
+  { key: "discovery", label: "Discovery", count: 15, pct: "24%" },
+  { key: "standardize", label: "Standardize", count: 28, pct: "44%" },
+  { key: "verify", label: "Verify", count: 14, pct: "22%" },
+  { key: "release", label: "Release", count: 6, pct: "10%" },
+];
+
+const READINESS_DATA = [
+  { key: "accounts", name: "Accounts", status: "12 fail", statusClass: "fail", detail: "43/55", barPct: 78, barColor: "var(--red)" },
+  { key: "opportunities", name: "Opportunities", status: "8 review", statusClass: "review", detail: "51/59", barPct: 86, barColor: "var(--amber)" },
+  { key: "schedule", name: "Schedule", status: "15 fail", statusClass: "fail", detail: "38/53", barPct: 72, barColor: "var(--red)" },
+  { key: "financials", name: "Financials", status: "3 review", statusClass: "review", detail: "58/61", barPct: 95, barColor: "var(--amber)" },
+  { key: "v2_add_ons", name: "V2 Add Ons", status: "all pass", statusClass: "pass", detail: "63/63", barPct: 100, barColor: "var(--green)" },
+];
+
+const FILTER_CHIPS = [
+  { key: "all", label: "All", count: 63 },
+  { key: "accounts", label: "Accounts", count: 55 },
+  { key: "catalog", label: "Catalog", count: 48 },
+  { key: "contacts", label: "Contacts", count: 41 },
+  { key: "financials", label: "Financials", count: 61 },
+  { key: "opportunities", label: "Opportunities", count: 59 },
+  { key: "schedule", label: "Schedule", count: 53 },
+  { key: "schedule_catalog", label: "Schedule Catalog", count: 45 },
+  { key: "v2_add_ons", label: "V2 Add Ons", count: 63 },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD GROUPS — Built from real counterparty data
+// ═══════════════════════════════════════════════════════════════
+const MULTI_CONTRACT_CPS = [
+  "Sonic Enterprise", "The Theorist", "Distroplay", "Jaguar Music",
+  "Sting Tune", "Ravel Music", "Daniele Leoni / Purple Lions",
+  "Brawny Media", "Slowhands", "Michael Bibo / Dreams On Ivories", "Marcus Chow"
+];
+
+function buildGroups() {
+  const groups = [];
+  // Multi-contract groups
+  MULTI_CONTRACT_CPS.forEach(cp => {
+    const contracts = CONTRACTS.filter(c => c.counterparty === cp);
+    if (contracts.length === 0) return;
+    const avgH = Math.round(contracts.reduce((s,c) => s + c.health, 0) / contracts.length);
+    const totalIssues = contracts.reduce((s,c) => s + c.issues, 0);
+    const totalBlockers = contracts.reduce((s,c) => s + c.blockers, 0);
+    const worstHealth = Math.min(...contracts.map(c => c.health));
+    const worstBandRaw = healthToBand(worstHealth);
+    const worst = worstBandRaw === 'at-risk' ? 'At Risk' : worstBandRaw.charAt(0).toUpperCase() + worstBandRaw.slice(1);
+    // Aggregate section dots: worst status across group per section
+    const dots = [0,1,2,3,4].map(si => {
+      const statuses = contracts.map(c => c.sections[si]);
+      if (statuses.includes('fail')) return 'fail';
+      if (statuses.includes('review')) return 'review';
+      return 'pass';
+    });
+    const id = cp.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+    groups.push({ id, name: cp, counterparty: cp, avgHealth: avgH, totalIssues, blockers: totalBlockers, worst, dots });
+  });
+  // Ungrouped (single-contract counterparties)
+  const ungroupedContracts = CONTRACTS.filter(c => !MULTI_CONTRACT_CPS.includes(c.counterparty));
+  if (ungroupedContracts.length > 0) {
+    const avgH = Math.round(ungroupedContracts.reduce((s,c) => s + c.health, 0) / ungroupedContracts.length);
+    const totalIssues = ungroupedContracts.reduce((s,c) => s + c.issues, 0);
+    const totalBlockers = ungroupedContracts.reduce((s,c) => s + c.blockers, 0);
+    const worstHealth = Math.min(...ungroupedContracts.map(c => c.health));
+    const worstBandRaw = healthToBand(worstHealth);
+    const worst = worstBandRaw === 'at-risk' ? 'At Risk' : worstBandRaw.charAt(0).toUpperCase() + worstBandRaw.slice(1);
+    const dots = [0,1,2,3,4].map(si => {
+      const statuses = ungroupedContracts.map(c => c.sections[si]);
+      if (statuses.includes('fail')) return 'fail';
+      if (statuses.includes('review')) return 'review';
+      return 'pass';
+    });
+    groups.push({ id: "ungrouped", name: "Ungrouped", counterparty: "__ungrouped__", avgHealth: avgH, totalIssues, blockers: totalBlockers, worst, dots, isUngrouped: true });
+  }
+  // Sort worst-health-first
+  groups.sort((a,b) => a.avgHealth - b.avgHealth);
+  return groups;
+}
+
+const GROUPS = buildGroups();
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let currentView = 'default';
+let currentMode = 'dashboard';
+let activeLifecycleFilter = null;
+let activeSectionFilter = null;
+let activeChipFilter = 'all';
+// Default: first group expanded (worst health = Sonic Enterprise)
+let expandedGroups = {};
+if (GROUPS.length > 0) expandedGroups[GROUPS[0].id] = true;
+let ottoOpen = false;
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+function toggleOttoChat() { ottoOpen = !ottoOpen; document.getElementById('ottoPanel').classList.toggle('open', ottoOpen); }
+function bandLabel(b) { return b === 'at-risk' ? 'At Risk' : b.charAt(0).toUpperCase() + b.slice(1); }
+function healthColor(h) { if (h < 35) return 'var(--red)'; if (h < 50) return 'var(--amber)'; if (h < 70) return 'var(--accent-blue)'; return 'var(--green)'; }
+function dotClass(s) { if (s === 'fail') return 'fail'; if (s === 'review' || s === 'amber') return 'review'; return 'pass'; }
+function allPass(c) { return c.sections.every(s => s === 'pass'); }
+
+function getFilteredContracts() {
+  let list = [...CONTRACTS];
+  if (activeLifecycleFilter) list = list.filter(c => c.lifecycle === activeLifecycleFilter);
+  return list;
+}
+
+function getGroupContracts(g, contracts) {
+  if (g.isUngrouped) {
+    return contracts.filter(c => !MULTI_CONTRACT_CPS.includes(c.counterparty)).sort((a,b) => a.health - b.health);
+  }
+  return contracts.filter(c => c.counterparty === g.counterparty).sort((a,b) => a.health - b.health);
+}
+
+function resetExpandedGroups(firstExpanded) {
+  expandedGroups = {};
+  if (firstExpanded && GROUPS.length > 0) expandedGroups[GROUPS[0].id] = true;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VIEW SWITCHING
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.view-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    switchView(b.dataset.view);
+  });
+});
+
+function switchView(view) {
+  currentView = view;
+  switch(view) {
+    case 'default':
+      currentMode = 'dashboard'; activeLifecycleFilter = null; activeSectionFilter = null; activeChipFilter = 'all';
+      resetExpandedGroups(true);
+      if (ottoOpen) { ottoOpen = false; document.getElementById('ottoPanel').classList.remove('open'); }
+      break;
+    case 'workqueue':
+      currentMode = 'workqueue'; activeLifecycleFilter = null; activeSectionFilter = null; activeChipFilter = 'all';
+      resetExpandedGroups(false);
+      if (ottoOpen) { ottoOpen = false; document.getElementById('ottoPanel').classList.remove('open'); }
+      break;
+    case 'filtered':
+      currentMode = 'dashboard'; activeLifecycleFilter = 'standardize'; activeSectionFilter = null; activeChipFilter = 'all';
+      resetExpandedGroups(true);
+      if (ottoOpen) { ottoOpen = false; document.getElementById('ottoPanel').classList.remove('open'); }
+      break;
+    case 'section':
+      currentMode = 'dashboard'; activeLifecycleFilter = null; activeSectionFilter = 'accounts'; activeChipFilter = 'accounts';
+      resetExpandedGroups(true);
+      if (ottoOpen) { ottoOpen = false; document.getElementById('ottoPanel').classList.remove('open'); }
+      break;
+    case 'otto':
+      currentMode = 'dashboard'; activeLifecycleFilter = null; activeSectionFilter = null; activeChipFilter = 'all';
+      resetExpandedGroups(true);
+      ottoOpen = true; document.getElementById('ottoPanel').classList.add('open');
+      break;
+  }
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+function render() {
+  const mc = document.getElementById('mainContent');
+  let html = '';
+
+  // LIFECYCLE RAIL
+  html += '<div class="lc-rail">';
+  LIFECYCLE_STAGES.forEach((s, i) => {
+    const active = activeLifecycleFilter === s.key ? ' active' : '';
+    html += `<div class="lc-stage${active}" onclick="toggleLifecycle('${s.key}')">
+      <div class="lc-label">${s.label}</div>
+      <div class="lc-count">${s.count}</div>
+      <div class="lc-pct">${s.pct}</div>
+    </div>`;
+    if (i < LIFECYCLE_STAGES.length - 1) html += '<div class="lc-arrow">&#8594;</div>';
+  });
+  html += '</div>';
+
+  // LANE HEALTH
+  html += '<div class="lane-health">';
+  html += `<div class="lane-card">
+    <div class="lh-title">Pre-Flight Issues</div>
+    <div class="lh-total">186</div>
+    <div class="lh-stat"><span class="lh-label">Contracts Affected</span><span class="lh-value">58/63</span></div>
+    <div class="lh-stat"><span class="lh-label">Unknown Columns</span><span class="lh-value">42</span></div>
+    <div class="lh-stat"><span class="lh-label">OCR / Mojibake</span><span class="lh-value">18</span></div>
+    <div class="lh-stat"><span class="lh-label">Low Confidence</span><span class="lh-value">89</span></div>
+    <div class="lh-stat"><span class="lh-label">Doc Type</span><span class="lh-value">37</span></div>
+  </div>`;
+  html += `<div class="lane-card">
+    <div class="lh-title">Activity</div>
+    <div class="lh-stat"><span class="lh-label">Draft</span><span class="lh-value">12</span></div>
+    <div class="lh-stat"><span class="lh-label">Submitted</span><span class="lh-value">8</span></div>
+    <div class="lh-stat"><span class="lh-label">At Verifier</span><span class="lh-value">15</span></div>
+    <div class="lh-stat"><span class="lh-label">Admin</span><span class="lh-value">3</span></div>
+    <div class="lh-stat"><span class="lh-label">RFIs</span><span class="lh-value">5</span></div>
+    <div class="lh-stat"><span class="lh-label">Promoted</span><span class="lh-value">20</span></div>
+  </div>`;
+  html += '</div>';
+
+  // READINESS CARDS
+  html += '<div class="readiness-cards">';
+  READINESS_DATA.forEach(r => {
+    const active = activeSectionFilter === r.key ? ' active' : '';
+    html += `<div class="readiness-card${active}" onclick="toggleReadiness('${r.key}')">
+      <div class="rc-name">${r.name}</div>
+      <div class="rc-status ${r.statusClass}">${r.status}</div>
+      <div class="rc-detail">${r.detail}</div>
+      <div class="health-bar"><div class="bar-fill" style="width:${r.barPct}%;background:${r.barColor};"></div></div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // MODE TOGGLE + FILTER CHIPS
+  html += '<div class="table-controls">';
+  html += `<div class="triage-mode-toggle">
+    <button class="triage-mode-btn${currentMode==='dashboard'?' active':''}" onclick="setMode('dashboard')">Dashboard</button>
+    <button class="triage-mode-btn${currentMode==='workqueue'?' active':''}" onclick="setMode('workqueue')">Work Queue</button>
+  </div>`;
+  html += '<div class="filter-chips">';
+  FILTER_CHIPS.forEach(f => {
+    const active = activeChipFilter === f.key ? ' active' : '';
+    html += `<button class="triage-filter-chip${active}" onclick="toggleChip('${f.key}')">${f.label}<span class="chip-count">${f.count}</span></button>`;
+  });
+  html += '</div></div>';
+
+  // ACTIVE FILTER INDICATOR
+  if (activeLifecycleFilter) {
+    const stage = LIFECYCLE_STAGES.find(s => s.key === activeLifecycleFilter);
+    html += `<div class="active-filter-bar">&#9662; Filtered by lifecycle: <b>${stage.label}</b> (${stage.count} contracts)<span class="clear-filter" onclick="toggleLifecycle('${activeLifecycleFilter}')">Clear filter &times;</span></div>`;
+  }
+  if (activeSectionFilter) {
+    const sec = READINESS_DATA.find(r => r.key === activeSectionFilter);
+    html += `<div class="active-filter-bar">&#9662; Section focus: <b>${sec.name}</b><span class="clear-filter" onclick="toggleReadiness('${activeSectionFilter}')">Clear filter &times;</span></div>`;
+  }
+
+  // TABLE CONTENT
+  const filtered = getFilteredContracts();
+
+  if (currentMode === 'dashboard') {
+    html += renderDashboard(filtered);
+  } else {
+    html += renderWorkQueue(filtered);
+  }
+
+  mc.innerHTML = html;
+}
+
+function renderDashboard(contracts) {
+  let html = '<div class="dashboard-groups">';
+  GROUPS.forEach(g => {
+    const groupContracts = getGroupContracts(g, contracts);
+    if (groupContracts.length === 0) return;
+    const expanded = !!expandedGroups[g.id];
+    const hFill = g.avgHealth;
+    const hColor = healthColor(hFill);
+    const worstBand = g.worst.toLowerCase().replace(' ', '-');
+
+    html += `<div class="dashboard-group">`;
+    html += `<div class="group-header${expanded ? ' expanded' : ''}" onclick="toggleGroup('${g.id}')">
+      <span class="gh-chevron">&#9654;</span>
+      <span class="gh-name">${g.name}</span>
+      <span class="gh-count">${groupContracts.length} contracts</span>
+      <span class="gh-stats">
+        <span>Issues: ${g.totalIssues}</span>
+        <span>Blockers: ${g.blockers}</span>
+      </span>
+      <span class="gh-health">
+        <span class="health-band ${worstBand === 'at-risk' ? 'at-risk' : worstBand}">${g.worst}</span>
+        <div class="gh-health-bar"><div class="gh-health-fill" style="width:${hFill}%;background:${hColor};"></div></div>
+        <span>${hFill}%</span>
+      </span>
+      <span class="section-dots">${g.dots.map(d => `<span class="section-dot ${dotClass(d)}"></span>`).join('')}</span>
+    </div>`;
+
+    html += `<div class="group-contracts${expanded ? ' visible' : ''}">`;
+    html += `<div class="contract-row-header"><span>Contract</span><span>Issues</span><span>Severity</span><span>Sections</span><span>Health</span><span></span></div>`;
+    groupContracts.forEach(c => {
+      const shortName = c.displayName.replace(/\.pdf$/i, '').replace(/_/g, ' ');
+      const newBadge = c.newCp ? '<span style="display:inline-block;font-size:9px;font-weight:700;background:rgba(0,145,234,0.15);color:var(--accent-blue);padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:middle;">NEW</span>' : '';
+      html += `<div class="contract-row">
+        <span class="cr-name" title="${c.displayName}">${shortName}${newBadge}${allPass(c) ? '<span style="display:inline-block;font-size:9px;font-weight:700;background:rgba(76,175,80,0.15);color:var(--green);padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:middle;">READY</span>' : ''}</span>
+        <span class="cr-issues">${c.issues}${c.blockers > 0 ? ' <span style="color:var(--red);font-size:10px;">(' + c.blockers + ' blk)</span>' : ''}</span>
+        <span class="cr-severity ${c.band === 'at-risk' ? 'at-risk' : c.band}">${bandLabel(c.band)}</span>
+        <span class="health-dots">${c.sections.map(s => `<span class="section-dot ${dotClass(s)}"></span>`).join('')}</span>
+        <span class="cr-health">${c.health}%</span>
+        <span class="cr-open" onclick="showToast('Opening record inspector...')">Open &rarr;</span>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderWorkQueue(contracts) {
+  const sorted = [...contracts].sort((a,b) => a.health - b.health);
+  let html = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Showing ${sorted.length} of 63 contracts</div>`;
+  html += '<table class="wq-table"><thead><tr><th>#</th><th>Contract</th><th>Counterparty</th><th>Issues</th><th>Sections</th><th>Health</th></tr></thead><tbody>';
+  sorted.forEach((c, i) => {
+    const shortName = c.displayName.replace(/\.pdf$/i, '').replace(/_/g, ' ');
+    const newBadge = c.newCp ? '<span style="display:inline-block;font-size:9px;font-weight:700;background:rgba(0,145,234,0.15);color:var(--accent-blue);padding:1px 6px;border-radius:3px;margin-left:4px;vertical-align:middle;">NEW</span>' : '';
+    html += `<tr class="wq-row" onclick="showToast('Opening record inspector...')">
+      <td class="wq-rank">${i+1}</td>
+      <td class="wq-name" title="${c.displayName}">${shortName}${newBadge}${allPass(c) ? '<span class="ready-badge">READY</span>' : ''}</td>
+      <td style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${c.counterparty}</td>
+      <td class="wq-issues">${c.issues}${c.blockers > 0 ? ' <span class="blk">(' + c.blockers + ' blk)</span>' : ''}</td>
+      <td><span class="health-dots">${c.sections.map(s => `<span class="section-dot ${dotClass(s)}"></span>`).join('')}</span></td>
+      <td><span class="health-band ${c.band === 'at-risk' ? 'at-risk' : c.band}">${bandLabel(c.band)} &middot; ${c.health}%</span></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTERACTION HANDLERS
+// ═══════════════════════════════════════════════════════════════
+function toggleLifecycle(stage) {
+  activeLifecycleFilter = (activeLifecycleFilter === stage) ? null : stage;
+  render();
+}
+function toggleReadiness(section) {
+  activeSectionFilter = (activeSectionFilter === section) ? null : section;
+  if (activeSectionFilter) {
+    activeChipFilter = activeSectionFilter;
+  } else {
+    activeChipFilter = 'all';
+  }
+  render();
+}
+function toggleChip(key) {
+  activeChipFilter = (activeChipFilter === key) ? 'all' : key;
+  const sectionKeys = READINESS_DATA.map(r => r.key);
+  if (sectionKeys.includes(activeChipFilter)) {
+    activeSectionFilter = activeChipFilter;
+  } else {
+    activeSectionFilter = null;
+  }
+  render();
+}
+function setMode(mode) {
+  currentMode = mode;
+  render();
+}
+function toggleGroup(groupId) {
+  expandedGroups[groupId] = !expandedGroups[groupId];
+  render();
+}
+
+// INITIAL RENDER
+render();
+</script>
+</body>
+</html>

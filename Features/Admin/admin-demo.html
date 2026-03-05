@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — OrchestrateOS</title>
+<link rel="stylesheet" href="../../demo-shell/themes/theme.base.css">
+<style>
+/* :root tokens loaded from ../../demo-shell/themes/theme.base.css */
+
+/* ── RESET & BASE ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page); color: var(--text-primary); font-size: 13px; line-height: 1.5;
+}
+::selection { background: rgba(0,145,234,0.3); }
+
+/* ── APP TOPBAR (48px, fixed) ──────────────────────────────── */
+.app-topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 48px; z-index: 1000;
+  background: var(--sidebar-bg, #0F1A2E);
+  border-bottom: 1px solid var(--sidebar-border, #233A5B);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+}
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar-logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, #26a69a 0%, #4fc3f7 40%, #7c4dff 100%);
+  border-radius: 6px; display: flex; align-items: center; justify-content: center;
+}
+.topbar-logo-icon::after {
+  content: ''; width: 11px; height: 11px;
+  border: 2px solid rgba(255,255,255,0.7);
+  border-radius: 2px; transform: rotate(45deg);
+}
+.topbar-brand { font-weight: 700; font-size: 14px; color: #EAF2FF; letter-spacing: -0.3px; }
+.topbar-beta {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  background: rgba(38,166,154,0.15); color: #26a69a;
+}
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-env-badge {
+  padding: 2px 10px; border-radius: 4px; font-size: 9px; font-weight: 600;
+  background: rgba(76, 175, 80, 0.15); color: #4caf50; text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.topbar-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: #fff;
+  background: #6a1b9a; cursor: pointer;
+}
+
+/* ── APP LAYOUT ──────────────────────────────────────────── */
+.app-layout { display: flex; min-height: calc(100vh - 48px); margin-top: 48px; }
+
+/* ── GLOBAL SIDEBAR (240px) ───────────────────────────────── */
+.nav-sidebar {
+  width: 240px; min-width: 240px; height: calc(100vh - 48px);
+  position: sticky; top: 48px;
+  background: var(--sidebar-bg, #0F1A2E); color: white;
+  flex-shrink: 0; display: flex; flex-direction: column;
+  overflow: hidden; transition: width 0.25s ease;
+}
+.nav-sidebar.collapsed { width: 72px; min-width: 72px; }
+/* nav-header removed — collapse btn is now absolutely positioned */
+.sidebar-collapse-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: transparent; border: 1px solid var(--sidebar-border, #233A5B);
+  color: var(--sidebar-text, #8EA2C8); border-radius: 6px;
+  width: 28px; height: 28px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; z-index: 1;
+}
+.sidebar-collapse-btn:hover { background: var(--sidebar-hover-bg, #1A2E4B); color: var(--sidebar-text-hover, #EAF2FF); }
+.nav-sidebar.collapsed .sidebar-collapse-btn {
+  position: static; margin: 8px auto; transform: rotate(180deg);
+}
+.nav-menu { flex: 1 1 auto; padding: 10px 0; overflow-y: auto; min-height: 0; }
+.nav-footer { flex-shrink: 0; background: var(--sidebar-bg, #0F1A2E); border-top: 1px solid var(--sidebar-border, #233A5B); }
+.nav-collapsed-logo { display: none; padding: 12px 0; text-align: center; }
+.nav-sidebar.collapsed .nav-collapsed-logo { display: block; }
+.nav-section-header {
+  font-size: 9px; font-weight: 700; color: var(--sidebar-section-header, #6B82A8);
+  text-transform: uppercase; letter-spacing: 1px; padding: 16px 20px 6px;
+}
+.nav-sidebar.collapsed .nav-section-header { opacity: 0; height: 0; padding: 0; overflow: hidden; }
+.nav-divider { height: 1px; background: var(--sidebar-border, #233A5B); margin: 8px 20px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 20px; color: var(--sidebar-text, #8EA2C8);
+  font-size: 12.5px; cursor: pointer; text-decoration: none;
+  border-left: 3px solid transparent; transition: all 0.15s;
+}
+.nav-item:hover {
+  background: var(--sidebar-hover-bg, #1A2E4B);
+  color: var(--sidebar-text-hover, #EAF2FF);
+}
+.nav-item.active {
+  background: rgba(59,130,246,0.08); color: white; border-left-color: transparent;
+  box-shadow: inset 3px 0 0 var(--accent-orange, #FF7A18);
+}
+.nav-item.active .sidebar-icon { filter: drop-shadow(0 0 4px rgba(255,122,24,0.4)); }
+/* sidebar-icon-wrap defined above with nav-sidebar rules */
+.sidebar-icon { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: all 0.2s ease; flex-shrink: 0; }
+.sidebar-icon-wrap { display: flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0; transition: all 0.2s; }
+.nav-sidebar.collapsed .sidebar-icon-wrap { margin-right: 0; }
+.nav-label { font-size: 0.85em; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.2s; }
+.nav-sidebar.collapsed .nav-label { display: none; }
+.nav-sidebar.collapsed .nav-item { padding: 10px 0; justify-content: center; border-left: none; }
+.nav-sidebar.collapsed .nav-item.active { box-shadow: inset 3px 0 0 var(--accent-orange, #FF7A18); }
+.nav-sidebar.collapsed .sidebar-icon-wrap {
+  background: rgba(255,255,255,0.06); border-radius: 12px; padding: 10px;
+}
+.nav-sidebar.collapsed #locked-role-display { display: none !important; }
+.nav-sidebar.collapsed .nav-footer { display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
+.nav-sidebar.collapsed .nav-mode-section { padding: 8px; text-align: center; }
+.nav-sidebar.collapsed .mode-toggle { flex-direction: column; gap: 4px; }
+.nav-sidebar.collapsed .mode-btn { padding: 4px 8px; font-size: 0.65em; }
+.nav-sidebar.collapsed .nav-mode-label { display: none; }
+.nav-sidebar.collapsed .dark-mode-toggle-row .dm-label { display: none; }
+.nav-sidebar.collapsed .dark-mode-toggle-row { justify-content: center; padding: 4px 0; }
+.nav-sidebar.collapsed .dm-label-text { display: none; }
+.nav-mode-section { padding: 12px 20px; border-top: 1px solid var(--sidebar-border, #233A5B); }
+.nav-mode-label { font-size: 0.65em; color: var(--sidebar-section-header, #6B82A8); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+.mode-toggle { display: flex; gap: 4px; flex-wrap: wrap; }
+.mode-btn { padding: 6px 12px; font-size: 0.75em; border: 1px solid var(--sidebar-border, #233A5B); background: transparent; color: var(--sidebar-text, #8EA2C8); border-radius: 4px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.mode-btn:hover { border-color: var(--sidebar-section-header, #6B82A8); color: var(--sidebar-text-hover, #EAF2FF); }
+.mode-btn.active { background: var(--accent-blue, #1565c0); border-color: var(--accent-blue, #1565c0); color: white; }
+.dark-mode-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-top: 1px solid var(--sidebar-border, #2d2d4a); }
+.dark-mode-toggle-row .dm-label { font-size: 0.78em; color: var(--sidebar-text, #888); display: flex; align-items: center; gap: 6px; }
+.dark-mode-switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+.dark-mode-switch input { opacity: 0; width: 0; height: 0; }
+.dark-mode-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--sidebar-border); border-radius: 11px; transition: background 0.3s; }
+.dark-mode-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: var(--sidebar-text-hover, white); border-radius: 50%; transition: transform 0.3s; }
+.dark-mode-switch input:checked + .dark-mode-slider { background: var(--accent-bright, #7DB3FF); }
+.dark-mode-switch input:checked + .dark-mode-slider::before { transform: translateX(18px); }
+.nav-section.admin-section { display: block; }
+
+/* ── ADMIN SIDEBAR (secondary, 180px) ─────────────────────── */
+.ad-sidebar {
+  width: 180px; min-width: 180px;
+  height: calc(100vh - 48px);
+  background: var(--bg-page);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 0; overflow-y: auto;
+}
+.ad-sidebar::-webkit-scrollbar { width: 4px; }
+.ad-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.ad-sidebar-header {
+  font-size: 12px; font-weight: 700; color: var(--text-primary);
+  padding: 14px 14px 8px; letter-spacing: -0.2px;
+}
+.ad-sidebar .sb-section-label { padding: 8px 14px 4px; }
+.ad-sidebar .sb-nav-item { padding: 6px 14px; font-size: 11.5px; }
+.ad-sidebar .sb-divider { margin: 6px 14px; }
+.sb-section-label {
+  font-size: 9px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 16px 4px;
+}
+.sb-nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 16px;
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  border-left: 3px solid transparent; transition: background 0.1s;
+}
+.sb-nav-item:hover { background: var(--bg-card); }
+.sb-nav-item.active {
+  color: var(--accent-blue); background: rgba(0,145,234,0.06);
+  border-left-color: var(--accent-blue); font-weight: 600;
+}
+.sb-nav-icon { width: 18px; text-align: center; font-size: 14px; }
+.sb-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+
+/* ── MAIN CONTENT ────────────────────────────────────────── */
+.main-content { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+/* ── TAB CONTENT ─────────────────────────────────────────── */
+.ad-tab-content { display: none; }
+.ad-tab-content.active { display: block; }
+
+/* ── METRIC STRIP ────────────────────────────────────────── */
+.ad-metric-strip { display: flex; gap: 12px; margin-bottom: 16px; }
+.ad-metric-card {
+  flex: 1; background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px; transition: border-color 0.15s;
+  cursor: pointer;
+}
+.ad-metric-card:hover { border-color: var(--border-light); }
+.ad-metric-value { font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+.ad-metric-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+.ad-metric-trend { font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+.ad-metric-trend.up { color: var(--green); }
+.ad-metric-trend.down { color: var(--red); }
+.ad-metric-trend.neutral { color: var(--text-muted); }
+.ad-metric-trend.clean { color: var(--green); }
+
+/* ── PANEL ───────────────────────────────────────────────── */
+.ad-panel {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden;
+}
+.ad-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.ad-panel-title {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ad-panel-action {
+  font-size: 10px; color: var(--accent-blue); cursor: pointer;
+  font-weight: 600; letter-spacing: 0.3px;
+}
+.ad-panel-body { padding: 14px; }
+
+/* ── PANEL GRID (2-col) ──────────────────────────────────── */
+.ad-panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+/* ── STATUS PILLS ────────────────────────────────────────── */
+.ad-status-strip { display: flex; gap: 8px; flex-wrap: wrap; }
+.ad-status-pill {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 14px; border-radius: var(--radius-md); min-width: 80px;
+}
+.ad-status-pill .count { font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1.2; }
+.ad-status-pill .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.ad-status-pill.queued { background: var(--amber-dim); color: var(--amber); }
+.ad-status-pill.downloading { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.ad-status-pill.extracting { background: var(--teal-dim); color: var(--teal); }
+.ad-status-pill.ready { background: var(--green-dim); color: var(--green); }
+.ad-status-pill.failed { background: var(--red-dim); color: var(--red); }
+.ad-status-pill.review { background: var(--amber-dim); color: var(--amber); }
+.ad-status-pill.system_pass { background: var(--purple-dim); color: #ce93d8; }
+
+/* ── TOGGLE ──────────────────────────────────────────────── */
+.toggle {
+  width: 34px; height: 18px; border-radius: 9px; background: var(--border);
+  position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+  content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; top: 2px; left: 2px; transition: left 0.2s;
+}
+.toggle.on::after { left: 18px; }
+
+/* ── FLAG ROW ────────────────────────────────────────────── */
+.ad-flag-row {
+  display: flex; align-items: center; padding: 8px 14px; gap: 12px;
+  border-bottom: 1px solid var(--border); transition: background 0.1s;
+}
+.ad-flag-row:last-child { border-bottom: none; }
+.ad-flag-row:hover { background: var(--bg-card); }
+.ad-flag-label { flex: 1; font-size: 12px; color: var(--text-primary); }
+.ad-flag-var { font-family: var(--mono); font-size: 10px; color: var(--text-muted); min-width: 160px; text-align: right; }
+
+/* ── ERROR ITEM ──────────────────────────────────────────── */
+.ad-error-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ad-error-item:last-child { border-bottom: none; }
+.ad-error-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; margin-top: 5px; }
+.ad-error-body { flex: 1; }
+.ad-error-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.ad-error-detail { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.ad-error-empty { color: var(--green); font-size: 12px; padding: 12px 0; }
+
+/* ── USER ROW ────────────────────────────────────────────── */
+.ad-user-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ad-user-row:last-child { border-bottom: none; }
+.ad-user-avatar {
+  width: 32px; height: 32px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 11px;
+  font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.ad-user-info { flex: 1; }
+.ad-user-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.ad-user-email { font-size: 10px; color: var(--text-muted); }
+.ad-role-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.ad-role-badge.admin { background: var(--purple-dim); color: #ce93d8; }
+.ad-role-badge.analyst { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.ad-role-badge.verifier { background: var(--teal-dim); color: var(--teal); }
+.ad-user-status {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.ad-user-status.online { background: var(--green); }
+.ad-user-status.offline { background: var(--text-muted); }
+
+/* ── FEED ITEM (audit) ───────────────────────────────────── */
+.ad-feed-item {
+  display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border); transition: background 0.1s;
+}
+.ad-feed-item:last-child { border-bottom: none; }
+.ad-feed-item:hover { background: var(--bg-card); }
+.ad-feed-item.error-event { border-left: 3px solid var(--red); padding-left: 11px; }
+.ad-feed-ts { font-family: var(--mono); font-size: 10px; color: var(--text-muted); min-width: 60px; flex-shrink: 0; margin-top: 2px; }
+.ad-feed-pill {
+  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; margin-top: 1px;
+}
+.ad-feed-pill.extraction { background: var(--amber-dim); color: var(--amber); }
+.ad-feed-pill.contract { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.ad-feed-pill.batch { background: var(--teal-dim); color: var(--teal); }
+.ad-feed-pill.system { background: var(--red-dim); color: var(--red); }
+.ad-feed-pill.analyst { background: var(--purple-dim); color: #ce93d8; }
+.ad-feed-body { flex: 1; min-width: 0; }
+.ad-feed-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.ad-feed-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+.ad-feed-id { font-family: var(--mono); font-size: 10px; color: var(--text-secondary); }
+
+/* ── TABLE ───────────────────────────────────────────────── */
+.ad-table { width: 100%; border-collapse: collapse; }
+.ad-table thead th {
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px;
+  text-align: left; position: sticky; top: 0; background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+.ad-table tbody td {
+  font-size: 12px; color: var(--text-secondary); padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.ad-table tbody tr:hover { background: var(--bg-card); }
+.ad-table .mono { font-family: var(--mono); font-size: 11px; }
+.ad-table .bar-cell { position: relative; }
+.ad-table .inline-bar {
+  position: absolute; top: 0; left: 0; height: 100%; opacity: 0.12;
+  pointer-events: none; border-radius: 0 3px 3px 0;
+}
+
+/* ── SPARKLINE ───────────────────────────────────────────── */
+.ad-sparkline { display: block; width: 100%; height: 80px; }
+.ad-sparkline polygon { fill: rgba(0,145,234,0.15); }
+.ad-sparkline polyline { fill: none; stroke: var(--accent-blue); stroke-width: 1.5; }
+
+/* ── TIME RANGE CHIPS ────────────────────────────────────── */
+.ad-time-chips { display: flex; gap: 4px; }
+.ad-time-chip {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+  cursor: pointer; color: var(--text-muted); background: transparent;
+  border: 1px solid transparent; transition: all 0.15s;
+}
+.ad-time-chip:hover { color: var(--text-secondary); }
+.ad-time-chip.active { color: var(--accent-blue); background: var(--accent-blue-dim); border-color: rgba(0,145,234,0.3); }
+
+/* ── CONFIDENCE BAR ──────────────────────────────────────── */
+.ad-conf-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+.ad-conf-seg { height: 100%; }
+.ad-conf-seg.high { background: var(--green); }
+.ad-conf-seg.medium { background: var(--amber); }
+.ad-conf-seg.low { background: var(--red); }
+.ad-conf-labels { display: flex; gap: 12px; font-size: 10px; color: var(--text-muted); }
+.ad-conf-labels span { display: flex; align-items: center; gap: 4px; }
+.ad-conf-labels .dot { width: 6px; height: 6px; border-radius: 50%; }
+.ad-conf-labels .dot.high { background: var(--green); }
+.ad-conf-labels .dot.medium { background: var(--amber); }
+.ad-conf-labels .dot.low { background: var(--red); }
+
+/* ── HORIZONTAL BAR ──────────────────────────────────────── */
+.ad-hbar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.ad-hbar-label { font-size: 11px; color: var(--text-secondary); min-width: 100px; }
+.ad-hbar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.ad-hbar-fill { height: 100%; border-radius: 3px; background: var(--accent-blue); }
+.ad-hbar-value { font-family: var(--mono); font-size: 11px; color: var(--text-primary); min-width: 36px; text-align: right; }
+
+/* ── STAT ROW ────────────────────────────────────────────── */
+.ad-stat-row { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+.ad-stat { display: flex; flex-direction: column; }
+.ad-stat-value { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.ad-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* ── SEARCH & FILTER ─────────────────────────────────────── */
+.ad-filter-bar { display: flex; gap: 8px; align-items: center; }
+.ad-filter-select {
+  font-size: 11px; padding: 4px 8px; border-radius: var(--radius-sm);
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); cursor: pointer;
+}
+.ad-filter-select:focus { border-color: var(--border-focus); outline: none; }
+.ad-search-input {
+  font-size: 11px; padding: 4px 8px; border-radius: var(--radius-sm);
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); width: 180px;
+}
+.ad-search-input::placeholder { color: var(--text-muted); }
+.ad-search-input:focus { border-color: var(--border-focus); outline: none; }
+
+/* ── DOC QUALITY STAT ────────────────────────────────────── */
+.ad-quality-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.ad-quality-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: var(--bg-card); border-radius: var(--radius-md);
+}
+.ad-quality-item .qlabel { font-size: 11px; color: var(--text-secondary); }
+.ad-quality-item .qvalue { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.ad-blockers-ok { font-size: 12px; color: var(--green); padding: 8px 0; }
+
+/* ── ADD USER BTN ────────────────────────────────────────── */
+.ad-btn-add {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px;
+  font-size: 11px; font-weight: 600; color: var(--accent-blue);
+  background: var(--accent-blue-dim); border: 1px solid rgba(0,145,234,0.3);
+  border-radius: var(--radius-md); cursor: pointer; transition: background 0.15s;
+}
+.ad-btn-add:hover { background: rgba(0,145,234,0.25); }
+
+/* ── LOADING ─────────────────────────────────────────────── */
+.ad-loading { color: var(--text-muted); font-size: 12px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- ── APP TOPBAR ──────────────────────────────────────── -->
+<header class="app-topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo-icon"></div>
+    <span class="topbar-brand">Orchestrate OS</span>
+    <span class="topbar-beta">BETA</span>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-env-badge">SANDBOX</span>
+    <div class="topbar-avatar">ZH</div>
+  </div>
+</header>
+
+<!-- ── APP LAYOUT ──────────────────────────────────────── -->
+<div class="app-layout">
+
+  <!-- ── GLOBAL SIDEBAR ────────────────────────────────── -->
+  <nav class="nav-sidebar" id="nav-sidebar">
+    <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Collapse sidebar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div class="nav-collapsed-logo">
+      <img src="ui/viewer/OOS-icon.png" alt="OrcestrateOS" style="width:28px;height:auto;">
+    </div>
+    <div class="nav-menu">
+      <div class="nav-divider"></div>
+      <div class="nav-section">
+        <div class="nav-section-header">Navigation</div>
+        <a class="nav-item" data-nav-id="triage" href="/ui/viewer/index.html#/triage" title="Triage">
+          <span class="sidebar-icon-wrap"><svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4"/></svg></span>
+          <span class="nav-label">Triage</span>
+        </a>
+        <a class="nav-item" data-nav-id="grid" href="/ui/viewer/index.html#/grid" title="Record Inspector">
+          <span class="sidebar-icon-wrap"><svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+          <span class="nav-label">Record Inspector</span>
+        </a>
+        <a class="nav-item" data-nav-id="org-overview" href="/ui/viewer/org-overview.html" title="Org Overview">
+          <span class="sidebar-icon-wrap"><svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+          <span class="nav-label">Org Overview</span>
+        </a>
+      </div>
+      <div class="nav-divider admin-section"></div>
+      <div class="nav-section admin-section">
+        <div class="nav-section-header">Admin</div>
+        <a class="nav-item active" data-nav-id="admin" href="/ui/viewer/admin.html" title="Admin Dashboard">
+          <span class="sidebar-icon-wrap"><svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+          <span class="nav-label">Admin Dashboard</span>
+        </a>
+        <a class="nav-item" data-nav-id="contract-generator" id="nav-contract-generator" href="/ui/viewer/index.html#/contract-generator" title="Contract Generator">
+          <span class="sidebar-icon-wrap"><svg class="sidebar-icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+          <span class="nav-label">Contract Generator</span>
+        </a>
+      </div>
+    </div>
+    <div class="nav-footer">
+      <div class="nav-divider"></div>
+    </div>
+    <div class="nav-mode-section">
+      <div class="nav-mode-label">Role</div>
+      <div class="mode-toggle" id="mode-toggle-container">
+        <button class="mode-btn mode-analyst active" data-mode="analyst">Analyst</button>
+        <button class="mode-btn mode-verifier" data-mode="verifier">Verifier</button>
+        <button class="mode-btn mode-admin" data-mode="admin">Admin</button>
+      </div>
+      <div id="locked-role-display" style="display: none; padding: 6px 12px; font-size: 0.75em; background: rgba(21, 101, 192, 0.15); color: #64b5f6; border-radius: 4px; text-align: center;"></div>
+    </div>
+    <div class="dark-mode-toggle-row">
+      <span class="dm-label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> <span class="dm-label-text">Dark Mode</span></span>
+      <label class="dark-mode-switch">
+        <input type="checkbox" id="admin-dark-toggle">
+        <span class="dark-mode-slider"></span>
+      </label>
+    </div>
+  </nav>
+
+  <!-- ── ADMIN SIDEBAR ────────────────────────────────── -->
+  <div class="ad-sidebar">
+    <div class="ad-sidebar-header">Dashboard</div>
+    <div class="sb-section-label">Dashboard</div>
+    <div class="sb-nav-item active" data-tab="overview"><span class="sb-nav-icon">&#9632;</span> Overview</div>
+    <div class="sb-nav-item" data-tab="extraction"><span class="sb-nav-icon">&#9783;</span> Extraction</div>
+    <div class="sb-nav-item" data-tab="pipeline"><span class="sb-nav-icon">&#8693;</span> Pipeline</div>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Configuration</div>
+    <div class="sb-nav-item" data-tab="flags"><span class="sb-nav-icon">&#9873;</span> Feature Flags</div>
+    <div class="sb-nav-item" data-tab="people"><span class="sb-nav-icon">&#9787;</span> People &amp; Access</div>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">History</div>
+    <div class="sb-nav-item" data-tab="audit"><span class="sb-nav-icon">&#9776;</span> Audit Log</div>
+  </div>
+
+  <!-- ── MAIN CONTENT ────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- TAB: OVERVIEW (default)                         -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="ad-tab-content active" data-tab-content="overview">
+
+      <!-- Hero Metric Strip -->
+      <div class="ad-metric-strip">
+        <div class="ad-metric-card" data-metric="contracts" onclick="switchTab('pipeline')">
+          <div class="ad-metric-value">86</div>
+          <div class="ad-metric-label">Contracts Processed</div>
+          <div class="ad-metric-trend up">&#9650; +12 today</div>
+        </div>
+        <div class="ad-metric-card" data-metric="coverage" onclick="switchTab('extraction')">
+          <div class="ad-metric-value">19.6%</div>
+          <div class="ad-metric-label">Extraction Coverage</div>
+          <div class="ad-metric-trend up">&#9650; +2.1% vs last week</div>
+        </div>
+        <div class="ad-metric-card" data-metric="errors" onclick="switchTab('extraction')">
+          <div class="ad-metric-value">0</div>
+          <div class="ad-metric-label">Errors 24h</div>
+          <div class="ad-metric-trend clean">&#10003; Clean</div>
+        </div>
+        <div class="ad-metric-card" data-metric="throughput" onclick="switchTab('extraction')">
+          <div class="ad-metric-value">3,720</div>
+          <div class="ad-metric-label">Fields / Second</div>
+          <div class="ad-metric-trend neutral">&#8212; Steady</div>
+        </div>
+      </div>
+
+      <!-- Row 1: Pipeline Status + Recent Errors -->
+      <div class="ad-panel-grid">
+        <div class="ad-panel" onclick="switchTab('pipeline')" style="cursor:pointer">
+          <div class="ad-panel-header">
+            <span class="ad-panel-title">Pipeline Status</span>
+            <span class="ad-panel-action">View All &rsaquo;</span>
+          </div>
+          <div class="ad-panel-body">
+            <div class="ad-status-strip">
+              <div class="ad-status-pill queued" data-status="queued"><span class="count">3</span><span class="label">Queued</span></div>
+              <div class="ad-status-pill downloading" data-status="downloading"><span class="count">1</span><span class="label">Download</span></div>
+              <div class="ad-status-pill ready" data-status="ready"><span class="count">62</span><span class="label">Ready</span></div>
+              <div class="ad-status-pill failed" data-status="failed"><span class="count">0</span><span class="label">Failed</span></div>
+              <div class="ad-status-pill review" data-status="review"><span class="count">20</span><span class="label">Review</span></div>
+              <div class="ad-status-pill system_pass" data-status="system_pass"><span class="count">0</span><span class="label">Sys Pass</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ad-panel">
+          <div class="ad-panel-header">
+            <span class="ad-panel-title">Recent Errors</span>
+          </div>
+          <div class="ad-panel-body">
+            <div class="ad-error-empty">&#10003; No errors in the last 24 hours</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Feature Flags (mini) + Active Users -->
+      <div class="ad-panel-grid">
+        <div class="ad-panel" onclick="switchTab('flags')" style="cursor:pointer">
+          <div class="ad-panel-header">
+            <span class="ad-panel-title">Feature Flags</span>
+            <span class="ad-panel-action">Manage &rsaquo;</span>
+          </div>
+          <div class="ad-panel-body" style="padding:0">
+            <div class="ad-flag-row"><span class="ad-flag-label">Preflight Gate Sync</span><div class="toggle on"></div></div>
+            <div class="ad-flag-row"><span class="ad-flag-label">Batch Upload</span><div class="toggle on"></div></div>
+            <div class="ad-flag-row"><span class="ad-flag-label">Otto Chat</span><div class="toggle on"></div></div>
+            <div class="ad-flag-row"><span class="ad-flag-label">AutoSpark</span><div class="toggle"></div></div>
+            <div class="ad-flag-row"><span class="ad-flag-label">Canonical Copy</span><div class="toggle on"></div></div>
+            <div class="ad-flag-row"><span class="ad-flag-label">Admin Reporting</span><div class="toggle on"></div></div>
+          </div>
+        </div>
+
+        <div class="ad-panel" onclick="switchTab('people')" style="cursor:pointer">
+          <div class="ad-panel-header">
+            <span class="ad-panel-title">Active Users</span>
+            <span class="ad-panel-action">Manage &rsaquo;</span>
+          </div>
+          <div class="ad-panel-body" style="padding:0 14px">
+            <div class="ad-user-row">
+              <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--purple),var(--accent-blue))">ZH</div>
+              <div class="ad-user-info"><div class="ad-user-name">Zachary Holwerda</div><div class="ad-user-email">zach@orchestrateos.com</div></div>
+              <span class="ad-role-badge admin">Admin</span>
+              <div class="ad-user-status online"></div>
+            </div>
+            <div class="ad-user-row">
+              <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--accent-blue),var(--teal))">AC</div>
+              <div class="ad-user-info"><div class="ad-user-name">Ana Chen</div><div class="ad-user-email">ana@orchestrateos.com</div></div>
+              <span class="ad-role-badge analyst">Analyst</span>
+              <div class="ad-user-status offline"></div>
+            </div>
+            <div class="ad-user-row">
+              <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--teal),var(--green))">MR</div>
+              <div class="ad-user-info"><div class="ad-user-name">Marcus Rivera</div><div class="ad-user-email">marcus@orchestrateos.com</div></div>
+              <span class="ad-role-badge verifier">Verifier</span>
+              <div class="ad-user-status offline"></div>
+            </div>
+            <div class="ad-user-row">
+              <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--amber),var(--red))">SK</div>
+              <div class="ad-user-info"><div class="ad-user-name">Sarah Kim</div><div class="ad-user-email">sarah@orchestrateos.com</div></div>
+              <span class="ad-role-badge admin">Admin</span>
+              <div class="ad-user-status offline"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- TAB: EXTRACTION                                 -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="ad-tab-content" data-tab-content="extraction">
+
+      <!-- Coverage Panel -->
+      <div class="ad-panel" data-panel="coverage">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Extraction Coverage</span>
+          <div class="ad-time-chips">
+            <span class="ad-time-chip active" data-time-range="7d" onclick="setTimeRange(this)">7d</span>
+            <span class="ad-time-chip" data-time-range="30d" onclick="setTimeRange(this)">30d</span>
+            <span class="ad-time-chip" data-time-range="90d" onclick="setTimeRange(this)">90d</span>
+          </div>
+        </div>
+        <div class="ad-panel-body">
+          <div class="ad-stat-row">
+            <div class="ad-stat"><span class="ad-stat-value">19.6%</span><span class="ad-stat-label">Avg Coverage</span></div>
+            <div class="ad-stat"><span class="ad-stat-value">28 / 143</span><span class="ad-stat-label">Fields Extracted</span></div>
+            <div class="ad-stat"><span class="ad-stat-value">342</span><span class="ad-stat-label">Invocations</span></div>
+          </div>
+          <!-- Call site breakdown -->
+          <div style="margin-bottom:12px">
+            <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">By Call Site</div>
+            <div class="ad-hbar-row"><span class="ad-hbar-label">readiness_map</span><div class="ad-hbar-track"><div class="ad-hbar-fill" style="width:58%"></div></div><span class="ad-hbar-value">198</span></div>
+            <div class="ad-hbar-row"><span class="ad-hbar-label">otto_payload</span><div class="ad-hbar-track"><div class="ad-hbar-fill" style="width:32%"></div></div><span class="ad-hbar-value">109</span></div>
+            <div class="ad-hbar-row"><span class="ad-hbar-label">export_profile</span><div class="ad-hbar-track"><div class="ad-hbar-fill" style="width:10%"></div></div><span class="ad-hbar-value">35</span></div>
+          </div>
+          <!-- Confidence distribution -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Confidence Distribution</div>
+            <div class="ad-conf-bar">
+              <div class="ad-conf-seg high" style="width:52%"></div>
+              <div class="ad-conf-seg medium" style="width:33%"></div>
+              <div class="ad-conf-seg low" style="width:15%"></div>
+            </div>
+            <div class="ad-conf-labels">
+              <span><span class="dot high"></span> HIGH 52%</span>
+              <span><span class="dot medium"></span> MEDIUM 33%</span>
+              <span><span class="dot low"></span> LOW 15%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Throughput Panel -->
+      <div class="ad-panel" data-panel="throughput">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Throughput</span>
+        </div>
+        <div class="ad-panel-body">
+          <div style="display:flex;gap:20px">
+            <div style="flex:1">
+              <svg class="ad-sparkline" viewBox="0 0 480 80" preserveAspectRatio="none">
+                <polygon points="0,80 0,52 20,48 40,55 60,42 80,38 100,45 120,35 140,40 160,30 180,25 200,32 220,28 240,22 260,18 280,24 300,30 320,26 340,20 360,15 380,22 400,28 420,35 440,30 460,25 480,20 480,80" />
+                <polyline points="0,52 20,48 40,55 60,42 80,38 100,45 120,35 140,40 160,30 180,25 200,32 220,28 240,22 260,18 280,24 300,30 320,26 340,20 360,15 380,22 400,28 420,35 440,30 460,25 480,20" />
+              </svg>
+            </div>
+            <div style="min-width:120px">
+              <div class="ad-stat" style="margin-bottom:10px"><span class="ad-stat-value">87.2ms</span><span class="ad-stat-label">Avg Duration</span></div>
+              <div class="ad-stat" style="margin-bottom:10px"><span class="ad-stat-value">148.0ms</span><span class="ad-stat-label">P95 Duration</span></div>
+              <div class="ad-stat"><span class="ad-stat-value">3,720</span><span class="ad-stat-label">Fields/Sec</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Field Rates Table -->
+      <div class="ad-panel" data-panel="field-rates">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Field Hit Rates</span>
+          <span class="ad-panel-action" data-sort="hit_rate_asc">Worst first &#9662;</span>
+        </div>
+        <div class="ad-panel-body" style="padding:0">
+          <table class="ad-table">
+            <thead><tr><th>Check Code</th><th>Total Seen</th><th>Hit Count</th><th>Hit Rate</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">OPP_HOLDBACK_DAYS</td><td>342</td><td>0</td><td class="bar-cell"><div class="inline-bar" style="width:0%;background:var(--accent-blue)"></div>0.0%</td></tr>
+              <tr><td class="mono">ACCT_BILLING_COUNTRY</td><td>342</td><td>12</td><td class="bar-cell"><div class="inline-bar" style="width:3.5%;background:var(--accent-blue)"></div>3.5%</td></tr>
+              <tr><td class="mono">SCH_TERRITORY</td><td>342</td><td>34</td><td class="bar-cell"><div class="inline-bar" style="width:9.9%;background:var(--accent-blue)"></div>9.9%</td></tr>
+              <tr><td class="mono">OPP_ADVANCE_AMT</td><td>342</td><td>58</td><td class="bar-cell"><div class="inline-bar" style="width:17%;background:var(--accent-blue)"></div>17.0%</td></tr>
+              <tr><td class="mono">ACCT_EMAIL</td><td>342</td><td>120</td><td class="bar-cell"><div class="inline-bar" style="width:35.1%;background:var(--accent-blue)"></div>35.1%</td></tr>
+              <tr><td class="mono">SCH_ISRC</td><td>342</td><td>185</td><td class="bar-cell"><div class="inline-bar" style="width:54.1%;background:var(--accent-blue)"></div>54.1%</td></tr>
+              <tr><td class="mono">OPP_ROYALTY_RATE</td><td>342</td><td>267</td><td class="bar-cell"><div class="inline-bar" style="width:78.1%;background:var(--accent-blue)"></div>78.1%</td></tr>
+              <tr><td class="mono">OPP_CONTRACT_TYPE</td><td>342</td><td>327</td><td class="bar-cell"><div class="inline-bar" style="width:95.6%;background:var(--accent-blue)"></div>95.6%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- TAB: PIPELINE                                   -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="ad-tab-content" data-tab-content="pipeline">
+
+      <!-- Processing Status Strip -->
+      <div class="ad-panel">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Processing Status</span>
+        </div>
+        <div class="ad-panel-body">
+          <div class="ad-status-strip">
+            <div class="ad-status-pill queued" data-status="queued"><span class="count">3</span><span class="label">Queued</span></div>
+            <div class="ad-status-pill downloading" data-status="downloading"><span class="count">1</span><span class="label">Downloading</span></div>
+            <div class="ad-status-pill extracting" data-status="extracting"><span class="count">0</span><span class="label">Extracting</span></div>
+            <div class="ad-status-pill ready" data-status="ready"><span class="count">62</span><span class="label">Ready</span></div>
+            <div class="ad-status-pill review" data-status="review"><span class="count">20</span><span class="label">Needs Review</span></div>
+            <div class="ad-status-pill system_pass" data-status="system_pass"><span class="count">0</span><span class="label">System Pass</span></div>
+            <div class="ad-status-pill failed" data-status="failed"><span class="count">0</span><span class="label">Failed</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Queue Table -->
+      <div class="ad-panel" data-panel="batch-queue">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Batch Queue</span>
+        </div>
+        <div class="ad-panel-body" style="padding:0">
+          <table class="ad-table">
+            <thead><tr><th>Batch ID</th><th>Status</th><th>Contracts</th><th>Avg Health</th><th>Uploaded</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">bat_01JN8K...</td>
+                <td><span style="color:var(--green)">ready</span></td>
+                <td>62 / 62</td>
+                <td><span style="color:var(--amber)">41</span></td>
+                <td class="mono" style="color:var(--text-muted)">2026-02-28 14:32</td>
+              </tr>
+              <tr>
+                <td class="mono">bat_01JN7R...</td>
+                <td><span style="color:var(--amber)">review</span></td>
+                <td>18 / 20</td>
+                <td><span style="color:var(--red)">28</span></td>
+                <td class="mono" style="color:var(--text-muted)">2026-02-27 09:15</td>
+              </tr>
+              <tr>
+                <td class="mono">bat_01JN6P...</td>
+                <td><span style="color:var(--green)">ready</span></td>
+                <td>45 / 45</td>
+                <td><span style="color:var(--green)">82</span></td>
+                <td class="mono" style="color:var(--text-muted)">2026-02-25 11:08</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Document Quality -->
+      <div class="ad-panel" data-panel="doc-quality">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Document Quality</span>
+        </div>
+        <div class="ad-panel-body">
+          <div class="ad-quality-grid">
+            <div class="ad-quality-item"><span class="qlabel">RFIs Open</span><span class="qvalue" style="color:var(--amber)">5</span></div>
+            <div class="ad-quality-item"><span class="qlabel">Awaiting Verifier</span><span class="qvalue">2</span></div>
+            <div class="ad-quality-item"><span class="qlabel">Corrections Pending</span><span class="qvalue">1</span></div>
+            <div class="ad-quality-item"><span class="qlabel">Mojibake Suspect</span><span class="qvalue">0</span></div>
+            <div class="ad-quality-item"><span class="qlabel">Unreadable Docs</span><span class="qvalue">0</span></div>
+            <div class="ad-quality-item"><span class="qlabel">Processing Errors</span><span class="qvalue">0</span></div>
+          </div>
+          <div class="ad-blockers-ok">&#10003; No blockers</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- TAB: FEATURE FLAGS                              -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="ad-tab-content" data-tab-content="flags">
+      <div class="ad-panel">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Feature Flags</span>
+          <div class="ad-time-chips">
+            <span class="ad-time-chip active">Sandbox</span>
+            <span class="ad-time-chip">Production</span>
+          </div>
+        </div>
+        <div class="ad-panel-body" style="padding:0">
+          <!-- Pipeline -->
+          <div style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:10px 14px 4px;">Pipeline</div>
+          <div class="ad-flag-row" data-flag="PREFLIGHT_GATE_SYNC"><span class="ad-flag-label">Preflight Gate Sync</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">PREFLIGHT_GATE_SYNC</span></div>
+          <div class="ad-flag-row" data-flag="BATCH_UPLOAD"><span class="ad-flag-label">Batch Upload</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">BATCH_UPLOAD</span></div>
+          <div class="ad-flag-row" data-flag="CONTRACT_QUEUE"><span class="ad-flag-label">Contract Queue</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">CONTRACT_QUEUE</span></div>
+          <div class="ad-flag-row" data-flag="CANONICAL_COPY"><span class="ad-flag-label">Canonical Copy</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">CANONICAL_COPY</span></div>
+          <div class="ad-flag-row" data-flag="AUTO_RED_GATE"><span class="ad-flag-label">Auto Red-Gate</span><div class="toggle" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">AUTO_RED_GATE</span></div>
+          <!-- Integrations -->
+          <div style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:10px 14px 4px;">Integrations</div>
+          <div class="ad-flag-row" data-flag="AUTOSPARK_ENABLED"><span class="ad-flag-label">AutoSpark</span><div class="toggle" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">AUTOSPARK_ENABLED</span></div>
+          <div class="ad-flag-row" data-flag="OTTO_CHAT_ENABLED"><span class="ad-flag-label">Otto Chat</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">OTTO_CHAT_ENABLED</span></div>
+          <div class="ad-flag-row" data-flag="ADMIN_REPORTING"><span class="ad-flag-label">Admin Reporting</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">ADMIN_REPORTING</span></div>
+          <!-- Inspectors -->
+          <div style="font-size:9px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:10px 14px 4px;">Inspectors</div>
+          <div class="ad-flag-row" data-flag="RECORD_INSPECTOR_V2"><span class="ad-flag-label">Record Inspector V2</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">RECORD_INSPECTOR_V2</span></div>
+          <div class="ad-flag-row" data-flag="EVIDENCE_INSPECTOR"><span class="ad-flag-label">Evidence Inspector</span><div class="toggle on" onclick="this.classList.toggle('on')"></div><span class="ad-flag-var">EVIDENCE_INSPECTOR</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- TAB: PEOPLE & ACCESS                            -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="ad-tab-content" data-tab-content="people">
+      <div class="ad-panel">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">User Roster</span>
+          <span class="ad-btn-add">+ Add User</span>
+        </div>
+        <div class="ad-panel-body" style="padding:0 14px">
+          <div class="ad-user-row" data-role="admin">
+            <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--purple),var(--accent-blue))">ZH</div>
+            <div class="ad-user-info"><div class="ad-user-name">Zachary Holwerda</div><div class="ad-user-email">zach@orchestrateos.com</div></div>
+            <span class="ad-role-badge admin">Admin</span>
+            <div class="ad-user-status online"></div>
+          </div>
+          <div class="ad-user-row" data-role="analyst">
+            <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--accent-blue),var(--teal))">AC</div>
+            <div class="ad-user-info"><div class="ad-user-name">Ana Chen</div><div class="ad-user-email">ana@orchestrateos.com</div></div>
+            <span class="ad-role-badge analyst">Analyst</span>
+            <div class="ad-user-status offline"></div>
+          </div>
+          <div class="ad-user-row" data-role="verifier">
+            <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--teal),var(--green))">MR</div>
+            <div class="ad-user-info"><div class="ad-user-name">Marcus Rivera</div><div class="ad-user-email">marcus@orchestrateos.com</div></div>
+            <span class="ad-role-badge verifier">Verifier</span>
+            <div class="ad-user-status offline"></div>
+          </div>
+          <div class="ad-user-row" data-role="admin">
+            <div class="ad-user-avatar" style="background:linear-gradient(135deg,var(--amber),var(--red))">SK</div>
+            <div class="ad-user-info"><div class="ad-user-name">Sarah Kim</div><div class="ad-user-email">sarah@orchestrateos.com</div></div>
+            <span class="ad-role-badge admin">Admin</span>
+            <div class="ad-user-status offline"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════ -->
+    <!-- TAB: AUDIT LOG                                  -->
+    <!-- ════════════════════════════════════════════════ -->
+    <div class="ad-tab-content" data-tab-content="audit">
+      <div class="ad-panel">
+        <div class="ad-panel-header">
+          <span class="ad-panel-title">Audit Log</span>
+          <div class="ad-filter-bar">
+            <select class="ad-filter-select" data-filter onchange="filterAudit()">
+              <option value="all">All Events</option>
+              <option value="extraction">Extraction</option>
+              <option value="contract">Contract</option>
+              <option value="batch">Batch</option>
+              <option value="analyst">Analyst Activity</option>
+              <option value="system">System</option>
+            </select>
+            <input class="ad-search-input" type="text" placeholder="Search by ID or type..." oninput="filterAudit()">
+          </div>
+        </div>
+        <div class="ad-panel-body" style="padding:0" id="auditFeed">
+          <div class="ad-feed-item" data-event-type="analyst">
+            <span class="ad-feed-ts">14:48:30</span>
+            <span class="ad-feed-pill analyst">analyst</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Preflight test run — Ana Chen ran readiness check on 5 contracts</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN8K9...</span> <span>&middot;</span> <span>Ana Chen</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="extraction">
+            <span class="ad-feed-ts">14:32:08</span>
+            <span class="ad-feed-pill extraction">extraction</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Extraction completed</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN8K7...</span> <span>&middot;</span> <span>system</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="contract">
+            <span class="ad-feed-ts">14:28:45</span>
+            <span class="ad-feed-pill contract">contract</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Preflight check complete — 18/143 fields</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN8K3...</span> <span>&middot;</span> <span>Ana Chen</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item error-event" data-event-type="analyst">
+            <span class="ad-feed-ts">14:15:22</span>
+            <span class="ad-feed-pill analyst">analyst</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Test error — Otto export failed: missing ACCT_EMAIL for Daniele Leoni</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN8J5...</span> <span>&middot;</span> <span>Ana Chen</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item error-event" data-event-type="extraction">
+            <span class="ad-feed-ts">13:55:12</span>
+            <span class="ad-feed-pill extraction">extraction</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Extractor crash — TextExtractor NER model timeout</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN8J9...</span> <span>&middot;</span> <span>system</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="analyst">
+            <span class="ad-feed-ts">13:40:05</span>
+            <span class="ad-feed-pill analyst">analyst</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Patch submitted — Ana Chen corrected SF Account Name for Purple Lions</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN8H2...</span> <span>&middot;</span> <span>Ana Chen</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="batch">
+            <span class="ad-feed-ts">12:40:00</span>
+            <span class="ad-feed-pill batch">batch</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Batch upload started — 20 contracts</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">bat_01JN7R...</span> <span>&middot;</span> <span>Zachary Holwerda</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item error-event" data-event-type="analyst">
+            <span class="ad-feed-ts">11:52:18</span>
+            <span class="ad-feed-pill analyst">analyst</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Test error — readiness_map returned 0% for bat_01JN7R (doc unreadable, possible mojibake)</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">bat_01JN7R...</span> <span>&middot;</span> <span>Marcus Rivera</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="extraction">
+            <span class="ad-feed-ts">11:15:33</span>
+            <span class="ad-feed-pill extraction">extraction</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Zero coverage — no fields extracted from 2,400 char doc</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN7P2...</span> <span>&middot;</span> <span>system</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="contract">
+            <span class="ad-feed-ts">10:48:20</span>
+            <span class="ad-feed-pill contract">contract</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Contract status changed to "ready"</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">ctr_01JN7M8...</span> <span>&middot;</span> <span>Marcus Rivera</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item" data-event-type="batch">
+            <span class="ad-feed-ts">09:30:00</span>
+            <span class="ad-feed-pill batch">batch</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">Batch processing complete — 62/62 contracts</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">bat_01JN8K...</span> <span>&middot;</span> <span>system</span></div>
+            </div>
+          </div>
+          <div class="ad-feed-item error-event" data-event-type="system">
+            <span class="ad-feed-ts">08:12:45</span>
+            <span class="ad-feed-pill system">system</span>
+            <div class="ad-feed-body">
+              <div class="ad-feed-title">DB connection pool exhausted — recovered after 3s</div>
+              <div class="ad-feed-meta"><span class="ad-feed-id">sys_pool</span> <span>&middot;</span> <span>system</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<script>
+/* ── Sidebar Collapse ────────────────────────────────────── */
+(function() {
+  var sidebar = document.getElementById('nav-sidebar');
+  var btn = document.getElementById('sidebar-collapse-btn');
+  if (!sidebar || !btn) return;
+  var stored = localStorage.getItem('orchestrate-sidebar-collapsed');
+  if (stored === 'true') sidebar.classList.add('collapsed');
+  btn.addEventListener('click', function() {
+    sidebar.classList.toggle('collapsed');
+    localStorage.setItem('orchestrate-sidebar-collapsed',
+      sidebar.classList.contains('collapsed') ? 'true' : 'false');
+  });
+})();
+
+/* ── Tab Switching ────────────────────────────────────────── */
+function switchTab(tabId) {
+  document.querySelectorAll('.ad-sidebar .sb-nav-item[data-tab]').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.tab === tabId);
+  });
+  document.querySelectorAll('.ad-tab-content').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.tabContent === tabId);
+  });
+}
+document.querySelectorAll('.ad-sidebar .sb-nav-item[data-tab]').forEach(function(el) {
+  el.addEventListener('click', function() { switchTab(el.dataset.tab); });
+});
+
+/* ── Time Range Chip Switcher ─────────────────────────────── */
+function setTimeRange(chip) {
+  chip.parentElement.querySelectorAll('.ad-time-chip').forEach(function(c) {
+    c.classList.remove('active');
+  });
+  chip.classList.add('active');
+}
+
+/* ── Audit Log Filter ────────────────────────────────────── */
+function filterAudit() {
+  var select = document.querySelector('[data-filter]');
+  var search = document.querySelector('.ad-search-input');
+  var type = select ? select.value : 'all';
+  var query = search ? search.value.toLowerCase() : '';
+  document.querySelectorAll('#auditFeed .ad-feed-item').forEach(function(item) {
+    var eventType = item.dataset.eventType || '';
+    var text = item.textContent.toLowerCase();
+    var matchType = (type === 'all' || eventType === type);
+    var matchSearch = (!query || text.indexOf(query) !== -1);
+    item.style.display = (matchType && matchSearch) ? '' : 'none';
+  });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM Deal Pipeline</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      /* Pipeline stage colors */
+      --stage-prospecting: #4dd0e1;
+      --stage-discovery: #29b6f6;
+      --stage-proposal: #7e57c2;
+      --stage-negotiation: #ffa726;
+      --stage-close: #66bb6a;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .pipeline-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .pipeline-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toolbar-value {
+      font-size: 12px;
+      font-family: var(--mono);
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+
+    .toolbar-filter {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-pill {
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+
+    .filter-pill:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    .filter-pill.active {
+      background: var(--accent-blue-dim);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-btn {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-blue);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toolbar-btn:hover { opacity: 0.9; }
+
+    .toolbar-btn-ghost {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toolbar-btn-ghost:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    .toolbar-btn-ghost.active {
+      background: var(--accent-blue-dim);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    /* ===== Kanban Board ===== */
+    .kanban-board {
+      flex: 1;
+      display: flex;
+      gap: 12px;
+      padding: 14px 20px;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .kanban-column {
+      flex: 1;
+      min-width: 220px;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .column-header {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .column-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .column-name {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex: 1;
+    }
+
+    .column-count {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    .column-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .column-body:empty::after {
+      content: 'No deals';
+      display: block;
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .column-footer {
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .column-total-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .column-total-value {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-primary);
+    }
+
+    /* Drop target */
+    .kanban-column.drag-over .column-body {
+      background: var(--accent-blue-dim);
+      border-radius: var(--radius-md);
+    }
+
+    /* ===== Deal Card ===== */
+    .deal-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      cursor: grab;
+      transition: all 0.12s;
+    }
+
+    .deal-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-light);
+    }
+
+    .deal-card.dragging {
+      opacity: 0.6;
+      transform: rotate(2deg);
+    }
+
+    .deal-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .deal-card-vault {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .deal-card-value {
+      font-size: 18px;
+      font-weight: 700;
+      font-family: var(--mono);
+      margin-bottom: 10px;
+    }
+
+    .deal-card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .deal-card-assignee {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .deal-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 8px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .deal-assignee-name {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .deal-stage-time {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .deal-tasks-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .deal-tasks-count {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .deal-tasks-overdue {
+      font-size: 10px;
+      color: var(--red);
+      font-weight: 600;
+    }
+
+    /* Progress bar */
+    .deal-progress {
+      width: 100%;
+      height: 4px;
+      background: var(--bg-darkest);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .deal-progress-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    /* Next task */
+    .deal-next-task {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--text-muted);
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .deal-next-icon {
+      color: var(--accent-blue);
+      font-size: 10px;
+    }
+
+    .deal-next-task.overdue {
+      color: var(--red);
+    }
+
+    /* Gate lock indicator */
+    .deal-gate-lock {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 9px;
+      color: var(--amber);
+      margin-top: 6px;
+      padding: 3px 6px;
+      background: var(--amber-dim);
+      border-radius: var(--radius-sm);
+    }
+
+    /* ===== Detail Panel (slide-in) ===== */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+
+    .detail-overlay.open { display: flex; justify-content: flex-end; }
+
+    .detail-panel {
+      width: 420px;
+      max-width: 90vw;
+      height: 100vh;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .detail-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .detail-close:hover { color: var(--text-primary); }
+
+    .detail-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .detail-vault {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .detail-section {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .detail-field-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .detail-field-value {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .detail-task-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 11px;
+    }
+
+    .detail-task-check {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      flex-shrink: 0;
+    }
+
+    .detail-task-check.done {
+      background: var(--green-dim);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .detail-task-text {
+      flex: 1;
+    }
+
+    .detail-task-text.done {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .detail-task-due {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+    }
+
+    .detail-task-due.overdue { color: var(--red); }
+
+    .detail-event {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 11px;
+    }
+
+    .detail-event-date {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      min-width: 44px;
+    }
+
+    .detail-event-text {
+      color: var(--text-secondary);
+    }
+
+    .detail-contact {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+    }
+
+    .detail-contact-name {
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .detail-contact-role {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .detail-contact-last {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: auto;
+      font-family: var(--mono);
+    }
+
+    .detail-actions {
+      padding: 14px 20px;
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ===== Summary Strip ===== */
+    .pipeline-summary {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      border-top: 1px solid var(--border);
+      gap: 16px;
+      flex-shrink: 0;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .summary-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .summary-num {
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-secondary);
+    }
+
+    /* Probability badges */
+    .prob-badge {
+      font-size: 9px;
+      font-family: var(--mono);
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="pipeline-layout">
+    <!-- Toolbar -->
+    <div class="pipeline-toolbar">
+      <span class="toolbar-title">Pipeline</span>
+      <span class="toolbar-sep"></span>
+      <span class="toolbar-value" id="totalPipeline">$0</span>
+      <span class="toolbar-sep"></span>
+      <div class="toolbar-filter">
+        <button class="filter-pill active" onclick="setView('kanban',this)">Kanban</button>
+        <button class="filter-pill" onclick="setView('table',this)">Table</button>
+        <button class="filter-pill" onclick="setView('forecast',this)">Forecast</button>
+      </div>
+      <span class="toolbar-spacer"></span>
+      <div class="toolbar-filter">
+        <button class="filter-pill active" onclick="setOwner('all',this)" data-filter-group="owner">All</button>
+        <button class="filter-pill" onclick="setOwner('sarah',this)" data-filter-group="owner">Sarah</button>
+        <button class="filter-pill" onclick="setOwner('ana',this)" data-filter-group="owner">Ana</button>
+        <button class="filter-pill" onclick="setOwner('david',this)" data-filter-group="owner">David</button>
+      </div>
+      <button class="toolbar-btn" onclick="openNewDeal()">+ New Deal</button>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-board" id="kanbanBoard"></div>
+
+    <!-- Summary -->
+    <div class="pipeline-summary">
+      <div class="summary-stat"><span class="summary-num" id="dealCount">0</span> deals</div>
+      <div class="summary-stat">Total: <span class="summary-num" id="totalValue">$0</span></div>
+      <div class="summary-stat">Weighted: <span class="summary-num" id="weightedValue">$0</span></div>
+      <div style="flex:1"></div>
+      <div class="summary-stat"><span class="summary-num" id="overdueCount" style="color:var(--red)">0</span> overdue tasks</div>
+      <div class="summary-stat">Avg cycle: <span class="summary-num" id="avgCycle">0</span> days</div>
+    </div>
+  </div>
+
+  <!-- Deal Detail Panel -->
+  <div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+    <div class="detail-panel" id="detailPanel" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script>
+    // ===== People =====
+    var PEOPLE = {
+      sarah: { name: 'Sarah Miller', color: '#7b1fa2', initials: 'SM' },
+      ana: { name: 'Ana Chen', color: '#0091ea', initials: 'AC' },
+      david: { name: 'David Park', color: '#26a69a', initials: 'DP' },
+      marcus: { name: 'Marcus Webb', color: '#ff9800', initials: 'MW' },
+      james: { name: 'James Liu', color: '#e91e63', initials: 'JL' }
+    };
+
+    // ===== Pipeline Stages =====
+    var STAGES = [
+      { id: 'prospecting', label: 'Prospecting', color: 'var(--stage-prospecting)', prob: 10 },
+      { id: 'discovery', label: 'Discovery', color: 'var(--stage-discovery)', prob: 25 },
+      { id: 'proposal', label: 'Proposal', color: 'var(--stage-proposal)', prob: 50 },
+      { id: 'negotiation', label: 'Negotiation', color: 'var(--stage-negotiation)', prob: 75 },
+      { id: 'close', label: 'Close', color: 'var(--stage-close)', prob: 90 }
+    ];
+
+    // ===== Deals =====
+    var DEALS = [
+      {
+        id: 'd1', name: 'Nova Entertainment', vault: 'henderson-msa', stage: 'prospecting',
+        value: 120000, owner: 'sarah', daysInStage: 5, closeDate: 'Apr 15',
+        tasks: [
+          { text: 'Research account background', done: true, due: 'Mar 1' },
+          { text: 'Send intro email', done: true, due: 'Mar 2' },
+          { text: 'Schedule discovery call', done: false, due: 'Mar 7', overdue: true }
+        ],
+        contacts: [
+          { name: 'Jack Chen', role: 'Biz Dev', last: '10m ago' },
+          { name: 'Sarah Kim', role: 'Legal', last: '3d ago' }
+        ],
+        events: [
+          { date: 'Mar 4', text: 'Jack Chen texted about renewal' },
+          { date: 'Mar 2', text: 'Sarah sent intro email' },
+          { date: 'Mar 1', text: 'Lead converted from MQL' }
+        ],
+        gated: true, gateMsg: '1 required task incomplete'
+      },
+      {
+        id: 'd2', name: 'TechFlow Inc', vault: 'techflow-msa', stage: 'prospecting',
+        value: 60000, owner: null, daysInStage: 1, closeDate: 'May 1',
+        tasks: [
+          { text: 'Research account background', done: false, due: 'Mar 8' },
+          { text: 'Assign account owner', done: false, due: 'Mar 6' }
+        ],
+        contacts: [
+          { name: 'Lisa Park', role: 'Ops Manager', last: '1d ago' }
+        ],
+        events: [
+          { date: 'Mar 3', text: 'Lead created from web form' }
+        ],
+        gated: false, gateMsg: ''
+      },
+      {
+        id: 'd3', name: 'Acme Inc', vault: 'acme-master', stage: 'discovery',
+        value: 85000, owner: 'ana', daysInStage: 12, closeDate: 'Apr 20',
+        tasks: [
+          { text: 'Complete discovery questionnaire', done: true, due: 'Feb 25' },
+          { text: 'Identify decision makers', done: true, due: 'Mar 1' },
+          { text: 'Map stakeholder org chart', done: false, due: 'Mar 5' }
+        ],
+        contacts: [
+          { name: 'Sarah Kim', role: 'Billing', last: '2d ago' },
+          { name: 'Tom Bradley', role: 'Operations', last: '5d ago' }
+        ],
+        events: [
+          { date: 'Mar 2', text: 'Discovery call completed' },
+          { date: 'Feb 28', text: 'Smart Line provisioned' },
+          { date: 'Feb 20', text: 'Lead qualified (SQL)' }
+        ],
+        gated: false, gateMsg: ''
+      },
+      {
+        id: 'd4', name: 'Summit Media', vault: 'summit-msa', stage: 'proposal',
+        value: 240000, owner: 'sarah', daysInStage: 8, closeDate: 'Apr 1',
+        tasks: [
+          { text: 'Draft proposal document', done: true, due: 'Feb 28' },
+          { text: 'Get pricing approval', done: true, due: 'Mar 1' },
+          { text: 'Send proposal to buyer', done: true, due: 'Mar 2' },
+          { text: 'Follow up on proposal review', done: false, due: 'Mar 8' }
+        ],
+        contacts: [
+          { name: 'Maria Santos', role: 'VP Partnerships', last: '1d ago' },
+          { name: 'Kevin Wu', role: 'Legal Counsel', last: '4d ago' },
+          { name: 'Diana Frost', role: 'CFO', last: '8d ago' }
+        ],
+        events: [
+          { date: 'Mar 3', text: 'Maria reviewed proposal (12 min)' },
+          { date: 'Mar 2', text: 'Proposal sent via Smart Line' },
+          { date: 'Mar 1', text: 'Pricing approved by manager' }
+        ],
+        gated: false, gateMsg: ''
+      },
+      {
+        id: 'd5', name: 'Pinnacle Partners', vault: 'pinnacle-dist', stage: 'proposal',
+        value: 175000, owner: 'david', daysInStage: 3, closeDate: 'Apr 15',
+        tasks: [
+          { text: 'Draft proposal document', done: true, due: 'Mar 2' },
+          { text: 'Get pricing approval', done: false, due: 'Mar 6' },
+          { text: 'Send proposal to buyer', done: false, due: 'Mar 9' }
+        ],
+        contacts: [
+          { name: 'Rachel Torres', role: 'Director BD', last: '2d ago' }
+        ],
+        events: [
+          { date: 'Mar 2', text: 'Proposal drafted' },
+          { date: 'Feb 28', text: 'Discovery completed' }
+        ],
+        gated: true, gateMsg: 'Pricing approval required'
+      },
+      {
+        id: 'd6', name: 'Ostereo Music Group', vault: 'ostereo-msa', stage: 'close',
+        value: 180000, owner: 'david', daysInStage: 21, closeDate: 'Mar 10',
+        tasks: [
+          { text: 'Generate final contract', done: true, due: 'Feb 20' },
+          { text: 'Internal sign-off', done: true, due: 'Feb 25' },
+          { text: 'Send for buyer signature', done: false, due: 'Mar 5', overdue: true }
+        ],
+        contacts: [
+          { name: 'Alex Rivera', role: 'CEO', last: '6d ago' },
+          { name: 'Jen Park', role: 'Legal', last: '10d ago' }
+        ],
+        events: [
+          { date: 'Feb 25', text: 'Internal sign-off completed' },
+          { date: 'Feb 20', text: 'Contract generated from template' },
+          { date: 'Feb 15', text: 'Verbal agreement confirmed' }
+        ],
+        gated: false, gateMsg: ''
+      },
+      {
+        id: 'd7', name: 'Drift Audio', vault: 'drift-licensing', stage: 'discovery',
+        value: 45000, owner: 'marcus', daysInStage: 4, closeDate: 'May 15',
+        tasks: [
+          { text: 'Schedule discovery call', done: true, due: 'Mar 2' },
+          { text: 'Prepare discovery questions', done: false, due: 'Mar 7' },
+          { text: 'Identify decision makers', done: false, due: 'Mar 10' }
+        ],
+        contacts: [
+          { name: 'Mike Chen', role: 'Founder', last: '4d ago' }
+        ],
+        events: [
+          { date: 'Mar 2', text: 'Intro call completed' },
+          { date: 'Feb 28', text: 'Inbound from web form' }
+        ],
+        gated: false, gateMsg: ''
+      }
+    ];
+
+    var currentOwner = 'all';
+
+    // ===== Formatting =====
+    function fmt(n) {
+      if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+      if (n >= 1000) return '$' + (n/1000).toFixed(0) + 'K';
+      return '$' + n;
+    }
+
+    function fmtFull(n) {
+      return '$' + n.toLocaleString();
+    }
+
+    // ===== Rendering =====
+    function renderBoard() {
+      var board = document.getElementById('kanbanBoard');
+      var filtered = currentOwner === 'all'
+        ? DEALS
+        : DEALS.filter(function(d) { return d.owner === currentOwner; });
+
+      var html = '';
+      var totalPipeline = 0;
+      var totalWeighted = 0;
+      var totalOverdue = 0;
+      var totalDays = 0;
+
+      STAGES.forEach(function(stage) {
+        var stageDeals = filtered.filter(function(d) { return d.stage === stage.id; });
+        var stageTotal = stageDeals.reduce(function(s, d) { return s + d.value; }, 0);
+
+        html += '<div class="kanban-column" data-stage="' + stage.id + '"'
+          + ' ondragover="onDragOver(event)"'
+          + ' ondrop="onDrop(event,\'' + stage.id + '\')"'
+          + ' ondragenter="onDragEnter(event)"'
+          + ' ondragleave="onDragLeave(event)">';
+
+        // Header
+        html += '<div class="column-header">';
+        html += '<div class="column-dot" style="background:' + stage.color + '"></div>';
+        html += '<span class="column-name">' + stage.label + '</span>';
+        html += '<span class="prob-badge" style="background:' + stage.color + '22;color:' + stage.color + '">' + stage.prob + '%</span>';
+        html += '<span class="column-count">' + stageDeals.length + '</span>';
+        html += '</div>';
+
+        // Body
+        html += '<div class="column-body">';
+        stageDeals.forEach(function(deal) {
+          html += renderDealCard(deal, stage);
+          deal.tasks.forEach(function(t) { if (t.overdue) totalOverdue++; });
+          totalDays += deal.daysInStage;
+        });
+        html += '</div>';
+
+        // Footer
+        html += '<div class="column-footer">';
+        html += '<span class="column-total-label">Total</span>';
+        html += '<span class="column-total-value">' + fmt(stageTotal) + '</span>';
+        html += '</div>';
+
+        html += '</div>';
+
+        totalPipeline += stageTotal;
+        totalWeighted += stageTotal * (stage.prob / 100);
+      });
+
+      board.innerHTML = html;
+
+      // Update summary
+      document.getElementById('totalPipeline').textContent = fmt(totalPipeline);
+      document.getElementById('dealCount').textContent = filtered.length;
+      document.getElementById('totalValue').textContent = fmtFull(totalPipeline);
+      document.getElementById('weightedValue').textContent = fmtFull(Math.round(totalWeighted));
+      document.getElementById('overdueCount').textContent = totalOverdue;
+      document.getElementById('avgCycle').textContent = filtered.length ? Math.round(totalDays / filtered.length) : 0;
+    }
+
+    function renderDealCard(deal, stage) {
+      var p = deal.owner ? PEOPLE[deal.owner] : { name: 'Unassigned', color: '#6b7280', initials: '?' };
+      var doneTasks = deal.tasks.filter(function(t) { return t.done; }).length;
+      var totalTasks = deal.tasks.length;
+      var pct = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
+      var overdueTasks = deal.tasks.filter(function(t) { return t.overdue; }).length;
+      var nextTask = deal.tasks.find(function(t) { return !t.done; });
+
+      var html = '<div class="deal-card" draggable="true" data-deal-id="' + deal.id + '"'
+        + ' ondragstart="onDragStart(event,\'' + deal.id + '\')"'
+        + ' ondragend="onDragEnd(event)"'
+        + ' onclick="openDetail(\'' + deal.id + '\')">';
+
+      html += '<div class="deal-card-name">' + deal.name + '</div>';
+      html += '<div class="deal-card-vault">' + deal.vault + '</div>';
+      html += '<div class="deal-card-value">' + fmt(deal.value) + '</div>';
+
+      // Owner + stage time
+      html += '<div class="deal-card-row">';
+      html += '<div class="deal-card-assignee">';
+      html += '<div class="deal-avatar" style="background:' + p.color + '">' + p.initials + '</div>';
+      html += '<span class="deal-assignee-name">' + p.name + '</span>';
+      html += '</div>';
+      html += '<span class="deal-stage-time">' + deal.daysInStage + 'd</span>';
+      html += '</div>';
+
+      // Tasks
+      html += '<div class="deal-tasks-row">';
+      html += '<span class="deal-tasks-count">' + doneTasks + '/' + totalTasks + ' tasks</span>';
+      if (overdueTasks > 0) {
+        html += '<span class="deal-tasks-overdue">(' + overdueTasks + ' overdue)</span>';
+      }
+      html += '</div>';
+
+      // Progress bar
+      html += '<div class="deal-progress">';
+      html += '<div class="deal-progress-fill" style="width:' + pct + '%;background:' + stage.color + '"></div>';
+      html += '</div>';
+
+      // Next task
+      if (nextTask) {
+        html += '<div class="deal-next-task' + (nextTask.overdue ? ' overdue' : '') + '">';
+        html += '<span class="deal-next-icon">&#9654;</span> ';
+        html += nextTask.text;
+        html += '</div>';
+      }
+
+      // Gate lock
+      if (deal.gated) {
+        html += '<div class="deal-gate-lock">&#128274; ' + deal.gateMsg + '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    // ===== Detail Panel =====
+    function openDetail(dealId) {
+      var deal = DEALS.find(function(d) { return d.id === dealId; });
+      if (!deal) return;
+      var p = deal.owner ? PEOPLE[deal.owner] : { name: 'Unassigned', color: '#6b7280', initials: '?' };
+      var stage = STAGES.find(function(s) { return s.id === deal.stage; });
+      var doneTasks = deal.tasks.filter(function(t) { return t.done; }).length;
+
+      var html = '';
+
+      // Header
+      html += '<div class="detail-header">';
+      html += '<div>';
+      html += '<div class="detail-name">' + deal.name + '</div>';
+      html += '<div class="detail-vault">' + deal.vault + '</div>';
+      html += '</div>';
+      html += '<button class="detail-close" onclick="closeDetail()">&times;</button>';
+      html += '</div>';
+
+      // Deal info
+      html += '<div class="detail-section">';
+      html += '<div class="detail-grid">';
+      html += '<div><div class="detail-field-label">Stage</div><div class="detail-field-value" style="color:' + stage.color + '">' + stage.label + ' (' + deal.daysInStage + 'd)</div></div>';
+      html += '<div><div class="detail-field-label">Value</div><div class="detail-field-value">' + fmtFull(deal.value) + '</div></div>';
+      html += '<div><div class="detail-field-label">Probability</div><div class="detail-field-value">' + stage.prob + '%</div></div>';
+      html += '<div><div class="detail-field-label">Close Date</div><div class="detail-field-value">' + deal.closeDate + '</div></div>';
+      html += '<div><div class="detail-field-label">Owner</div><div class="detail-field-value">' + p.name + '</div></div>';
+      html += '<div><div class="detail-field-label">Tasks</div><div class="detail-field-value">' + doneTasks + '/' + deal.tasks.length + ' complete</div></div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Stage tasks
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Stage Tasks</div>';
+      deal.tasks.forEach(function(t) {
+        html += '<div class="detail-task-item">';
+        html += '<div class="detail-task-check' + (t.done ? ' done' : '') + '">' + (t.done ? '&#10003;' : '') + '</div>';
+        html += '<span class="detail-task-text' + (t.done ? ' done' : '') + '">' + t.text + '</span>';
+        html += '<span class="detail-task-due' + (t.overdue ? ' overdue' : '') + '">' + t.due + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Recent activity
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Recent Activity</div>';
+      deal.events.forEach(function(ev) {
+        html += '<div class="detail-event">';
+        html += '<span class="detail-event-date">' + ev.date + '</span>';
+        html += '<span class="detail-event-text">' + ev.text + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Contacts
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Contacts (' + deal.contacts.length + ')</div>';
+      deal.contacts.forEach(function(c) {
+        html += '<div class="detail-contact">';
+        html += '<div class="deal-avatar" style="background:var(--accent-blue);width:24px;height:24px;font-size:9px">' + c.name.split(' ').map(function(w){return w[0]}).join('') + '</div>';
+        html += '<div>';
+        html += '<div class="detail-contact-name">' + c.name + '</div>';
+        html += '<div class="detail-contact-role">' + c.role + '</div>';
+        html += '</div>';
+        html += '<span class="detail-contact-last">' + c.last + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Actions
+      html += '<div class="detail-actions">';
+      html += '<button class="toolbar-btn" onclick="advanceStage(\'' + deal.id + '\')">Advance Stage</button>';
+      html += '<button class="toolbar-btn-ghost" onclick="alert(\'Task Builder modal (TBD)\')">Create Task</button>';
+      html += '<button class="toolbar-btn-ghost" onclick="alert(\'Add note (TBD)\')">Add Note</button>';
+      html += '</div>';
+
+      document.getElementById('detailPanel').innerHTML = html;
+      document.getElementById('detailOverlay').classList.add('open');
+    }
+
+    function closeDetail(e) {
+      if (e && e.target !== document.getElementById('detailOverlay')) return;
+      document.getElementById('detailOverlay').classList.remove('open');
+    }
+
+    function advanceStage(dealId) {
+      var deal = DEALS.find(function(d) { return d.id === dealId; });
+      if (!deal) return;
+      var idx = STAGES.findIndex(function(s) { return s.id === deal.stage; });
+      if (deal.gated) {
+        alert('Cannot advance: ' + deal.gateMsg);
+        return;
+      }
+      if (idx < STAGES.length - 1) {
+        deal.stage = STAGES[idx + 1].id;
+        deal.daysInStage = 0;
+        closeDetail();
+        renderBoard();
+      }
+    }
+
+    // ===== Drag & Drop =====
+    var draggedDealId = null;
+
+    function onDragStart(e, dealId) {
+      draggedDealId = dealId;
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function onDragEnd(e) {
+      e.target.classList.remove('dragging');
+      draggedDealId = null;
+      document.querySelectorAll('.kanban-column').forEach(function(c) {
+        c.classList.remove('drag-over');
+      });
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function onDragEnter(e) {
+      e.preventDefault();
+      var col = e.target.closest('.kanban-column');
+      if (col) col.classList.add('drag-over');
+    }
+
+    function onDragLeave(e) {
+      var col = e.target.closest('.kanban-column');
+      if (col && !col.contains(e.relatedTarget)) {
+        col.classList.remove('drag-over');
+      }
+    }
+
+    function onDrop(e, newStage) {
+      e.preventDefault();
+      if (!draggedDealId) return;
+      var deal = DEALS.find(function(d) { return d.id === draggedDealId; });
+      if (deal && deal.stage !== newStage) {
+        if (deal.gated) {
+          alert('Cannot advance: ' + deal.gateMsg);
+        } else {
+          deal.stage = newStage;
+          deal.daysInStage = 0;
+          renderBoard();
+        }
+      }
+      document.querySelectorAll('.kanban-column').forEach(function(c) {
+        c.classList.remove('drag-over');
+      });
+    }
+
+    // ===== Filters =====
+    function setView(view, el) {
+      document.querySelectorAll('.toolbar-filter')[0].querySelectorAll('.filter-pill').forEach(function(p) {
+        p.classList.remove('active');
+      });
+      el.classList.add('active');
+      if (view !== 'kanban') {
+        alert(view.charAt(0).toUpperCase() + view.slice(1) + ' view — coming soon');
+      }
+    }
+
+    function setOwner(owner, el) {
+      currentOwner = owner;
+      document.querySelectorAll('[data-filter-group="owner"]').forEach(function(p) {
+        p.classList.remove('active');
+      });
+      el.classList.add('active');
+      renderBoard();
+    }
+
+    function openNewDeal() {
+      alert('New Deal dialog — will open Task Builder modal');
+    }
+
+    // ===== Theme =====
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') {
+      document.documentElement.setAttribute('data-theme', 'airlock');
+    }
+
+    // ===== Init =====
+    renderBoard();
+  </script>
+</body>
+</html>

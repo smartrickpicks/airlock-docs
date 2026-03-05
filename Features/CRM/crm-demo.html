@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM Vault Hierarchy</title>
+  <style>
+    /* ===== Base Tokens (shared with demo shell) ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    /* Airlock overrides */
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .crm-layout {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* ===== Left: Account Tree ===== */
+    .tree-panel {
+      width: 320px;
+      min-width: 320px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .tree-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tree-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .tree-search {
+      width: 100%;
+      padding: 7px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 12px;
+      outline: none;
+    }
+
+    .tree-search:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .tree-search::placeholder {
+      color: var(--text-muted);
+    }
+
+    .tree-stats {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .tree-stat {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .tree-stat-num {
+      font-weight: 700;
+      color: var(--text-secondary);
+      font-family: var(--mono);
+      margin-right: 3px;
+    }
+
+    .tree-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    /* Tree nodes */
+    .tree-node {
+      user-select: none;
+    }
+
+    .tree-row {
+      display: flex;
+      align-items: center;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+      gap: 6px;
+    }
+
+    .tree-row:hover {
+      background: var(--bg-card);
+    }
+
+    .tree-row.selected {
+      background: var(--accent-blue-dim);
+      border-right: 2px solid var(--accent-blue);
+    }
+
+    .tree-chevron {
+      width: 16px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+
+    .tree-chevron.open {
+      transform: rotate(90deg);
+    }
+
+    .tree-chevron.leaf {
+      visibility: hidden;
+    }
+
+    .tree-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .tree-label {
+      font-size: 12px;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tree-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      flex-shrink: 0;
+    }
+
+    .tree-badge.l1 { background: var(--teal-dim); color: var(--teal); }
+    .tree-badge.l2 { background: var(--purple-dim); color: var(--purple); }
+    .tree-badge.l3 { background: var(--accent-blue-dim); color: var(--accent-blue); }
+    .tree-badge.l4 { background: var(--bg-card); color: var(--text-muted); }
+
+    .tree-health {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .tree-health.high { color: var(--green); }
+    .tree-health.mid { color: var(--amber); }
+    .tree-health.low { color: var(--red); }
+
+    .tree-children {
+      padding-left: 16px;
+    }
+
+    .tree-children.collapsed {
+      display: none;
+    }
+
+    /* Level indentation */
+    .tree-row[data-level="1"] { padding-left: 12px; }
+    .tree-row[data-level="2"] { padding-left: 28px; }
+    .tree-row[data-level="3"] { padding-left: 44px; }
+    .tree-row[data-level="4"] { padding-left: 60px; }
+
+    /* Gate dots on items */
+    .gate-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .gate-dot.discover { background: var(--red); }
+    .gate-dot.build { background: var(--amber); }
+    .gate-dot.review { background: var(--purple); }
+    .gate-dot.ship { background: var(--green); }
+
+    /* ===== Right: Detail Panel ===== */
+    .detail-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 24px 28px;
+    }
+
+    .detail-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      gap: 8px;
+    }
+
+    .detail-empty-icon {
+      font-size: 32px;
+      opacity: 0.4;
+    }
+
+    .detail-empty-text {
+      font-size: 13px;
+    }
+
+    /* Detail header */
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .detail-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .detail-avatar.l1 { background: var(--teal-dim); }
+    .detail-avatar.l2 { background: var(--purple-dim); }
+    .detail-avatar.l3 { background: var(--accent-blue-dim); }
+
+    .detail-title-block {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .detail-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .detail-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .detail-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Stats strip */
+    .detail-stats {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .detail-stat {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      text-align: center;
+    }
+
+    .detail-stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: var(--mono);
+    }
+
+    .detail-stat-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .detail-stat-value.green { color: var(--green); }
+    .detail-stat-value.amber { color: var(--amber); }
+    .detail-stat-value.red { color: var(--red); }
+    .detail-stat-value.teal { color: var(--teal); }
+    .detail-stat-value.blue { color: var(--accent-blue); }
+
+    /* Chamber distribution bar */
+    .chamber-bar-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      gap: 8px;
+    }
+
+    .chamber-bar-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .chamber-bar {
+      flex: 1;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--bg-input);
+      display: flex;
+      overflow: hidden;
+    }
+
+    .chamber-bar-segment {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .chamber-bar-segment.discover { background: var(--red); }
+    .chamber-bar-segment.build { background: var(--amber); }
+    .chamber-bar-segment.review { background: var(--purple); }
+    .chamber-bar-segment.ship { background: var(--green); }
+
+    .chamber-bar-counts {
+      display: flex;
+      gap: 10px;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
+    .chamber-bar-count {
+      font-size: 9px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+    }
+
+    /* Section headings */
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Metadata grid */
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .meta-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+    }
+
+    .meta-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 3px;
+    }
+
+    .meta-value {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    /* Child vault table */
+    .child-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .child-table th {
+      text-align: left;
+      padding: 6px 10px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      background: rgba(0,0,0,0.15);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .child-table td {
+      padding: 7px 10px;
+      font-size: 11px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .child-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .child-table .name-cell {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .child-table .health-cell {
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+
+    /* Activity feed in detail */
+    .activity-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .activity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .activity-dot.green { background: var(--green); }
+    .activity-dot.amber { background: var(--amber); }
+    .activity-dot.red { background: var(--red); }
+    .activity-dot.blue { background: var(--accent-blue); }
+    .activity-dot.teal { background: var(--teal); }
+
+    .activity-content { flex: 1; }
+
+    .activity-title {
+      font-size: 11px;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .activity-time {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    /* Breadcrumb */
+    .detail-breadcrumb {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .detail-breadcrumb-link {
+      color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    .detail-breadcrumb-link:hover {
+      text-decoration: underline;
+    }
+
+    .detail-breadcrumb-sep {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* Confidence bar */
+    .confidence-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .confidence-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--bg-input);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .confidence-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    .confidence-label {
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 600;
+      min-width: 32px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="crm-layout">
+    <!-- Left: Account Tree -->
+    <div class="tree-panel">
+      <div class="tree-header">
+        <div class="tree-title">Vault Hierarchy</div>
+        <input class="tree-search" type="text" placeholder="Search accounts..." id="treeSearch" oninput="filterTree(this.value)">
+        <div class="tree-stats">
+          <div class="tree-stat"><span class="tree-stat-num">6</span>Accounts</div>
+          <div class="tree-stat"><span class="tree-stat-num">4</span>Divisions</div>
+          <div class="tree-stat"><span class="tree-stat-num">14</span>Counterparties</div>
+          <div class="tree-stat"><span class="tree-stat-num">63</span>Contracts</div>
+        </div>
+      </div>
+      <div class="tree-body" id="treeBody"></div>
+    </div>
+
+    <!-- Right: Detail Panel -->
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-empty">
+        <div class="detail-empty-icon">&#128101;</div>
+        <div class="detail-empty-text">Select an account to view details</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Demo Vault Data =====
+    var VAULTS = [
+      {
+        id: 'acme', name: 'Acme Inc', level: 1, type: 'Distribution',
+        health: 78, industry: 'Music Distribution', location: 'Los Angeles, CA',
+        contact: 'Sarah Chen (VP Licensing)', firstInteraction: '2024-03-15',
+        children: [
+          {
+            id: 'acme-big-booty', name: 'Big Booty Inc', level: 2, type: 'Label (Acquired)',
+            health: 65, location: 'Miami, FL', contact: 'DJ Khaled (CEO)',
+            children: [
+              {
+                id: 'acme-bb-sony', name: 'Sony Music', level: 3, type: 'Counterparty',
+                health: 72, confidence: 0.94, dealValue: '$2.4M', contact: 'Mike Ross',
+                children: [
+                  { id: 'sony-dist-2024', name: 'Sony Distribution Agreement Q1-2026', level: 4, gate: 'build', health: 68 },
+                  { id: 'sony-license-2024', name: 'Sony License Master 2025', level: 4, gate: 'review', health: 82 },
+                  { id: 'sony-amend-01', name: 'Sony Amendment #1', level: 4, gate: 'ship', health: 95 }
+                ]
+              },
+              {
+                id: 'acme-bb-warner', name: 'Warner Music Group', level: 3, type: 'Counterparty',
+                health: 58, confidence: 0.87, dealValue: '$1.8M', contact: 'Jessica Pearson',
+                children: [
+                  { id: 'warner-amendment', name: 'Warner Sub-License Amendment', level: 4, gate: 'review', health: 61 },
+                  { id: 'warner-dist', name: 'Warner Distribution Master', level: 4, gate: 'build', health: 55 }
+                ]
+              }
+            ]
+          },
+          {
+            id: 'acme-slowhands', name: 'Slowhands Entertainment', level: 2, type: 'Label (Acquired)',
+            health: 81, location: 'Nashville, TN', contact: 'Taylor Martinez',
+            children: [
+              {
+                id: 'acme-sh-broke', name: 'Broke Records', level: 3, type: 'Counterparty',
+                health: 49, confidence: 0.72, dealValue: '$450K', contact: 'Daniele Leoni',
+                children: [
+                  { id: 'broke-mgmt', name: 'Broke Records Mgmt Agreement', level: 4, gate: 'discover', health: 42 },
+                  { id: 'broke-pub', name: 'Broke Records Publishing', level: 4, gate: 'discover', health: 38 }
+                ]
+              }
+            ]
+          },
+          {
+            id: 'acme-direct-theorist', name: 'The Theorist', level: 3, type: 'Counterparty',
+            health: 71, confidence: 0.91, dealValue: '$320K', contact: 'George Zhao',
+            children: [
+              { id: 'theorist-service', name: 'Theorist Service Agreement', level: 4, gate: 'build', health: 74 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'ostereo', name: 'Ostereo Music Group', level: 1, type: 'Distribution',
+        health: 84, industry: 'Music Distribution', location: 'New York, NY',
+        contact: 'James Liu (Head of Ops)', firstInteraction: '2023-11-01',
+        children: [
+          {
+            id: 'ost-henderson', name: 'Henderson Artists', level: 3, type: 'Counterparty',
+            health: 45, confidence: 0.96, dealValue: '$3.1M', contact: 'Ana Chen',
+            children: [
+              { id: 'henderson-msa', name: 'Henderson Master Service Agreement', level: 4, gate: 'review', health: 41 },
+              { id: 'henderson-dist', name: 'Henderson Distribution 2026', level: 4, gate: 'build', health: 52 }
+            ]
+          },
+          {
+            id: 'ost-get-dough', name: 'Get Dough Records', level: 3, type: 'Counterparty',
+            health: 88, confidence: 0.99, dealValue: '$890K', contact: 'Marcus Webb',
+            children: [
+              { id: 'getdough-license', name: 'Get Dough License Agreement', level: 4, gate: 'ship', health: 92 },
+              { id: 'getdough-pub', name: 'Get Dough Publishing Master', level: 4, gate: 'ship', health: 89 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'nova', name: 'Nova Entertainment', level: 1, type: 'Management',
+        health: 91, industry: 'Artist Management', location: 'London, UK',
+        contact: 'Emily Watson (CEO)', firstInteraction: '2024-06-20',
+        children: [
+          {
+            id: 'nova-atlantic', name: 'Atlantic Records', level: 3, type: 'Counterparty',
+            health: 93, confidence: 0.98, dealValue: '$5.2M', contact: 'Robert Kim',
+            children: [
+              { id: 'atlantic-mgmt', name: 'Atlantic Management Master', level: 4, gate: 'ship', health: 96 },
+              { id: 'atlantic-dist', name: 'Atlantic Distribution 2026', level: 4, gate: 'review', health: 88 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'summit', name: 'Summit Media', level: 1, type: 'License',
+        health: 62, industry: 'Media Licensing', location: 'Toronto, CA',
+        contact: 'David Park (Licensing Dir)', firstInteraction: '2025-01-10',
+        children: [
+          {
+            id: 'summit-universal', name: 'Universal Music', level: 3, type: 'Counterparty',
+            health: 59, confidence: 0.83, dealValue: '$4.7M', contact: 'Sophie Laurent',
+            children: [
+              { id: 'universal-lic-01', name: 'Universal License Agreement', level: 4, gate: 'build', health: 55 },
+              { id: 'universal-lic-02', name: 'Universal Sub-License APAC', level: 4, gate: 'discover', health: 48 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'pulse', name: 'Pulse Records', level: 1, type: 'Recording',
+        health: 76, industry: 'Recording', location: 'Berlin, DE',
+        contact: 'Max Richter (A&R)', firstInteraction: '2024-09-05',
+        children: [
+          {
+            id: 'pulse-bmi', name: 'BMI', level: 3, type: 'Counterparty',
+            health: 79, confidence: 0.95, dealValue: '$1.2M', contact: 'Lisa Tran',
+            children: [
+              { id: 'bmi-recording', name: 'BMI Recording Master', level: 4, gate: 'build', health: 77 },
+              { id: 'bmi-pub', name: 'BMI Publishing Agreement', level: 4, gate: 'build', health: 80 }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'drift', name: 'Drift Audio', level: 1, type: 'Service',
+        health: 53, industry: 'Audio Services', location: 'Austin, TX',
+        contact: 'Nina Patel (Founder)', firstInteraction: '2025-02-14',
+        children: [
+          {
+            id: 'drift-spotify', name: 'Spotify', level: 3, type: 'Counterparty',
+            health: 51, confidence: 0.68, dealValue: '$780K', contact: 'Alex Johansson',
+            children: [
+              { id: 'spotify-service', name: 'Spotify Distribution Service', level: 4, gate: 'discover', health: 44 },
+              { id: 'spotify-api', name: 'Spotify API Integration', level: 4, gate: 'discover', health: 39 }
+            ]
+          }
+        ]
+      }
+    ];
+
+    // ===== Helpers =====
+    function healthClass(h) { return h >= 75 ? 'high' : h >= 50 ? 'mid' : 'low'; }
+    function healthColor(h) { return h >= 75 ? 'var(--green)' : h >= 50 ? 'var(--amber)' : 'var(--red)'; }
+
+    function countDescendants(node) {
+      var count = { l2: 0, l3: 0, l4: 0 };
+      function walk(n) {
+        if (!n.children) return;
+        n.children.forEach(function(c) {
+          if (c.level === 2) count.l2++;
+          if (c.level === 3) count.l3++;
+          if (c.level === 4) count.l4++;
+          walk(c);
+        });
+      }
+      walk(node);
+      return count;
+    }
+
+    function chamberCounts(node) {
+      var counts = { discover: 0, build: 0, review: 0, ship: 0 };
+      function walk(n) {
+        if (n.level === 4 && n.gate) counts[n.gate]++;
+        if (n.children) n.children.forEach(walk);
+      }
+      walk(node);
+      return counts;
+    }
+
+    function flatItems(node) {
+      var items = [];
+      function walk(n) {
+        if (n.level === 4) items.push(n);
+        if (n.children) n.children.forEach(walk);
+      }
+      walk(node);
+      return items;
+    }
+
+    // ===== Tree Rendering =====
+    var selectedId = null;
+    var expanded = {};
+
+    // Auto-expand level 1
+    VAULTS.forEach(function(v) { expanded[v.id] = true; });
+
+    function renderTree() {
+      var html = '';
+      VAULTS.forEach(function(v) {
+        html += renderNode(v);
+      });
+      document.getElementById('treeBody').innerHTML = html;
+    }
+
+    function renderNode(node) {
+      var hasChildren = node.children && node.children.length > 0;
+      var isExpanded = expanded[node.id];
+      var isSelected = selectedId === node.id;
+
+      var chevronClass = hasChildren ? (isExpanded ? 'tree-chevron open' : 'tree-chevron') : 'tree-chevron leaf';
+      var levelBadge = node.level === 1 ? 'l1' : node.level === 2 ? 'l2' : node.level === 3 ? 'l3' : 'l4';
+
+      var icon = node.level === 1 ? '&#127970;' : node.level === 2 ? '&#127963;' : node.level === 3 ? '&#129309;' : '&#128196;';
+
+      var html = '<div class="tree-node" data-id="' + node.id + '">';
+      html += '<div class="tree-row' + (isSelected ? ' selected' : '') + '" data-level="' + node.level + '" onclick="onTreeClick(\'' + node.id + '\',' + hasChildren + ')">';
+      html += '<span class="' + chevronClass + '">&#9654;</span>';
+
+      if (node.level === 4) {
+        html += '<span class="gate-dot ' + (node.gate || 'discover') + '"></span>';
+      } else {
+        html += '<span class="tree-icon">' + icon + '</span>';
+      }
+
+      html += '<span class="tree-label">' + node.name + '</span>';
+
+      if (node.level <= 3 && node.health !== undefined) {
+        html += '<span class="tree-health ' + healthClass(node.health) + '">' + node.health + '%</span>';
+      }
+
+      html += '</div>';
+
+      if (hasChildren) {
+        html += '<div class="tree-children' + (isExpanded ? '' : ' collapsed') + '">';
+        node.children.forEach(function(c) {
+          html += renderNode(c);
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    function onTreeClick(id, hasChildren) {
+      if (hasChildren) {
+        expanded[id] = !expanded[id];
+      }
+      selectedId = id;
+      renderTree();
+      renderDetail(id);
+    }
+
+    function findNode(id, nodes) {
+      for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === id) return nodes[i];
+        if (nodes[i].children) {
+          var found = findNode(id, nodes[i].children);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    function findParentChain(id, nodes, chain) {
+      chain = chain || [];
+      for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === id) return chain.concat([nodes[i]]);
+        if (nodes[i].children) {
+          var result = findParentChain(id, nodes[i].children, chain.concat([nodes[i]]));
+          if (result) return result;
+        }
+      }
+      return null;
+    }
+
+    // ===== Detail Rendering =====
+    function renderDetail(id) {
+      var node = findNode(id, VAULTS);
+      if (!node) return;
+
+      var chain = findParentChain(id, VAULTS) || [node];
+      var panel = document.getElementById('detailPanel');
+
+      if (node.level === 4) {
+        renderItemDetail(node, chain, panel);
+      } else if (node.level === 3) {
+        renderCounterpartyDetail(node, chain, panel);
+      } else {
+        renderAccountDetail(node, chain, panel);
+      }
+    }
+
+    function breadcrumbHtml(chain) {
+      var html = '<div class="detail-breadcrumb">';
+      html += '<span class="detail-breadcrumb-link" onclick="onTreeClick(\'home\',false)">CRM</span>';
+      chain.forEach(function(n, i) {
+        html += '<span class="detail-breadcrumb-sep">&rsaquo;</span>';
+        if (i < chain.length - 1) {
+          html += '<span class="detail-breadcrumb-link" onclick="onTreeClick(\'' + n.id + '\',true)">' + n.name + '</span>';
+        } else {
+          html += '<span>' + n.name + '</span>';
+        }
+      });
+      html += '</div>';
+      return html;
+    }
+
+    function renderAccountDetail(node, chain, panel) {
+      var desc = countDescendants(node);
+      var chambers = chamberCounts(node);
+      var items = flatItems(node);
+      var total = items.length;
+      var discPct = total ? Math.round(chambers.discover / total * 100) : 0;
+      var buildPct = total ? Math.round(chambers.build / total * 100) : 0;
+      var reviewPct = total ? Math.round(chambers.review / total * 100) : 0;
+      var shipPct = total ? Math.round(chambers.ship / total * 100) : 0;
+
+      var avatarIcon = node.level === 1 ? '&#127970;' : '&#127963;';
+      var levelLabel = node.level === 1 ? 'Account' : 'Division';
+
+      var html = breadcrumbHtml(chain);
+      html += '<div class="detail-header">';
+      html += '<div class="detail-avatar l' + node.level + '">' + avatarIcon + '</div>';
+      html += '<div class="detail-title-block">';
+      html += '<div class="detail-name">' + node.name + '</div>';
+      html += '<div class="detail-meta">';
+      html += '<div class="detail-meta-item"><span class="tree-badge l' + node.level + '">' + levelLabel + '</span></div>';
+      if (node.type) html += '<div class="detail-meta-item">' + node.type + '</div>';
+      if (node.industry) html += '<div class="detail-meta-item">' + node.industry + '</div>';
+      if (node.location) html += '<div class="detail-meta-item">&#128205; ' + node.location + '</div>';
+      html += '</div></div></div>';
+
+      // Stats
+      html += '<div class="detail-stats">';
+      html += '<div class="detail-stat"><div class="detail-stat-value ' + healthClass(node.health) + '">' + node.health + '%</div><div class="detail-stat-label">Health</div></div>';
+      if (desc.l2 > 0) html += '<div class="detail-stat"><div class="detail-stat-value teal">' + desc.l2 + '</div><div class="detail-stat-label">Divisions</div></div>';
+      html += '<div class="detail-stat"><div class="detail-stat-value blue">' + desc.l3 + '</div><div class="detail-stat-label">Counterparties</div></div>';
+      html += '<div class="detail-stat"><div class="detail-stat-value">' + desc.l4 + '</div><div class="detail-stat-label">Contracts</div></div>';
+      html += '</div>';
+
+      // Chamber distribution
+      html += '<div class="chamber-bar-row">';
+      html += '<div class="chamber-bar-label">Pipeline</div>';
+      html += '<div class="chamber-bar">';
+      html += '<div class="chamber-bar-segment discover" style="width:' + discPct + '%"></div>';
+      html += '<div class="chamber-bar-segment build" style="width:' + buildPct + '%"></div>';
+      html += '<div class="chamber-bar-segment review" style="width:' + reviewPct + '%"></div>';
+      html += '<div class="chamber-bar-segment ship" style="width:' + shipPct + '%"></div>';
+      html += '</div>';
+      html += '<div class="chamber-bar-counts">';
+      html += '<span class="chamber-bar-count" style="color:var(--red)">' + chambers.discover + '</span>';
+      html += '<span class="chamber-bar-count" style="color:var(--amber)">' + chambers.build + '</span>';
+      html += '<span class="chamber-bar-count" style="color:var(--purple)">' + chambers.review + '</span>';
+      html += '<span class="chamber-bar-count" style="color:var(--green)">' + chambers.ship + '</span>';
+      html += '</div></div>';
+
+      // Metadata
+      html += '<div class="detail-section"><div class="detail-section-title">Account Details</div>';
+      html += '<div class="meta-grid">';
+      if (node.contact) html += '<div class="meta-item"><div class="meta-label">Primary Contact</div><div class="meta-value">' + node.contact + '</div></div>';
+      if (node.firstInteraction) html += '<div class="meta-item"><div class="meta-label">First Interaction</div><div class="meta-value">' + node.firstInteraction + '</div></div>';
+      html += '<div class="meta-item"><div class="meta-label">Type</div><div class="meta-value">' + (node.type || '—') + '</div></div>';
+      html += '<div class="meta-item"><div class="meta-label">Location</div><div class="meta-value">' + (node.location || '—') + '</div></div>';
+      html += '</div></div>';
+
+      // Child vaults table
+      var directChildren = node.children || [];
+      if (directChildren.length > 0) {
+        var childLevel = directChildren[0].level;
+        var childLabel = childLevel === 2 ? 'Divisions' : childLevel === 3 ? 'Counterparties' : 'Items';
+        html += '<div class="detail-section"><div class="detail-section-title">' + childLabel + ' (' + directChildren.length + ')</div>';
+        html += '<table class="child-table"><thead><tr>';
+        html += '<th>Name</th><th>Type</th><th>Health</th>';
+        if (childLevel <= 3) html += '<th>Contracts</th>';
+        html += '</tr></thead><tbody>';
+        directChildren.forEach(function(c) {
+          var cDesc = countDescendants(c);
+          var itemCount = cDesc.l4 + (c.level === 4 ? 1 : 0);
+          html += '<tr style="cursor:pointer" onclick="onTreeClick(\'' + c.id + '\',' + !!(c.children && c.children.length) + ')">';
+          html += '<td class="name-cell">' + c.name + '</td>';
+          html += '<td>' + (c.type || '—') + '</td>';
+          html += '<td class="health-cell" style="color:' + healthColor(c.health) + '">' + c.health + '%</td>';
+          if (childLevel <= 3) html += '<td>' + itemCount + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // Recent activity
+      html += renderActivitySection(node);
+
+      panel.innerHTML = html;
+    }
+
+    function renderCounterpartyDetail(node, chain, panel) {
+      var items = flatItems(node);
+      var chambers = chamberCounts(node);
+      var total = items.length;
+
+      var html = breadcrumbHtml(chain);
+      html += '<div class="detail-header">';
+      html += '<div class="detail-avatar l3">&#129309;</div>';
+      html += '<div class="detail-title-block">';
+      html += '<div class="detail-name">' + node.name + '</div>';
+      html += '<div class="detail-meta">';
+      html += '<div class="detail-meta-item"><span class="tree-badge l3">Counterparty</span></div>';
+      if (node.type) html += '<div class="detail-meta-item">' + node.type + '</div>';
+      if (node.contact) html += '<div class="detail-meta-item">&#128100; ' + node.contact + '</div>';
+      if (node.dealValue) html += '<div class="detail-meta-item">&#128176; ' + node.dealValue + '</div>';
+      html += '</div></div></div>';
+
+      // Stats
+      html += '<div class="detail-stats">';
+      html += '<div class="detail-stat"><div class="detail-stat-value ' + healthClass(node.health) + '">' + node.health + '%</div><div class="detail-stat-label">Health</div></div>';
+      html += '<div class="detail-stat"><div class="detail-stat-value blue">' + total + '</div><div class="detail-stat-label">Contracts</div></div>';
+      if (node.dealValue) html += '<div class="detail-stat"><div class="detail-stat-value teal">' + node.dealValue + '</div><div class="detail-stat-label">Total Value</div></div>';
+      html += '</div>';
+
+      // Confidence
+      if (node.confidence !== undefined) {
+        var confPct = Math.round(node.confidence * 100);
+        var confColor = confPct >= 90 ? 'var(--green)' : confPct >= 70 ? 'var(--amber)' : 'var(--red)';
+        html += '<div class="detail-section"><div class="detail-section-title">Entity Resolution</div>';
+        html += '<div class="confidence-bar-wrap">';
+        html += '<div class="confidence-bar"><div class="confidence-bar-fill" style="width:' + confPct + '%;background:' + confColor + '"></div></div>';
+        html += '<div class="confidence-label" style="color:' + confColor + '">' + confPct + '%</div>';
+        html += '</div></div>';
+      }
+
+      // Contracts table
+      if (items.length > 0) {
+        html += '<div class="detail-section"><div class="detail-section-title">Contracts (' + items.length + ')</div>';
+        html += '<table class="child-table"><thead><tr>';
+        html += '<th>Contract</th><th>Chamber</th><th>Health</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach(function(item) {
+          var gateLabel = item.gate.charAt(0).toUpperCase() + item.gate.slice(1);
+          var gateColor = item.gate === 'discover' ? 'var(--red)' : item.gate === 'build' ? 'var(--amber)' : item.gate === 'review' ? 'var(--purple)' : 'var(--green)';
+          html += '<tr>';
+          html += '<td class="name-cell">' + item.name + '</td>';
+          html += '<td><span class="gate-dot ' + item.gate + '" style="display:inline-block;vertical-align:middle;margin-right:5px"></span>' + gateLabel + '</td>';
+          html += '<td class="health-cell" style="color:' + healthColor(item.health) + '">' + item.health + '%</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // Metadata
+      html += '<div class="detail-section"><div class="detail-section-title">Relationship Details</div>';
+      html += '<div class="meta-grid">';
+      html += '<div class="meta-item"><div class="meta-label">Primary Contact</div><div class="meta-value">' + (node.contact || '—') + '</div></div>';
+      html += '<div class="meta-item"><div class="meta-label">Deal Value</div><div class="meta-value">' + (node.dealValue || '—') + '</div></div>';
+      html += '<div class="meta-item"><div class="meta-label">Entity Confidence</div><div class="meta-value">' + (node.confidence ? Math.round(node.confidence * 100) + '%' : '—') + '</div></div>';
+      html += '<div class="meta-item"><div class="meta-label">Type</div><div class="meta-value">' + (node.type || '—') + '</div></div>';
+      html += '</div></div>';
+
+      html += renderActivitySection(node);
+      panel.innerHTML = html;
+    }
+
+    function renderItemDetail(node, chain, panel) {
+      var gateLabel = node.gate.charAt(0).toUpperCase() + node.gate.slice(1);
+
+      var html = breadcrumbHtml(chain);
+      html += '<div class="detail-header">';
+      html += '<div class="detail-avatar l3" style="background:var(--bg-card)">&#128196;</div>';
+      html += '<div class="detail-title-block">';
+      html += '<div class="detail-name">' + node.name + '</div>';
+      html += '<div class="detail-meta">';
+      html += '<div class="detail-meta-item"><span class="tree-badge l4">Item Vault</span></div>';
+      html += '<div class="detail-meta-item"><span class="gate-dot ' + node.gate + '" style="display:inline-block;vertical-align:middle;margin-right:3px"></span>' + gateLabel + '</div>';
+      html += '</div></div></div>';
+
+      html += '<div class="detail-stats">';
+      html += '<div class="detail-stat"><div class="detail-stat-value ' + healthClass(node.health) + '">' + node.health + '%</div><div class="detail-stat-label">Health</div></div>';
+      html += '<div class="detail-stat"><div class="detail-stat-value" style="color:' + healthColor(node.health) + '">' + gateLabel + '</div><div class="detail-stat-label">Chamber</div></div>';
+      html += '</div>';
+
+      html += '<div class="detail-section" style="margin-top:12px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center">';
+      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">This is an item vault (Level 4)</div>';
+      html += '<div style="font-size:11px;color:var(--accent-blue);cursor:pointer">Open in Contracts Module &#8594;</div>';
+      html += '</div>';
+
+      panel.innerHTML = html;
+    }
+
+    function renderActivitySection(node) {
+      var activities = [
+        { dot: 'green', title: 'Entity resolved: ' + node.name + ' matched (confidence 94%)', time: '2h ago' },
+        { dot: 'amber', title: 'Health score changed: 82% → ' + node.health + '%', time: '4h ago' },
+        { dot: 'blue', title: 'New contract added: extraction completed', time: '6h ago' },
+        { dot: 'teal', title: 'AI suggestion: Review pricing terms in clause 4.2', time: '1d ago' },
+        { dot: 'red', title: 'SLA approaching for verifier review', time: '2d ago' }
+      ];
+
+      var html = '<div class="detail-section"><div class="detail-section-title">Recent Activity</div>';
+      activities.forEach(function(a) {
+        html += '<div class="activity-item">';
+        html += '<div class="activity-dot ' + a.dot + '"></div>';
+        html += '<div class="activity-content">';
+        html += '<div class="activity-title">' + a.title + '</div>';
+        html += '<div class="activity-time">' + a.time + '</div>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // ===== Search / Filter =====
+    function filterTree(query) {
+      query = query.toLowerCase().trim();
+      var rows = document.querySelectorAll('.tree-node');
+      if (!query) {
+        rows.forEach(function(r) { r.style.display = ''; });
+        return;
+      }
+      // Simple: show/hide based on name match
+      rows.forEach(function(r) {
+        var label = r.querySelector('.tree-label');
+        if (label && label.textContent.toLowerCase().indexOf(query) >= 0) {
+          r.style.display = '';
+          // Also show parents
+          var parent = r.parentElement;
+          while (parent) {
+            if (parent.classList && parent.classList.contains('tree-children')) {
+              parent.classList.remove('collapsed');
+            }
+            if (parent.classList && parent.classList.contains('tree-node')) {
+              parent.style.display = '';
+            }
+            parent = parent.parentElement;
+          }
+        } else {
+          r.style.display = 'none';
+        }
+      });
+    }
+
+    // ===== Theme =====
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') {
+      document.documentElement.setAttribute('data-theme', 'airlock');
+    }
+
+    // ===== Init =====
+    renderTree();
+    // Auto-select first account
+    onTreeClick('acme', true);
+  </script>
+</body>
+</html>

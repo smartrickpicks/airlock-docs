@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html data-theme="dark" lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Org Overview — OrcestrateOS</title>
+<link rel="stylesheet" href="../../demo-shell/themes/theme.base.css">
+<style>
+/* ── Reset & Variables (aligned with triage/dossier palette) ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* :root tokens + --ov-* aliases loaded from ../../demo-shell/themes/theme.base.css */
+:root {
+  /* Layout-specific tokens (not in base theme) */
+  --ov-sidebar-w: 200px;
+  --ov-topbar-h: 44px;
+  /* Org-overview uses slightly larger radii */
+  --ov-radius-sm: 6px;
+  --ov-radius-md: 8px;
+  --ov-radius-lg: 12px;
+}
+body { font-family: var(--ov-font); background: var(--ov-bg-page); color: var(--ov-text-primary); font-size: 13px; overflow: hidden; }
+
+/* ── App Layout ───────────────────────────────────────────── */
+.ov-app { display: flex; height: 100vh; overflow: hidden; }
+.ov-content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.ov-sidebar {
+  width: var(--ov-sidebar-w); background: var(--ov-bg-sidebar); height: 100vh;
+  display: flex; flex-direction: column; border-right: 1px solid var(--ov-border);
+  padding: 16px 12px; overflow-y: auto; flex-shrink: 0;
+}
+.ov-divider { height: 1px; background: var(--ov-border); margin: 12px 0; }
+.ov-section-label { font-size: 10px; font-weight: 700; color: var(--ov-text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+.ov-logo { font-size: 14px; font-weight: 800; color: var(--ov-text-primary); letter-spacing: 1px; margin-bottom: 4px; }
+.ov-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--ov-radius-sm); cursor: pointer; font-size: 12px; color: var(--ov-text-secondary); border-left: 3px solid transparent; margin-bottom: 2px; transition: all 0.15s; }
+.ov-nav-item:hover { background: var(--ov-bg-card); color: var(--ov-text-primary); }
+.ov-nav-item.active { background: var(--ov-accent-dim); color: var(--ov-accent); border-left-color: var(--ov-accent); font-weight: 600; }
+.ov-team-summary { margin-bottom: 4px; }
+.ov-team-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--ov-radius-sm); font-size: 11px; color: var(--ov-text-secondary); transition: background 0.15s; }
+.ov-team-row:hover { background: var(--ov-bg-card); }
+.ov-team-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ov-team-dot.active { background: var(--ov-green); }
+.ov-team-dot.idle { background: var(--ov-text-muted); }
+.ov-team-name { flex: 1; font-weight: 600; color: var(--ov-text-primary); }
+.ov-team-stats { font-size: 10px; color: var(--ov-text-muted); white-space: nowrap; }
+.ov-progress-bar { height: 3px; background: var(--ov-border); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+.ov-progress-fill { height: 3px; border-radius: 2px; }
+.ov-role-pill { display: inline-block; font-size: 11px; font-weight: 600; color: var(--ov-accent); background: var(--ov-accent-dim); padding: 4px 12px; border-radius: 12px; }
+.ov-toggle { width: 32px; height: 18px; border-radius: 9px; position: relative; cursor: pointer; }
+.ov-toggle.on { background: var(--ov-accent); }
+.ov-toggle .ov-toggle-knob { width: 14px; height: 14px; background: #fff; border-radius: 50%; position: absolute; top: 2px; transition: 0.2s; }
+.ov-toggle.on .ov-toggle-knob { right: 2px; }
+.ov-user { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.ov-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--ov-accent); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
+
+/* ── Top Bar ──────────────────────────────────────────────── */
+.ov-top-bar {
+  height: var(--ov-topbar-h); background: var(--ov-bg-topbar);
+  border-bottom: 1px solid var(--ov-border); display: flex;
+  align-items: center; padding: 0 20px; gap: 12px; flex-shrink: 0;
+}
+.ov-page-title { font-size: 14px; font-weight: 700; color: var(--ov-text-primary); }
+.ov-topbar-spacer { flex: 1; }
+.ov-bell { position: relative; cursor: pointer; font-size: 16px; color: var(--ov-text-secondary); }
+.ov-bell-badge { position: absolute; top: -4px; right: -6px; width: 14px; height: 14px; background: var(--ov-red); border-radius: 50%; font-size: 8px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; }
+
+/* ── Main Content ─────────────────────────────────────────── */
+.ov-main { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+/* ── Entity Cards ─────────────────────────────────────────── */
+.ov-entity-strip { display: flex; gap: 16px; margin-bottom: 20px; }
+.ov-entity-card {
+  flex: 1; background: var(--ov-bg-card); border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-md); overflow: hidden; transition: all 0.15s;
+}
+.ov-entity-card:hover { border-color: var(--ov-border-light); }
+.ov-entity-card.expanded { border-color: var(--ov-accent); }
+.ov-entity-header {
+  padding: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 8px;
+}
+.ov-entity-top { display: flex; align-items: center; gap: 10px; }
+.ov-entity-name { font-size: 14px; font-weight: 700; color: var(--ov-text-primary); flex: 1; }
+.ov-entity-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+.ov-entity-badge.distribution { background: rgba(0,145,234,0.15); color: var(--ov-accent); }
+.ov-entity-badge.options { background: rgba(123,31,162,0.15); color: #ce93d8; }
+.ov-entity-chevron { font-size: 14px; color: var(--ov-text-muted); transition: transform 0.2s; }
+.ov-entity-card.expanded .ov-entity-chevron { transform: rotate(90deg); }
+.ov-entity-stats { display: flex; gap: 16px; font-size: 11px; color: var(--ov-text-secondary); }
+.ov-entity-stat { display: flex; align-items: center; gap: 4px; }
+.ov-entity-stat .val { font-weight: 700; color: var(--ov-text-primary); }
+.ov-entity-analysts { font-size: 10px; color: var(--ov-text-muted); }
+.ov-entity-bar { height: 3px; background: var(--ov-border); border-radius: 2px; overflow: hidden; }
+.ov-entity-bar-fill { height: 3px; border-radius: 2px; }
+.ov-entity-bar-label { font-size: 10px; color: var(--ov-text-muted); margin-top: 4px; }
+.ov-entity-actions { display: flex; gap: 12px; font-size: 10px; color: var(--ov-text-muted); margin-top: 2px; }
+.ov-entity-action { display: flex; align-items: center; gap: 3px; }
+.ov-entity-action .count { font-weight: 700; }
+.ov-entity-action .count.amber { color: var(--ov-amber); }
+.ov-entity-action .count.red { color: var(--ov-red); }
+
+/* Entity Expanded Table */
+.ov-entity-table { display: none; border-top: 1px solid var(--ov-border); }
+.ov-entity-card.expanded .ov-entity-table { display: block; }
+.ov-etbl-header { display: flex; padding: 8px 16px; font-size: 10px; font-weight: 700; color: var(--ov-text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: rgba(0,0,0,0.15); }
+.ov-etbl-row { display: flex; padding: 8px 16px; font-size: 11px; border-top: 1px solid var(--ov-border); cursor: pointer; transition: background 0.1s; }
+.ov-etbl-row:hover { background: var(--ov-bg-card-hover); }
+.ov-etbl-col { flex: 1; color: var(--ov-text-secondary); display: flex; align-items: center; gap: 4px; }
+.ov-etbl-col.name { flex: 2.5; color: var(--ov-text-primary); font-weight: 500; }
+.ov-etbl-col.analyst { flex: 1.2; }
+.ov-etbl-col.health { flex: 0.6; text-align: center; justify-content: center; }
+.ov-etbl-col.status { flex: 0.8; }
+.ov-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ov-status-dot.fail { background: var(--ov-red); }
+.ov-status-dot.review { background: var(--ov-amber); }
+.ov-status-dot.pass { background: var(--ov-green); }
+.ov-status-dot.failed { background: var(--ov-text-muted); border: 1px dashed var(--ov-red); width: 7px; height: 7px; }
+
+/* Entity Table Category Sub-Headers */
+.ov-etbl-category {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; font-size: 10px; font-weight: 700;
+  color: var(--ov-text-secondary); text-transform: uppercase;
+  letter-spacing: 0.5px; cursor: pointer;
+  background: rgba(0,145,234,0.05);
+  border-top: 1px solid var(--ov-border);
+  transition: background 0.1s;
+}
+.ov-etbl-category:hover { background: rgba(0,145,234,0.1); }
+.ov-etbl-category .chevron { font-size: 10px; color: var(--ov-text-muted); transition: transform 0.2s; display: inline-block; }
+.ov-etbl-category.collapsed .chevron { transform: rotate(-90deg); }
+.ov-etbl-category .cat-count { font-weight: 400; color: var(--ov-text-muted); }
+
+/* ── Alert Panels ─────────────────────────────────────────── */
+.ov-alert-strip { display: flex; gap: 16px; margin-bottom: 20px; }
+.ov-alert-panel {
+  flex: 1; background: var(--ov-bg-card); border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-md); padding: 16px; transition: all 0.15s;
+}
+.ov-alert-panel:hover { background: var(--ov-bg-card-hover); }
+.ov-alert-icon { font-size: 18px; margin-bottom: 6px; }
+.ov-alert-title { font-size: 12px; font-weight: 700; color: var(--ov-text-primary); margin-bottom: 4px; }
+.ov-alert-count { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+.ov-alert-panel.rfi .ov-alert-count { color: var(--ov-amber); }
+.ov-alert-panel.correction .ov-alert-count { color: var(--ov-blue); }
+.ov-alert-panel.anomaly .ov-alert-count { color: var(--ov-red); }
+.ov-alert-breakdown { font-size: 10px; color: var(--ov-text-muted); line-height: 1.6; }
+.ov-alert-detail { margin-top: 12px; border-top: 1px solid var(--ov-border); padding-top: 10px; }
+.ov-alert-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 11px; color: var(--ov-text-secondary); border-bottom: 1px solid var(--ov-border); cursor: pointer; border-radius: 4px; transition: background 0.1s; }
+.ov-alert-row:hover { background: rgba(255,255,255,0.03); }
+.ov-alert-row:last-child { border-bottom: none; }
+.ov-alert-row .contract { font-weight: 600; color: var(--ov-text-primary); flex: 1; }
+.ov-alert-row .analyst { color: var(--ov-text-muted); }
+.ov-alert-row .time { color: var(--ov-text-muted); font-size: 10px; }
+.ov-alert-overflow { font-size: 10px; color: var(--ov-accent); cursor: pointer; margin-top: 8px; font-weight: 600; }
+.ov-alert-overflow:hover { text-decoration: underline; }
+
+/* ── Alert Modal ─────────────────────────────────────────── */
+.ov-modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.ov-modal-overlay.open { opacity: 1; pointer-events: auto; }
+.ov-modal {
+  background: var(--ov-bg-card); border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-lg); width: 560px; max-height: 70vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.ov-modal-header {
+  display: flex; align-items: center; gap: 10px; padding: 16px 20px;
+  border-bottom: 1px solid var(--ov-border);
+}
+.ov-modal-header .icon { font-size: 18px; }
+.ov-modal-header .title { font-size: 14px; font-weight: 700; color: var(--ov-text-primary); flex: 1; }
+.ov-modal-header .close-btn {
+  width: 28px; height: 28px; border-radius: 50%; background: none;
+  border: 1px solid var(--ov-border); color: var(--ov-text-muted);
+  cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.ov-modal-header .close-btn:hover { background: var(--ov-bg-card-hover); color: var(--ov-text-primary); }
+.ov-modal-body { padding: 12px 20px; overflow-y: auto; flex: 1; }
+.ov-modal-row {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 8px;
+  border-bottom: 1px solid var(--ov-border); cursor: pointer;
+  border-radius: var(--ov-radius-sm); transition: background 0.1s;
+}
+.ov-modal-row:last-child { border-bottom: none; }
+.ov-modal-row:hover { background: var(--ov-bg-card-hover); }
+.ov-modal-row .contract { font-size: 12px; font-weight: 600; color: var(--ov-text-primary); }
+.ov-modal-row .entity-tag { font-size: 9px; color: var(--ov-accent); background: var(--ov-accent-dim); padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
+.ov-modal-row .detail { font-size: 11px; color: var(--ov-text-secondary); margin-top: 3px; line-height: 1.4; }
+.ov-modal-row .meta { font-size: 10px; color: var(--ov-text-muted); margin-top: 2px; }
+.ov-modal-row .row-body { flex: 1; }
+
+/* ── Section Label ────────────────────────────────────────── */
+.ov-section-title { font-size: 12px; font-weight: 700; color: var(--ov-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+/* ── Filter Bar ───────────────────────────────────────────── */
+.ov-filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.ov-signal-pills { display: flex; gap: 4px; }
+.ov-signal-pill {
+  padding: 6px 14px; border-radius: 16px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--ov-border); background: transparent;
+  color: var(--ov-text-secondary); transition: all 0.15s; font-family: var(--ov-font);
+}
+.ov-signal-pill:hover { background: var(--ov-bg-card-hover); color: var(--ov-text-primary); }
+.ov-signal-pill.active { background: var(--ov-accent-dim); color: var(--ov-accent); border-color: var(--ov-accent); }
+.ov-filter-sep { width: 1px; height: 24px; background: var(--ov-border); }
+.ov-select {
+  background: var(--ov-bg-card); border: 1px solid var(--ov-border); border-radius: var(--ov-radius-sm);
+  color: var(--ov-text-secondary); font-size: 11px; padding: 6px 10px; cursor: pointer; font-family: var(--ov-font);
+}
+.ov-select:focus { border-color: var(--ov-accent); outline: none; }
+
+/* ── Activity Feed ────────────────────────────────────────── */
+.ov-feed-group { font-size: 10px; font-weight: 700; color: var(--ov-text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 0 8px; border-bottom: 1px solid var(--ov-border); margin-bottom: 8px; }
+.ov-feed-item {
+  display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px;
+  background: var(--ov-bg-card); border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-md); margin-bottom: 6px; cursor: pointer; transition: all 0.15s;
+}
+.ov-feed-item:hover { background: var(--ov-bg-card-hover); border-left: 3px solid var(--ov-accent); padding-left: 13px; }
+.ov-feed-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.ov-feed-dot.patch-submit { background: var(--ov-red); }
+.ov-feed-dot.patch-approved { background: var(--ov-green); }
+.ov-feed-dot.patch-clarify { background: var(--ov-amber); }
+.ov-feed-dot.rfi { background: var(--ov-amber); }
+.ov-feed-dot.correction { background: var(--ov-blue); }
+.ov-feed-dot.anomaly { background: var(--ov-red); animation: pulse 2s infinite; }
+.ov-feed-dot.activity { background: var(--ov-teal); }
+.ov-feed-dot.escalation { background: var(--ov-red); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(244,67,54,0.4)} 50%{box-shadow:0 0 0 6px rgba(244,67,54,0)} }
+.ov-feed-body { flex: 1; min-width: 0; }
+.ov-feed-title { font-size: 13px; font-weight: 600; color: var(--ov-text-primary); margin-bottom: 3px; }
+.ov-feed-meta { font-size: 11px; color: var(--ov-text-secondary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ov-feed-sep { color: var(--ov-text-muted); }
+.ov-feed-contract { font-weight: 600; }
+.ov-feed-detail { font-size: 11px; color: var(--ov-text-muted); margin-top: 3px; }
+.ov-feed-badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.3px; }
+.ov-feed-badge.rfi-badge { background: rgba(255,152,0,0.15); color: var(--ov-amber); }
+.ov-feed-badge.correction-badge { background: rgba(66,165,245,0.15); color: var(--ov-blue); }
+.ov-feed-badge.anomaly-badge { background: rgba(244,67,54,0.15); color: var(--ov-red); }
+.ov-feed-arrow { color: var(--ov-text-muted); font-size: 16px; flex-shrink: 0; margin-top: 2px; opacity: 0; transition: opacity 0.15s; }
+.ov-feed-item:hover .ov-feed-arrow { opacity: 1; }
+.ov-feed-empty { text-align: center; padding: 40px; color: var(--ov-text-muted); font-size: 12px; }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.ov-toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: var(--ov-bg-card); border: 1px solid var(--ov-accent);
+  border-radius: var(--ov-radius-md); padding: 12px 20px; font-size: 12px;
+  color: var(--ov-text-primary); z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4); animation: toastIn 0.3s ease-out;
+}
+@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(10px); } }
+
+/* -- Otto FAB + Chat -- */
+.ov-otto-fab {
+  position: fixed; bottom: 24px; right: 24px; width: 48px; height: 48px;
+  border-radius: 50%; background: var(--ov-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,145,234,0.3); font-size: 20px; z-index: 100; transition: transform 0.15s; border: none;
+}
+.ov-otto-fab:hover { transform: scale(1.08); }
+.ov-otto-chat {
+  position: fixed; bottom: 80px; right: 24px; width: 360px; height: 480px;
+  background: var(--ov-bg-sidebar); border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 99; display: none; flex-direction: column; overflow: hidden;
+}
+.ov-otto-chat.open { display: flex; }
+.ov-otto-header { padding: 14px 16px; border-bottom: 1px solid var(--ov-border); font-size: 13px; font-weight: 600; color: var(--ov-text-primary); }
+.ov-otto-body { flex: 1; padding: 16px; overflow-y: auto; font-size: 12px; color: var(--ov-text-secondary); line-height: 1.6; }
+.ov-otto-input { padding: 12px 16px; border-top: 1px solid var(--ov-border); }
+.ov-otto-input input { width: 100%; background: var(--ov-bg-card); border: 1px solid var(--ov-border); border-radius: var(--ov-radius-sm); color: var(--ov-text-primary); padding: 8px 12px; font-size: 12px; font-family: var(--ov-font); }
+.ov-otto-input input:focus { border-color: var(--ov-accent); outline: none; }
+</style>
+</head>
+<body>
+
+<div class="ov-app">
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <div class="ov-sidebar">
+    <div class="ov-logo">ORCHESTRATE OS</div>
+    <div class="ov-divider"></div>
+    <div class="ov-section-label">Navigation</div>
+    <div class="ov-nav">
+      <div class="ov-nav-item active"><span>&#127760;</span> Org Overview</div>
+      <div class="ov-nav-item"><span>&#9776;</span> Triage</div>
+      <div class="ov-nav-item"><span>&#9989;</span> Verifier Review</div>
+    </div>
+    <div class="ov-divider"></div>
+    <div class="ov-section-label">Team Overview</div>
+    <div class="ov-team-summary">
+      <div class="ov-team-row"><div class="ov-team-dot active"></div><span class="ov-team-name">Ana Chen</span><span class="ov-team-stats">33 · 3p</span></div>
+      <div class="ov-team-row"><div class="ov-team-dot active"></div><span class="ov-team-name">Marcus Rivera</span><span class="ov-team-stats">32 · 4p</span></div>
+      <div class="ov-team-row"><div class="ov-team-dot idle"></div><span class="ov-team-name">Sarah Kim</span><span class="ov-team-stats">21 · 0p</span></div>
+    </div>
+    <div class="ov-divider"></div>
+    <div class="ov-section-label">Org Progress</div>
+    <div style="font-size:11px;color:var(--ov-text-secondary);margin-bottom:6px;">86 contracts · 16% preflight-ready</div>
+    <div class="ov-progress-bar"><div class="ov-progress-fill" style="width:16%;background:var(--ov-red);"></div></div>
+    <div class="ov-divider"></div>
+    <div class="ov-section-label">Role</div>
+    <div class="ov-role-pill">Verifier</div>
+    <div class="ov-divider"></div>
+    <div style="flex:1;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--ov-text-secondary);">
+      <span>Dark Mode</span>
+      <div class="ov-toggle on"><div class="ov-toggle-knob"></div></div>
+    </div>
+    <div class="ov-divider"></div>
+    <div class="ov-user">
+      <div class="ov-avatar">JP</div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--ov-text-primary);">J. Park</div>
+        <div style="font-size:10px;color:var(--ov-text-muted);">verifier@ostereo.io</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Content Area ────────────────────────────────────── -->
+  <div class="ov-content-area">
+    <div class="ov-top-bar">
+      <span class="ov-page-title">Org Overview</span>
+      <div class="ov-topbar-spacer"></div>
+      <div class="ov-bell">&#128276;<span class="ov-bell-badge">9</span></div>
+      <div style="cursor:pointer;font-size:16px;color:var(--ov-text-secondary);">&#9881;</div>
+    </div>
+
+    <div class="ov-main">
+
+      <!-- ── Legal Entity Cards ──────────────────────────── -->
+      <div class="ov-section-title">Legal Entities</div>
+      <div class="ov-entity-strip" id="entityStrip"></div>
+
+      <!-- ── Alert Panels ────────────────────────────────── -->
+      <div class="ov-section-title">Handoff Signals</div>
+      <div class="ov-alert-strip" id="alertStrip"></div>
+
+      <!-- ── Activity Feed ───────────────────────────────── -->
+      <div class="ov-section-title">Activity Feed</div>
+      <div class="ov-filter-bar">
+        <div class="ov-signal-pills">
+          <button class="ov-signal-pill active" onclick="setFilter('all')">All</button>
+          <button class="ov-signal-pill" onclick="setFilter('patches')">Patches</button>
+          <button class="ov-signal-pill" onclick="setFilter('rfis')">RFIs</button>
+          <button class="ov-signal-pill" onclick="setFilter('corrections')">Corrections</button>
+          <button class="ov-signal-pill" onclick="setFilter('anomalies')">Anomalies</button>
+          <button class="ov-signal-pill" onclick="setFilter('activity')">Activity</button>
+          <button class="ov-signal-pill" onclick="setFilter('escalations')">Escalations</button>
+        </div>
+        <div class="ov-filter-sep"></div>
+        <label style="font-size:11px;color:var(--ov-text-muted);">Analyst:</label>
+        <select class="ov-select ov-analyst-select" onchange="setAnalyst(this.value)">
+          <option value="all">All</option>
+          <option value="ana">Ana Chen</option>
+          <option value="marcus">Marcus Rivera</option>
+          <option value="sarah">Sarah Kim</option>
+        </select>
+        <label style="font-size:11px;color:var(--ov-text-muted);">Entity:</label>
+        <select class="ov-select" onchange="setEntity(this.value)">
+          <option value="all">All</option>
+          <option value="ostereo">Ostereo</option>
+          <option value="getdough">Get Dough Records, Inc.</option>
+          <option value="broke">Broke Records</option>
+        </select>
+      </div>
+      <div class="ov-feed" id="feedContainer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Alert Modal -->
+<div class="ov-modal-overlay" id="alertModal" onclick="closeAlertModal(event)">
+  <div class="ov-modal" onclick="event.stopPropagation()">
+    <div class="ov-modal-header">
+      <span class="icon" id="modalIcon"></span>
+      <span class="title" id="modalTitle"></span>
+      <button class="close-btn" onclick="closeAlertModal()">&times;</button>
+    </div>
+    <div class="ov-modal-body" id="modalBody"></div>
+  </div>
+</div>
+<button class="ov-otto-fab" onclick="toggleOtto()">&#128038;</button>
+<div class="ov-otto-chat" id="ottoChat">
+  <div class="ov-otto-header">&#128038; Otto Assistant</div>
+  <div class="ov-otto-body">
+    <p><strong>Otto:</strong> I see 3 RFIs pending review and 3 anomalies flagged across the org. Broke Records has 3 failed contracts and none are preflight-ready yet. Want me to prioritize your review queue?</p>
+    <p style="color:var(--ov-text-muted);margin-top:12px;">Ana submitted a correction on Daniele Leoni that changed the SF Account Name, but I can't find that account name anywhere in the document. The Sonic Enterprise escalation has been open 14 days.</p>
+  </div>
+  <div class="ov-otto-input"><input placeholder="Ask Otto anything..." /></div>
+</div>
+
+<script>
+/* ── State ────────────────────────────────────────────────── */
+var currentFilter = 'all';
+var selectedAnalyst = 'all';
+var selectedEntity = 'all';
+var expandedEntities = { ostereo: true };
+/* expandedAlerts removed — detail rows always visible */
+var collapsedCategories = {};
+var ottoOpen = false;
+var toastTimer = null;
+
+/* ── Entity Data (real DB contracts) ─────────────────────── */
+var ENTITIES = [
+  {
+    id: 'ostereo', name: 'Ostereo', type: 'Distribution', typeBadge: 'distribution',
+    contracts: 62, ready: 5, health: 41,
+    analysts: ['Ana Chen', 'Marcus Rivera', 'Sarah Kim'],
+    patches: 8, rfis: 2, corrections: 7, anomalies: 2,
+    items: [
+      { name: 'Daniele Leoni / Purple Lions', category: 'Distribution', analyst: 'Ana Chen', health: 35, status: 'review', count: 10 },
+      { name: 'Michael Bibo / Dreams On Ivories', category: 'Distribution', analyst: 'Marcus Rivera', health: 55, status: 'pass', count: 4 },
+      { name: 'Marcus Chow', category: 'Distribution', analyst: 'Marcus Rivera', health: 60, status: 'pass', count: 4 },
+      { name: 'The Theorist', category: 'Distribution', analyst: 'Ana Chen', health: 28, status: 'fail', count: 3 },
+      { name: 'Slowhands', category: 'Distribution', analyst: 'Ana Chen', health: 41, status: 'review', count: 3 },
+      { name: 'Sonic Enterprise', category: 'Distribution', analyst: 'Unassigned', health: 0, status: 'fail', count: 2 },
+      { name: 'Brawny Media', category: 'Distribution', analyst: 'Sarah Kim', health: 39, status: 'review', count: 2 },
+      { name: 'Distroplay', category: 'Distribution', analyst: 'Ana Chen', health: 34, status: 'review', count: 2 },
+      { name: 'Jaguar Music', category: 'Distribution', analyst: 'Ana Chen', health: 34, status: 'review', count: 2 },
+      { name: 'Ravel Music', category: 'Distribution', analyst: 'Sarah Kim', health: 34, status: 'review', count: 2 },
+      { name: '27 single-contract counterparties', category: 'Distribution', analyst: 'Various', health: 47, status: 'review', count: 27 }
+    ]
+  },
+  {
+    id: 'getdough', name: 'Get Dough Records, Inc.', type: 'Distribution', typeBadge: 'distribution',
+    contracts: 9, ready: 9, health: 52,
+    analysts: ['Ana Chen'],
+    patches: 0, rfis: 0, corrections: 1, anomalies: 0,
+    items: [
+      { name: 'PT_1-part-4', category: 'Distribution', analyst: 'Ana Chen', health: 55, status: 'pass', count: 1 },
+      { name: 'PT_3-part-2', category: 'Distribution', analyst: 'Ana Chen', health: 47, status: 'review', count: 1 },
+      { name: 'PT_3-part-3', category: 'Distribution', analyst: 'Ana Chen', health: 46, status: 'review', count: 1 },
+      { name: 'PT_3-part-4', category: 'Distribution', analyst: 'Ana Chen', health: 49, status: 'review', count: 1 },
+      { name: 'PT_3-part-5', category: 'Distribution', analyst: 'Ana Chen', health: 55, status: 'pass', count: 1 },
+      { name: 'PT_3-part-6', category: 'Distribution', analyst: 'Ana Chen', health: 57, status: 'pass', count: 1 },
+      { name: 'PT_3-part-7', category: 'Distribution', analyst: 'Ana Chen', health: 55, status: 'pass', count: 1 },
+      { name: 'PT_3-part-8', category: 'Distribution', analyst: 'Ana Chen', health: 47, status: 'review', count: 1 },
+      { name: 'PT_3-part-9', category: 'Distribution', analyst: 'Ana Chen', health: 59, status: 'pass', count: 1 }
+    ]
+  },
+  {
+    id: 'broke', name: 'Broke Records', type: 'Distribution', typeBadge: 'distribution',
+    contracts: 15, ready: 0, health: 49,
+    analysts: ['Marcus Rivera', 'Sarah Kim'],
+    patches: 2, rfis: 1, corrections: 0, anomalies: 1,
+    items: [
+      { name: 'GRiMZ \u2014 UNTOLD EP 6', category: 'Distribution', analyst: 'Marcus Rivera', health: 54, status: 'review', count: 1 },
+      { name: 'HXLLGANG \u2014 PARANOIA 1', category: 'Distribution', analyst: 'Marcus Rivera', health: 54, status: 'review', count: 1 },
+      { name: 'HXLLGANG \u2014 PARANOIA 1 (v2)', category: 'Distribution', analyst: 'Marcus Rivera', health: 54, status: 'review', count: 1 },
+      { name: 'Habentub \u2014 Heroin 1', category: 'Distribution', analyst: 'Sarah Kim', health: 54, status: 'review', count: 1 },
+      { name: 'Hxlkart / AXUVX / SHOOM!E \u2014 YUNG JUMP', category: 'Distribution', analyst: 'Sarah Kim', health: 56, status: 'review', count: 1 },
+      { name: 'Invoice CARROY045', category: 'Distribution', analyst: 'Marcus Rivera', health: 16, status: 'fail', count: 1 },
+      { name: 'Jarom \u2014 Beat Agreement', category: 'Distribution', analyst: 'Sarah Kim', health: 45, status: 'review', count: 1 },
+      { name: 'Jax & Lydia \u2014 Grab The Lighter', category: 'Distribution', analyst: 'Marcus Rivera', health: null, status: 'failed', count: 1 },
+      { name: 'Jay Webb \u2014 Asset Purchase', category: 'Distribution', analyst: 'Marcus Rivera', health: 57, status: 'review', count: 1 },
+      { name: 'Jay Webb \u2014 Asset Purchase (FE)', category: 'Distribution', analyst: 'Marcus Rivera', health: 59, status: 'review', count: 1 },
+      { name: 'Julia Cole \u2014 broke', category: 'Distribution', analyst: 'Sarah Kim', health: 54, status: 'review', count: 1 },
+      { name: 'Juveniletristen \u2014 My N*gga Died', category: 'Distribution', analyst: 'Sarah Kim', health: null, status: 'failed', count: 1 },
+      { name: 'Juveniletristen \u2014 (v2)', category: 'Distribution', analyst: 'Sarah Kim', health: null, status: 'failed', count: 1 },
+      { name: 'KVRMVD \u2014 GRIMISH! (Remixes)', category: 'Distribution', analyst: 'Marcus Rivera', health: 54, status: 'review', count: 1 },
+      { name: 'Frank LOD', category: 'Distribution', analyst: 'Marcus Rivera', health: 21, status: 'fail', count: 1 }
+    ]
+  }
+];
+
+/* ── Alert Data ───────────────────────────────────────────── */
+var ALERTS = {
+  rfis: {
+    title: 'RFIs', icon: '&#10067;', count: 3, panelClass: 'rfi',
+    breakdown: '2 open \u00b7 1 responded',
+    items: [
+      { contract: 'The Theorist', entity: 'Ostereo', analyst: 'Ana Chen', time: '45m ago', detail: 'Missing payout threshold \u2014 what is the minimum payout amount?' },
+      { contract: 'Brawny Media', entity: 'Ostereo', analyst: 'Sarah Kim', time: '3h ago', detail: 'Termination clause ambiguity \u2014 which effective date applies?' },
+      { contract: 'Jay Webb \u2014 Asset Purchase', entity: 'Broke Records', analyst: 'Marcus Rivera', time: '2 days ago', detail: 'Asset transfer scope unclear \u2014 does it include masters or catalog only?' }
+    ]
+  },
+  corrections: {
+    title: 'Corrections', icon: '&#9998;', count: 8, panelClass: 'correction',
+    breakdown: '5 pending review \u00b7 2 approved \u00b7 1 rejected',
+    items: [
+      { contract: 'Daniele Leoni', entity: 'Ostereo', analyst: 'Ana Chen', time: '15m ago', detail: 'SF Account Name changed: "D. Leoni" \u2192 "Daniele Leoni (Purple Lions)"' },
+      { contract: 'Slowhands', entity: 'Ostereo', analyst: 'Ana Chen', time: '1h ago', detail: 'Contract Start Date corrected: "2024-01-01" \u2192 "2024-03-15"' },
+      { contract: 'PT_3-part-5', entity: 'Get Dough Records, Inc.', analyst: 'Ana Chen', time: '2h ago', detail: 'Royalty Rate: "15%" \u2192 "18%" \u2014 OCR misread' },
+      { contract: 'GRiMZ \u2014 UNTOLD EP 6', entity: 'Broke Records', analyst: 'Marcus Rivera', time: 'Yesterday', detail: 'Territory: "US" \u2192 "US, Canada, UK" \u2014 addendum attached' },
+      { contract: 'HXLLGANG \u2014 PARANOIA 1', entity: 'Broke Records', analyst: 'Marcus Rivera', time: 'Yesterday', detail: 'Contract Start Date: "2024-06-01" \u2192 "2024-09-15" \u2014 amendment' }
+    ]
+  },
+  anomalies: {
+    title: 'Anomalies', icon: '&#9888;', count: 3, panelClass: 'anomaly',
+    breakdown: '1 OCR misread \u00b7 1 account mismatch \u00b7 1 failed processing',
+    items: [
+      { contract: 'Daniele Leoni', entity: 'Ostereo', analyst: 'Ana Chen', time: '15m ago', detail: 'SF Account Name "Daniele Leoni (Purple Lions)" not found in document text \u2014 possible mismatch' },
+      { contract: 'Sonic Enterprise', entity: 'Ostereo', analyst: 'System', time: '2h ago', detail: 'OCR confidence 23% on page 4 \u2014 "Sonic Enterprisee" typo detected in extracted text' },
+      { contract: 'Jax & Lydia \u2014 Grab The Lighter', entity: 'Broke Records', analyst: 'System', time: 'Yesterday', detail: 'Contract processing failed \u2014 encrypted PDF, unable to extract text' }
+    ]
+  }
+};
+
+/* ── Feed Data (20 items, real contracts) ─────────────────── */
+var FEED_ITEMS = [
+  { id:1, type:'corrections', dotClass:'correction', badge:'correction-badge', badgeText:'CORRECTION', title:'SF Account Name changed', contract:'Daniele Leoni', entity:'ostereo', analyst:'ana', analystName:'Ana Chen', time:'15 min ago', timeGroup:'today', detail:'"D. Leoni" \u2192 "Daniele Leoni (Purple Lions)" \u2014 no mention of new name in document' },
+  { id:2, type:'anomalies', dotClass:'anomaly', badge:'anomaly-badge', badgeText:'ANOMALY', title:'Account name not in document', contract:'Daniele Leoni', entity:'ostereo', analyst:'system', analystName:'System', time:'15 min ago', timeGroup:'today', detail:'SF Account Name "Daniele Leoni (Purple Lions)" not found anywhere in contract text' },
+  { id:3, type:'patches', dotClass:'patch-submit', badge:'', badgeText:'', title:'Patch #12 submitted', contract:'Daniele Leoni', entity:'ostereo', analyst:'ana', analystName:'Ana Chen', time:'20 min ago', timeGroup:'today', detail:'Contract Type \u2192 Producer Agreement' },
+  { id:4, type:'rfis', dotClass:'rfi', badge:'rfi-badge', badgeText:'RFI', title:'RFI: Missing payout threshold', contract:'The Theorist', entity:'ostereo', analyst:'ana', analystName:'Ana Chen', time:'45 min ago', timeGroup:'today', detail:'What is the minimum payout amount? Section 6.1 references "threshold" but no value.' },
+  { id:5, type:'escalations', dotClass:'escalation', badge:'', badgeText:'', title:'Escalation: Sonic Enterprise', contract:'Sonic Enterprise', entity:'ostereo', analyst:'system', analystName:'System', time:'18 min ago', timeGroup:'today', detail:'Stuck in Discovery \u00b7 14 days \u00b7 Health: 0 \u00b7 Unassigned' },
+  { id:6, type:'anomalies', dotClass:'anomaly', badge:'anomaly-badge', badgeText:'ANOMALY', title:'OCR misread on page 4', contract:'Sonic Enterprise', entity:'ostereo', analyst:'system', analystName:'System', time:'2 hours ago', timeGroup:'today', detail:'"Sonic Enterprisee" \u2014 OCR confidence 23% \u2014 typo in extracted entity name' },
+  { id:7, type:'corrections', dotClass:'correction', badge:'correction-badge', badgeText:'CORRECTION', title:'Contract Start Date corrected', contract:'Slowhands', entity:'ostereo', analyst:'ana', analystName:'Ana Chen', time:'1 hour ago', timeGroup:'today', detail:'"2024-01-01" \u2192 "2024-03-15" \u2014 original was OCR misread of handwritten date' },
+  { id:8, type:'patches', dotClass:'patch-approved', badge:'', badgeText:'', title:'Patch #11 Verifier Approved', contract:'Slowhands', entity:'ostereo', analyst:'ana', analystName:'Ana Chen', time:'1 hour ago', timeGroup:'today', detail:'Distribution Agreement \u2014 signed schedule validated' },
+  { id:9, type:'rfis', dotClass:'rfi', badge:'rfi-badge', badgeText:'RFI', title:'RFI: Termination clause ambiguity', contract:'Brawny Media', entity:'ostereo', analyst:'sarah', analystName:'Sarah Kim', time:'3 hours ago', timeGroup:'today', detail:'Which effective date applies? Section 8 vs Amendment 2 conflict.' },
+  { id:10, type:'corrections', dotClass:'correction', badge:'correction-badge', badgeText:'CORRECTION', title:'Royalty Rate OCR fix', contract:'PT_3-part-5', entity:'getdough', analyst:'ana', analystName:'Ana Chen', time:'2 hours ago', timeGroup:'today', detail:'"15%" \u2192 "18%" \u2014 OCR misread 8 as 5 on page 2' },
+  { id:11, type:'activity', dotClass:'activity', badge:'', badgeText:'', title:'Ana Chen: Daily Summary', contract:'Multiple', entity:'all', analyst:'ana', analystName:'Ana Chen', time:'Yesterday', timeGroup:'yesterday', detail:'33 contracts processed \u00b7 5 preflight-ready \u00b7 3 patches submitted (Ostereo + Get Dough)' },
+  { id:12, type:'activity', dotClass:'activity', badge:'', badgeText:'', title:'Marcus Rivera: Batch Progress', contract:'Multiple', entity:'all', analyst:'marcus', analystName:'Marcus Rivera', time:'Yesterday', timeGroup:'yesterday', detail:'24 Ostereo + 8 Broke Records contracts \u00b7 4 patches pending \u00b7 1 RFI open' },
+  { id:13, type:'corrections', dotClass:'correction', badge:'correction-badge', badgeText:'CORRECTION', title:'Territory expanded via addendum', contract:'GRiMZ \u2014 UNTOLD EP 6', entity:'broke', analyst:'marcus', analystName:'Marcus Rivera', time:'Yesterday', timeGroup:'yesterday', detail:'"US" \u2192 "US, Canada, UK" \u2014 addendum attached to executable' },
+  { id:14, type:'patches', dotClass:'patch-submit', badge:'', badgeText:'', title:'Patch #9 submitted', contract:'Distroplay', entity:'ostereo', analyst:'ana', analystName:'Ana Chen', time:'Yesterday', timeGroup:'yesterday', detail:'Missing counterparty signature date' },
+  { id:15, type:'patches', dotClass:'patch-approved', badge:'', badgeText:'', title:'Patch #8 Applied', contract:'Michael Bibo', entity:'ostereo', analyst:'marcus', analystName:'Marcus Rivera', time:'Yesterday', timeGroup:'yesterday', detail:'Dreams On Ivories / Hallelujah \u2014 health improved 44 \u2192 58' },
+  { id:16, type:'anomalies', dotClass:'anomaly', badge:'anomaly-badge', badgeText:'ANOMALY', title:'Failed processing: encrypted PDF', contract:'Jax & Lydia \u2014 Grab The Lighter', entity:'broke', analyst:'system', analystName:'System', time:'Yesterday', timeGroup:'yesterday', detail:'Contract processing failed \u2014 encrypted PDF, unable to extract text from document' },
+  { id:17, type:'activity', dotClass:'activity', badge:'', badgeText:'', title:'Sarah Kim: Queue Status', contract:'Multiple', entity:'all', analyst:'sarah', analystName:'Sarah Kim', time:'This week', timeGroup:'week', detail:'21 Ostereo contracts \u00b7 0 patches pending \u00b7 5 preflight-ready' },
+  { id:18, type:'rfis', dotClass:'rfi', badge:'rfi-badge', badgeText:'RFI', title:'RFI: Asset transfer scope', contract:'Jay Webb \u2014 Asset Purchase', entity:'broke', analyst:'marcus', analystName:'Marcus Rivera', time:'This week', timeGroup:'week', detail:'Does asset transfer include masters or catalog only? Section 2.1 is ambiguous.' },
+  { id:19, type:'activity', dotClass:'activity', badge:'', badgeText:'', title:'Team Weekly Summary', contract:'All', entity:'all', analyst:'system', analystName:'System', time:'This week', timeGroup:'week', detail:'86 total contracts \u00b7 16% preflight-ready \u00b7 Avg health: 44 \u00b7 10 patches this week' },
+  { id:20, type:'escalations', dotClass:'escalation', badge:'', badgeText:'', title:'Escalation: The Theorist \u2014 Legal Flag', contract:'The Theorist', entity:'ostereo', analyst:'system', analystName:'System', time:'This week', timeGroup:'week', detail:'Increased Payout Threshold Request \u2014 Health: 5 \u00b7 Flagged for legal review' }
+];
+
+/* ── Render Functions ─────────────────────────────────────── */
+function render() {
+  renderEntities();
+  renderAlerts();
+  renderFeed();
+}
+
+function renderEntities() {
+  var html = '';
+  ENTITIES.forEach(function(e) {
+    var isExpanded = expandedEntities[e.id];
+    var pct = Math.round(e.ready / e.contracts * 100);
+    html += '<div class="ov-entity-card' + (isExpanded ? ' expanded' : '') + '" data-entity="' + e.id + '">';
+    html += '<div class="ov-entity-header" onclick="toggleEntity(\'' + e.id + '\')">';
+    html += '<div class="ov-entity-top">';
+    html += '<span class="ov-entity-name">' + e.name + '</span>';
+    html += '<span class="ov-entity-badge ' + e.typeBadge + '">' + e.type + '</span>';
+    html += '<span class="ov-entity-chevron">&#9654;</span>';
+    html += '</div>';
+    html += '<div class="ov-entity-stats">';
+    html += '<div class="ov-entity-stat"><span class="val">' + e.contracts + '</span> contracts</div>';
+    html += '<div class="ov-entity-stat">Health: <span class="val">' + e.health + '</span></div>';
+    html += '</div>';
+    html += '<div class="ov-entity-analysts">' + e.analysts.join(', ') + '</div>';
+    html += '<div class="ov-entity-bar"><div class="ov-entity-bar-fill" style="width:' + pct + '%;background:' + (pct > 60 ? 'var(--ov-green)' : pct > 30 ? 'var(--ov-amber)' : 'var(--ov-red)') + ';"></div></div>';
+    html += '<div class="ov-entity-bar-label">' + pct + '% preflight-ready (' + e.ready + '/' + e.contracts + ')</div>';
+    html += '<div class="ov-entity-actions">';
+    html += '<div class="ov-entity-action"><span class="count' + (e.patches > 3 ? ' amber' : '') + '">' + e.patches + '</span> patches</div>';
+    html += '<div class="ov-entity-action"><span class="count' + (e.rfis > 0 ? ' amber' : '') + '">' + e.rfis + '</span> RFIs</div>';
+    html += '<div class="ov-entity-action"><span class="count">' + e.corrections + '</span> corrections</div>';
+    html += '<div class="ov-entity-action"><span class="count' + (e.anomalies > 0 ? ' red' : '') + '">' + e.anomalies + '</span> anomalies</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Expanded table with category sub-headers
+    html += '<div class="ov-entity-table">';
+    html += '<div class="ov-etbl-header"><div class="ov-etbl-col name">Counterparty</div><div class="ov-etbl-col analyst">Analyst</div><div class="ov-etbl-col health">Health</div><div class="ov-etbl-col status">Status</div><div class="ov-etbl-col" style="flex:0.4;text-align:center;">#</div></div>';
+
+    // Group items by category
+    var categories = {};
+    e.items.forEach(function(c) {
+      var cat = c.category || 'Other';
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(c);
+    });
+
+    Object.keys(categories).forEach(function(cat) {
+      var catItems = categories[cat];
+      var catCount = 0;
+      catItems.forEach(function(c) { catCount += c.count; });
+      var catKey = e.id + ':' + cat;
+      var isCollapsed = collapsedCategories[catKey];
+
+      html += '<div class="ov-etbl-category' + (isCollapsed ? ' collapsed' : '') + '" onclick="event.stopPropagation(); toggleCategory(\'' + e.id + '\',\'' + cat + '\')">';
+      html += '<span class="chevron">\u25BE</span> ';
+      html += cat + ' <span class="cat-count">(' + catCount + ')</span>';
+      html += '</div>';
+
+      if (!isCollapsed) {
+        catItems.forEach(function(c) {
+          var healthDisplay = c.health !== null && c.health !== undefined ? c.health : '\u2014';
+          var statusClass = c.status === 'failed' ? 'failed' : c.status;
+          html += '<div class="ov-etbl-row" onclick="showToast(\'\u2192 Opening triage for ' + c.name.replace(/'/g,"\\'") + '\')">';
+          html += '<div class="ov-etbl-col name">' + c.name + '</div>';
+          html += '<div class="ov-etbl-col analyst">' + c.analyst + '</div>';
+          html += '<div class="ov-etbl-col health">' + healthDisplay + '</div>';
+          html += '<div class="ov-etbl-col status"><div class="ov-status-dot ' + statusClass + '"></div> ' + c.status + '</div>';
+          html += '<div class="ov-etbl-col" style="flex:0.4;text-align:center;">' + c.count + '</div>';
+          html += '</div>';
+        });
+      }
+    });
+
+    html += '</div>';
+    html += '</div>';
+  });
+  document.getElementById('entityStrip').innerHTML = html;
+}
+
+var ALERT_VISIBLE_ROWS = 4;
+
+function renderAlerts() {
+  var html = '';
+  ['rfis', 'corrections', 'anomalies'].forEach(function(key) {
+    var a = ALERTS[key];
+    var visibleItems = a.items.slice(0, ALERT_VISIBLE_ROWS);
+    var overflow = a.items.length - ALERT_VISIBLE_ROWS;
+    html += '<div class="ov-alert-panel ' + a.panelClass + '">';
+    html += '<div class="ov-alert-icon">' + a.icon + '</div>';
+    html += '<div class="ov-alert-title">' + a.title + '</div>';
+    html += '<div class="ov-alert-count">' + a.count + '</div>';
+    html += '<div class="ov-alert-breakdown">' + a.breakdown + '</div>';
+    html += '<div class="ov-alert-detail">';
+    visibleItems.forEach(function(item) {
+      html += '<div class="ov-alert-row" onclick="event.stopPropagation(); openAlertItem(\'' + key + '\', \'' + item.contract.replace(/'/g, "\\'") + '\')">';
+      html += '<span class="contract">' + item.contract + '</span>';
+      html += '<span class="analyst">' + item.analyst + '</span>';
+      html += '<span class="time">' + item.time + '</span>';
+      html += '</div>';
+      html += '<div style="font-size:10px;color:var(--ov-text-muted);padding:0 0 6px;margin-top:-2px;">' + item.detail + '</div>';
+    });
+    if (overflow > 0) {
+      html += '<div class="ov-alert-overflow" onclick="event.stopPropagation(); openAlertModal(\'' + key + '\')">View all ' + a.items.length + ' items &rsaquo;</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+  });
+  document.getElementById('alertStrip').innerHTML = html;
+}
+
+function openAlertModal(key) {
+  var a = ALERTS[key];
+  document.getElementById('modalIcon').innerHTML = a.icon;
+  document.getElementById('modalTitle').textContent = a.title + ' (' + a.count + ')';
+  var html = '';
+  a.items.forEach(function(item) {
+    html += '<div class="ov-modal-row" onclick="openAlertItem(\'' + key + '\', \'' + item.contract.replace(/'/g, "\\'") + '\')">';
+    html += '<div class="row-body">';
+    html += '<div><span class="contract">' + item.contract + '</span><span class="entity-tag">' + item.entity + '</span></div>';
+    html += '<div class="detail">' + item.detail + '</div>';
+    html += '<div class="meta">' + item.analyst + ' &middot; ' + item.time + '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('alertModal').classList.add('open');
+}
+
+function closeAlertModal(e) {
+  if (e && e.target && e.target !== document.getElementById('alertModal')) return;
+  document.getElementById('alertModal').classList.remove('open');
+}
+
+function openAlertItem(key, contract) {
+  console.log('Open detail for', key, contract);
+  closeAlertModal();
+}
+
+function renderFeed() {
+  var filtered = FEED_ITEMS.filter(function(item) {
+    if (currentFilter !== 'all' && item.type !== currentFilter) return false;
+    if (selectedAnalyst !== 'all' && item.analyst !== selectedAnalyst && item.analyst !== 'system') return false;
+    if (selectedEntity !== 'all' && item.entity !== selectedEntity && item.entity !== 'all') return false;
+    return true;
+  });
+  var groups = { today: [], yesterday: [], week: [] };
+  filtered.forEach(function(item) { groups[item.timeGroup].push(item); });
+  var html = '';
+  var groupLabels = { today: 'TODAY', yesterday: 'YESTERDAY', week: 'THIS WEEK' };
+  ['today', 'yesterday', 'week'].forEach(function(key) {
+    if (groups[key].length === 0) return;
+    html += '<div class="ov-feed-group">' + groupLabels[key] + '</div>';
+    groups[key].forEach(function(item) {
+      var badgeHtml = item.badge ? ' <span class="ov-feed-badge ' + item.badge + '">' + item.badgeText + '</span>' : '';
+      html += '<div class="ov-feed-item" data-type="' + item.type + '" data-analyst="' + item.analyst + '" onclick="onFeedItemClick(' + item.id + ')">' +
+        '<div class="ov-feed-dot ' + item.dotClass + '"></div>' +
+        '<div class="ov-feed-body">' +
+          '<div class="ov-feed-title">' + item.title + badgeHtml + '</div>' +
+          '<div class="ov-feed-meta">' +
+            '<span class="ov-feed-contract">' + item.contract + '</span>' +
+            '<span class="ov-feed-sep">&middot;</span>' +
+            '<span>' + item.analystName + '</span>' +
+            '<span class="ov-feed-sep">&middot;</span>' +
+            '<span style="color:var(--ov-text-muted)">' + item.time + '</span>' +
+          '</div>' +
+          '<div class="ov-feed-detail">' + item.detail + '</div>' +
+        '</div>' +
+        '<div class="ov-feed-arrow">&rsaquo;</div>' +
+      '</div>';
+    });
+  });
+  if (!html) html = '<div class="ov-feed-empty">No items match the current filters.</div>';
+  document.getElementById('feedContainer').innerHTML = html;
+  updateFilterPills();
+}
+
+function updateFilterPills() {
+  document.querySelectorAll('.ov-signal-pill').forEach(function(pill) {
+    var m = pill.getAttribute('onclick').match(/'([^']+)'/);
+    if (m) pill.classList.toggle('active', m[1] === currentFilter);
+  });
+}
+
+/* ── Event Handlers ───────────────────────────────────────── */
+function setFilter(t) { currentFilter = t; renderFeed(); }
+function setAnalyst(a) { selectedAnalyst = a; renderFeed(); }
+function setEntity(e) { selectedEntity = e; renderFeed(); }
+function toggleEntity(id) { expandedEntities[id] = !expandedEntities[id]; renderEntities(); }
+/* toggleAlert removed — alert detail rows always visible, overflow opens modal */
+function toggleCategory(entityId, category) {
+  var key = entityId + ':' + category;
+  collapsedCategories[key] = !collapsedCategories[key];
+  renderEntities();
+}
+
+function onFeedItemClick(id) {
+  var item = FEED_ITEMS.find(function(i) { return i.id === id; });
+  if (item) showToast('\u2192 Opening Record Inspector for ' + item.contract);
+}
+
+function showToast(msg) {
+  var el = document.querySelector('.ov-toast');
+  if (el) el.remove();
+  clearTimeout(toastTimer);
+  var t = document.createElement('div');
+  t.className = 'ov-toast'; t.setAttribute('role','alert'); t.textContent = msg;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(function() { if (t.parentNode) t.remove(); }, 2000);
+}
+
+function toggleOtto() {
+  ottoOpen = !ottoOpen;
+  document.getElementById('ottoChat').classList.toggle('open', ottoOpen);
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', render);
+</script>
+</body>
+</html>

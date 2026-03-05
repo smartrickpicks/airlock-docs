@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feature Control Plane — Airlock Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page, #12161f); color: var(--text-primary, #e8eaed); font-size: 13px; line-height: 1.5;
+}
+::selection { background: rgba(0,145,234,0.3); }
+
+:root {
+  --bg-page: #12161f; --bg-panel: #1a1f2e; --bg-card: #1e2436; --bg-card-hover: #242b3d;
+  --bg-input: #161b28; --bg-darkest: #0d1017;
+  --text-primary: #e8eaed; --text-secondary: #9aa0a6; --text-muted: #6b7280;
+  --border: #2a3040; --border-light: #333b4f;
+  --accent-blue: #0091ea; --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50; --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800; --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336; --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a; --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2; --purple-dim: rgba(123,31,162,0.12);
+  --cyan: #00D1FF; --cyan-dim: rgba(0,209,255,0.12);
+  --mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+}
+
+/* ── LAYOUT ──────────────────────────────────────────── */
+.fcp-layout { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* ── HEADER ──────────────────────────────────────────── */
+.fcp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); flex-shrink: 0;
+}
+.fcp-header-left { display: flex; align-items: center; gap: 12px; }
+.fcp-header-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #fff;
+}
+.fcp-header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.fcp-header-sub { font-size: 11px; color: var(--text-muted); }
+.fcp-header-right { display: flex; align-items: center; gap: 10px; }
+.fcp-header-stat {
+  padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.fcp-header-stat.ok { background: var(--green-dim); color: var(--green); }
+.fcp-header-stat.warn { background: var(--amber-dim); color: var(--amber); }
+.fcp-header-stat.err { background: var(--red-dim); color: var(--red); }
+.fcp-last-check { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+
+/* ── HEALTH STRIP ────────────────────────────────────── */
+.health-strip {
+  display: flex; gap: 8px; padding: 12px 20px; overflow-x: auto; flex-shrink: 0;
+  border-bottom: 1px solid var(--border); background: var(--bg-darkest);
+}
+.health-strip::-webkit-scrollbar { height: 4px; }
+.health-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.health-card {
+  min-width: 155px; padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.health-card:hover { border-color: var(--border-light); background: var(--bg-card-hover); }
+.health-card.selected { border-color: var(--accent-blue); box-shadow: 0 0 0 1px var(--accent-blue); }
+.health-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.health-card-name { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+.health-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.health-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.health-dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.health-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse-dot 1.5s infinite; }
+.health-dot.gray { background: #555; }
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.health-card-stats { display: flex; gap: 12px; }
+.health-stat { display: flex; flex-direction: column; }
+.health-stat-val { font-size: 13px; font-weight: 700; font-family: var(--mono); color: var(--text-primary); }
+.health-stat-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.health-card-error { font-size: 10px; color: var(--red); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.health-card-error.amber-err { color: var(--amber); }
+.health-card-sparkline { margin-top: 6px; height: 20px; }
+.health-card-sparkline svg { width: 100%; height: 20px; }
+.health-card-fields { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── MAIN BODY ───────────────────────────────────────── */
+.fcp-body { display: flex; flex: 1; overflow: hidden; }
+
+/* ── LEFT: TABS + TOGGLE GRID + CALIBRATION ──────────── */
+.fcp-left { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+.fcp-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); flex-shrink: 0;
+}
+.fcp-tab {
+  padding: 8px 18px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-muted); cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all 0.15s;
+  background: none; border-top: none; border-left: none; border-right: none;
+}
+.fcp-tab:hover { color: var(--text-secondary); }
+.fcp-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+.fcp-tab-content { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.fcp-tab-content::-webkit-scrollbar { width: 5px; }
+.fcp-tab-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── TOGGLE GRID ─────────────────────────────────────── */
+.flag-group { margin-bottom: 20px; }
+.flag-group-header {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-muted); margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.flag-row {
+  display: flex; align-items: center; padding: 8px 12px;
+  border-radius: var(--radius-sm); transition: background 0.15s;
+  gap: 12px;
+}
+.flag-row:hover { background: var(--bg-card); }
+.flag-toggle {
+  position: relative; width: 34px; height: 18px; flex-shrink: 0; cursor: pointer;
+}
+.flag-toggle input { display: none; }
+.flag-toggle-track {
+  width: 34px; height: 18px; border-radius: 9px; background: #3a3a3a; transition: background 0.2s;
+  display: block;
+}
+.flag-toggle input:checked + .flag-toggle-track { background: var(--green); }
+.flag-toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 12px; height: 12px;
+  border-radius: 50%; background: #fff; transition: transform 0.2s;
+  pointer-events: none;
+}
+.flag-toggle input:checked ~ .flag-toggle-knob { transform: translateX(16px); }
+.flag-info { flex: 1; min-width: 0; }
+.flag-name { font-size: 12px; font-weight: 500; }
+.flag-desc { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.flag-key { font-size: 10px; color: var(--text-muted); font-family: var(--mono); flex-shrink: 0; }
+.flag-rollout {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.flag-rollout-bar {
+  width: 50px; height: 4px; border-radius: 2px; background: var(--border);
+  overflow: hidden;
+}
+.flag-rollout-fill { height: 100%; border-radius: 2px; background: var(--accent-blue); transition: width 0.3s; }
+.flag-rollout-pct { font-size: 10px; font-family: var(--mono); color: var(--text-secondary); min-width: 28px; text-align: right; }
+.flag-status {
+  font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0;
+}
+.flag-status.ok { background: var(--green-dim); color: var(--green); }
+.flag-status.tripped { background: var(--red-dim); color: var(--red); }
+.flag-status.off { background: rgba(100,100,100,0.2); color: var(--text-muted); }
+.flag-status.degraded { background: var(--amber-dim); color: var(--amber); }
+
+/* ── CALIBRATION ─────────────────────────────────────── */
+.cal-group { margin-bottom: 24px; }
+.cal-group-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.cal-group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+.cal-group-badge {
+  font-size: 9px; padding: 2px 6px; border-radius: 3px;
+  background: var(--accent-blue-dim); color: var(--accent-blue);
+  font-weight: 600; text-transform: uppercase;
+}
+.cal-param {
+  padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.cal-param-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.cal-param-name { font-size: 12px; font-weight: 600; }
+.cal-param-key { font-size: 10px; font-family: var(--mono); color: var(--text-muted); }
+.cal-param-desc { font-size: 10px; color: var(--text-muted); margin-bottom: 6px; }
+.cal-slider-row { display: flex; align-items: center; gap: 10px; }
+.cal-slider {
+  flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px;
+  background: var(--border); outline: none; cursor: pointer;
+}
+.cal-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent-blue); cursor: pointer; border: 2px solid var(--bg-card);
+  box-shadow: 0 0 4px rgba(0,145,234,0.4);
+}
+.cal-slider-val {
+  font-size: 13px; font-weight: 700; font-family: var(--mono); color: var(--accent-blue);
+  min-width: 48px; text-align: right;
+}
+.cal-slider-range { display: flex; justify-content: space-between; margin-top: 2px; }
+.cal-slider-range span { font-size: 9px; color: var(--text-muted); font-family: var(--mono); }
+.cal-param-meta {
+  display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.cal-param-meta span { font-size: 10px; color: var(--text-muted); }
+.cal-reset {
+  font-size: 10px; color: var(--accent-blue); cursor: pointer; background: none;
+  border: none; font-weight: 500;
+}
+.cal-reset:hover { text-decoration: underline; }
+
+/* WEIGHT BAR */
+.cal-weight-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-bottom: 12px; gap: 1px; }
+.cal-weight-seg { height: 100%; transition: width 0.3s; }
+.cal-weight-sum {
+  font-size: 10px; font-family: var(--mono); text-align: right; margin-bottom: 8px;
+}
+.cal-weight-sum.valid { color: var(--green); }
+.cal-weight-sum.invalid { color: var(--red); }
+
+/* ── AI CONFIG TAB ─────────────────────────────────── */
+.ai-section { margin-bottom: 24px; }
+.ai-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.ai-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+.ai-add-btn {
+  font-size: 10px; padding: 4px 10px; border-radius: var(--radius-sm);
+  background: var(--accent-blue-dim); border: 1px solid var(--accent-blue);
+  color: var(--accent-blue); cursor: pointer; font-weight: 600;
+}
+.ai-add-btn:hover { background: var(--accent-blue); color: #fff; }
+
+.provider-card {
+  padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 8px; transition: all 0.15s;
+}
+.provider-card:hover { border-color: var(--border-light); }
+.provider-card.connected { border-left: 3px solid var(--green); }
+.provider-card.offline { border-left: 3px solid var(--red); opacity: 0.7; }
+.provider-card.disabled { border-left: 3px solid var(--text-muted); opacity: 0.5; }
+.provider-header { display: flex; align-items: center; justify-content: space-between; }
+.provider-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.provider-model { font-size: 11px; color: var(--text-secondary); font-family: var(--mono); margin-top: 2px; }
+.provider-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.provider-status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.provider-status-dot.online { background: var(--green); }
+.provider-status-dot.off { background: var(--red); }
+.provider-status-dot.idle { background: var(--text-muted); }
+.provider-key { font-size: 10px; color: var(--text-muted); font-family: var(--mono); margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+.provider-actions { display: flex; gap: 6px; margin-top: 8px; }
+.provider-btn {
+  font-size: 10px; padding: 3px 8px; border-radius: 3px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-secondary); cursor: pointer;
+}
+.provider-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+.agent-card {
+  padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.agent-card.enabled { border-left: 3px solid var(--green); }
+.agent-card.disabled-agent { border-left: 3px solid var(--text-muted); opacity: 0.6; }
+.agent-name { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.agent-model-badge { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: var(--cyan-dim); color: var(--cyan); font-weight: 600; }
+.agent-prompt { font-size: 11px; color: var(--text-secondary); font-style: italic; margin: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-skills { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.agent-skill {
+  font-size: 9px; padding: 2px 6px; border-radius: 3px;
+  background: var(--accent-blue-dim); color: var(--accent-blue);
+  font-family: var(--mono);
+}
+.agent-params { font-size: 10px; color: var(--text-muted); }
+.agent-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+.fallback-chain {
+  padding: 10px 14px; border-radius: var(--radius-md);
+  background: var(--bg-darkest); border: 1px solid var(--border);
+  margin-top: 12px;
+}
+.fallback-chain-title { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.fallback-chain-flow { font-size: 12px; font-family: var(--mono); color: var(--text-primary); }
+.fallback-chain-flow .arrow { color: var(--accent-blue); margin: 0 4px; }
+.fallback-chain-meta { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+.runtime-settings {
+  padding: 12px 14px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+}
+.runtime-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.runtime-row:last-child { border-bottom: none; }
+.runtime-label { font-size: 12px; color: var(--text-secondary); }
+.runtime-value { font-size: 12px; font-weight: 500; font-family: var(--mono); }
+.runtime-value.on { color: var(--green); }
+.runtime-value.off { color: var(--text-muted); }
+
+/* ── RIGHT: FAILURE FEED ─────────────────────────────── */
+.fcp-right { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; }
+.fcp-right-header {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.fcp-right-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+.fcp-right-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+  background: var(--red-dim); color: var(--red);
+}
+.failure-filters {
+  display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.failure-filter {
+  font-size: 10px; padding: 3px 8px; border-radius: 10px; cursor: pointer;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.failure-filter:hover { border-color: var(--border-light); }
+.failure-filter.active { background: var(--accent-blue-dim); border-color: var(--accent-blue); color: var(--accent-blue); }
+.failure-feed { flex: 1; overflow-y: auto; padding: 8px 12px; }
+.failure-feed::-webkit-scrollbar { width: 4px; }
+.failure-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.failure-item {
+  padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 6px; border-left: 3px solid var(--red);
+  transition: all 0.15s;
+}
+.failure-item:hover { border-color: var(--border-light); background: var(--bg-card-hover); }
+.failure-item.warning { border-left-color: var(--amber); }
+.failure-item.info-item { border-left-color: var(--accent-blue); }
+.failure-item.circuit { border-left-color: var(--red); background: var(--red-dim); }
+.failure-item-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.failure-item-feature {
+  font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px;
+  background: var(--accent-blue-dim); color: var(--accent-blue);
+}
+.failure-item-time { font-size: 10px; font-family: var(--mono); color: var(--text-muted); }
+.failure-item-msg { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; line-height: 1.4; }
+.failure-item-context { font-size: 10px; font-family: var(--mono); color: var(--text-muted); padding: 4px 6px; background: var(--bg-darkest); border-radius: 3px; }
+.failure-severity {
+  font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.failure-severity.critical { background: var(--red-dim); color: var(--red); }
+.failure-severity.warning { background: var(--amber-dim); color: var(--amber); }
+.failure-severity.info { background: var(--accent-blue-dim); color: var(--accent-blue); }
+
+/* ── AUDIT LOG TAB ───────────────────────────────────── */
+.audit-row {
+  display: flex; align-items: flex-start; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.audit-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.audit-content { flex: 1; min-width: 0; }
+.audit-action { font-size: 12px; color: var(--text-primary); }
+.audit-action strong { font-weight: 600; }
+.audit-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.audit-meta span { font-family: var(--mono); }
+.audit-detail {
+  font-size: 10px; font-family: var(--mono); color: var(--text-secondary);
+  padding: 4px 8px; background: var(--bg-darkest); border-radius: 3px;
+  margin-top: 4px; line-height: 1.5;
+}
+
+/* ── LIVE INDICATOR ──────────────────────────────────── */
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  animation: live-pulse 2s infinite; display: inline-block; margin-right: 4px;
+}
+@keyframes live-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ── CIRCUIT BREAKER MODAL ───────────────────────────── */
+.cb-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+}
+.cb-overlay.hidden { display: none; }
+.cb-modal {
+  width: 420px; background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.cb-modal h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.cb-modal-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.cb-modal-row:last-child { border-bottom: none; }
+.cb-modal-label { font-size: 11px; color: var(--text-muted); }
+.cb-modal-value { font-size: 11px; font-weight: 600; font-family: var(--mono); }
+.cb-modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+.cb-btn {
+  padding: 6px 14px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--border); transition: all 0.15s;
+}
+.cb-btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.cb-btn.primary:hover { filter: brightness(1.15); }
+.cb-btn.danger { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+.cb-btn.danger:hover { background: var(--red); color: #fff; }
+.cb-btn.ghost { background: transparent; color: var(--text-secondary); }
+.cb-btn.ghost:hover { background: var(--bg-card); }
+
+/* ── TOAST ───────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  padding: 8px 16px; border-radius: var(--radius-md); font-size: 12px; font-weight: 500;
+  background: var(--green); color: #fff; z-index: 200; opacity: 0; pointer-events: none;
+  transition: opacity 0.3s; max-width: 500px; text-align: center;
+}
+.toast.show { opacity: 1; }
+.toast.warn { background: var(--amber); }
+.toast.err { background: var(--red); }
+</style>
+</head>
+<body>
+<div class="fcp-layout">
+
+  <!-- HEADER -->
+  <div class="fcp-header">
+    <div class="fcp-header-left">
+      <div class="fcp-header-icon">&#9881;</div>
+      <div>
+        <h1>Feature Control Plane</h1>
+        <div class="fcp-header-sub">Toggle, calibrate, monitor, and debug every managed feature</div>
+      </div>
+    </div>
+    <div class="fcp-header-right">
+      <span class="fcp-header-stat ok" id="statOk">11 Healthy</span>
+      <span class="fcp-header-stat warn" id="statWarn">2 Degraded</span>
+      <span class="fcp-header-stat err" id="statErr">1 Tripped</span>
+      <span class="fcp-last-check"><span class="live-dot"></span>Live &middot; polled 3s ago</span>
+    </div>
+  </div>
+
+  <!-- HEALTH STRIP -->
+  <div class="health-strip" id="healthStrip"></div>
+
+  <!-- MAIN BODY -->
+  <div class="fcp-body">
+
+    <!-- LEFT: TABS -->
+    <div class="fcp-left">
+      <div class="fcp-tabs">
+        <button class="fcp-tab active" data-tab="toggles">Feature Flags</button>
+        <button class="fcp-tab" data-tab="calibration">Calibration</button>
+        <button class="fcp-tab" data-tab="ai">AI Configuration</button>
+        <button class="fcp-tab" data-tab="audit">Audit Log</button>
+      </div>
+      <div class="fcp-tab-content" id="tabContent"></div>
+    </div>
+
+    <!-- RIGHT: FAILURE FEED -->
+    <div class="fcp-right">
+      <div class="fcp-right-header">
+        <span class="fcp-right-title"><span class="live-dot"></span> Failure Feed</span>
+        <span class="fcp-right-badge" id="failureCount">9</span>
+      </div>
+      <div class="failure-filters">
+        <button class="failure-filter active" data-filter="all">All</button>
+        <button class="failure-filter" data-filter="critical">Critical</button>
+        <button class="failure-filter" data-filter="warning">Warning</button>
+        <button class="failure-filter" data-filter="info">Info</button>
+        <button class="failure-filter" data-filter="circuit">Circuit</button>
+      </div>
+      <div class="failure-feed" id="failureFeed"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CIRCUIT BREAKER MODAL -->
+<div class="cb-overlay hidden" id="cbModal">
+  <div class="cb-modal">
+    <h3><span style="color:var(--red)">&#9888;</span> Circuit Breaker — Otto AI Agent</h3>
+    <div class="cb-modal-row"><span class="cb-modal-label">Flag Key</span><span class="cb-modal-value">ENABLE_AI_FLAGS</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Status</span><span class="cb-modal-value" style="color:var(--red)">TRIPPED</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Error Count</span><span class="cb-modal-value">14 / 10 threshold</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Evaluation Window</span><span class="cb-modal-value">60 seconds</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Cooldown Period</span><span class="cb-modal-value">300s (4:12 remaining)</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Auto Recover</span><span class="cb-modal-value">Yes</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Last Error</span><span class="cb-modal-value" style="color:var(--red)">Provider timeout after 30s</span></div>
+    <div class="cb-modal-row"><span class="cb-modal-label">Tripped At</span><span class="cb-modal-value">2026-03-04 14:23:01 UTC</span></div>
+    <div class="cb-modal-actions">
+      <button class="cb-btn ghost" onclick="closeCBModal()">Dismiss</button>
+      <button class="cb-btn danger" onclick="closeCBModal(); showToast('Circuit breaker reset. Flag remains disabled.', 'warn')">Force Reset</button>
+      <button class="cb-btn primary" onclick="closeCBModal(); showToast('Flag re-enabled. Monitoring error rate.')">Re-enable Flag</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   DATA
+   ═══════════════════════════════════════════════════════ */
+
+var FEATURES = [
+  { id: 'ext_boolean', name: 'Boolean Extractor', status: 'green', rps: '12', latency: '28ms', fields: 5, error: null, sparkline: [2,3,1,3,2,3,2,1,3,2,3,2] },
+  { id: 'ext_split', name: 'Split Extractor', status: 'green', rps: '18', latency: '95ms', fields: 30, error: null, sparkline: [3,4,3,5,4,3,4,5,3,4,3,4] },
+  { id: 'ext_picklist', name: 'Picklist Extractor', status: 'green', rps: '15', latency: '110ms', fields: 20, error: null, sparkline: [2,3,2,3,2,3,2,3,2,3,2,3] },
+  { id: 'ext_date', name: 'Date Extractor', status: 'green', rps: '14', latency: '42ms', fields: 10, error: null, sparkline: [2,2,3,2,2,3,2,2,3,2,2,3] },
+  { id: 'ext_pattern', name: 'Pattern Extractor', status: 'green', rps: '16', latency: '65ms', fields: 15, error: null, sparkline: [3,2,3,3,2,3,3,2,3,3,2,3] },
+  { id: 'ext_text', name: 'Text Extractor', status: 'amber', rps: '10', latency: '280ms', fields: 20, error: 'spaCy model loading latency spike', sparkline: [2,3,4,5,6,7,5,6,7,8,7,8] },
+  { id: 'ocr', name: 'OCR Pipeline', status: 'green', rps: '8', latency: '2.1s', fields: null, error: null, sparkline: [1,1,0,1,2,1,0,1,1,0,1,1] },
+  { id: 'preflight', name: 'Preflight Engine', status: 'green', rps: '38', latency: '340ms', fields: null, error: null, sparkline: [4,3,5,4,3,6,4,3,5,4,3,5] },
+  { id: 'identity', name: 'Identity Resolver', status: 'amber', rps: '15', latency: '890ms', fields: null, error: 'High latency: avg 890ms (threshold 500ms)', sparkline: [2,3,4,5,6,7,8,7,8,9,8,9] },
+  { id: 'health', name: 'Health Scoring', status: 'green', rps: '38', latency: '45ms', fields: null, error: null, sparkline: [4,3,4,3,4,3,4,3,4,3,4,3] },
+  { id: 'generator', name: 'Contract Generator', status: 'green', rps: '3', latency: '450ms', fields: null, error: null, sparkline: [1,0,1,1,0,1,0,1,1,0,1,0] },
+  { id: 'batch', name: 'Batch Processor', status: 'green', rps: '5', latency: '1.8s', fields: null, error: null, sparkline: [1,2,1,1,2,1,1,2,1,1,2,1] },
+  { id: 'lifecycle', name: 'Lifecycle Engine', status: 'green', rps: '12', latency: '18ms', fields: null, error: null, sparkline: [2,1,2,1,2,1,2,1,2,1,2,1] },
+  { id: 'otto', name: 'Otto AI Agent', status: 'red', rps: '0', latency: '--', fields: null, error: 'Circuit breaker tripped: 14 errors in 60s', sparkline: [3,5,8,12,14,0,0,0,0,0,0,0] }
+];
+
+var FLAGS = [
+  { group: 'Extraction Engines', items: [
+    { key: 'ENABLE_EXTRACTION', name: 'Extraction Dispatcher', desc: '7 extractors, 152 fields', on: true, rollout: 100, status: 'ok' },
+    { key: 'extractor.boolean.enabled', name: 'Boolean Extractor', desc: '5 toggle parents, yes/no signal scanning', on: true, rollout: 100, status: 'ok' },
+    { key: 'extractor.split.enabled', name: 'Split Extractor', desc: '~30 split/currency fields, anchor proximity', on: true, rollout: 100, status: 'ok' },
+    { key: 'extractor.picklist.enabled', name: 'Picklist Extractor', desc: '~20 picklist/term fields, synonym match', on: true, rollout: 100, status: 'ok' },
+    { key: 'extractor.date.enabled', name: 'Date Extractor', desc: '~10 date fields, 6 format patterns', on: true, rollout: 100, status: 'ok' },
+    { key: 'extractor.pattern.enabled', name: 'Pattern Extractor', desc: '~15 number/url/email fields, regex', on: true, rollout: 100, status: 'ok' },
+    { key: 'extractor.text.enabled', name: 'Text Extractor', desc: '~20 name/address/clause, spaCy NER', on: true, rollout: 80, status: 'ok' }
+  ]},
+  { group: 'Processing Engines', items: [
+    { key: 'ENABLE_OCR', name: 'OCR Pipeline', desc: 'Document scanning and text recognition', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_PREFLIGHT', name: 'Preflight Engine', desc: '2-phase quality gate, 3,895 lines', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_ENTITY_RESOLUTION', name: 'Identity Resolver', desc: 'Account matching with composite scorer', on: true, rollout: 100, status: 'degraded' },
+    { key: 'ENABLE_HEALTH_SCORING', name: 'Health Scoring', desc: 'Calibration + band classification', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_CANONICAL_COPY', name: 'Canonical Copy', desc: 'Normalized text output', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_CONTRACT_LIFECYCLE', name: 'Lifecycle Transitions', desc: '15 states, validated state machine', on: true, rollout: 100, status: 'ok' }
+  ]},
+  { group: 'Workflow & AI', items: [
+    { key: 'ENABLE_BATCH_PROCESSING', name: 'Batch Processor', desc: 'Async pipeline, semaphore(5)', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_AUTO_SYSTEM_PASS', name: 'Auto System Pass', desc: 'GREEN gate + no triage = auto-advance', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_TRIAGE_CREATION', name: 'Triage Creation', desc: 'QA rules, preflight -> triage items', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_PATCH_WORKFLOW', name: 'Patch Workflow', desc: '12 states, 20 transitions, self-approval block', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_AI_FLAGS', name: 'AI Flag Detection', desc: 'AI-powered anomaly flagging', on: false, rollout: 0, status: 'tripped' },
+    { key: 'ENABLE_OTTO_CHAT', name: 'Otto AI Agent', desc: 'PydanticAI + LiteLLM runtime', on: false, rollout: 0, status: 'off' },
+    { key: 'ENABLE_CONTRACT_GENERATOR', name: 'Contract Generator', desc: 'Template builder, 188 clauses, 24 types', on: true, rollout: 100, status: 'ok' }
+  ]},
+  { group: 'Export & Integration', items: [
+    { key: 'ENABLE_EXPORT_PDF', name: 'PDF Export', desc: 'PDF document generation', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_EXPORT_CSV', name: 'CSV Export', desc: 'Tabular data export', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_EXPORT_JSON', name: 'JSON Export', desc: 'Structured data export', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_EXPORT_DOCX', name: 'DOCX Export', desc: 'Word document generation', on: true, rollout: 50, status: 'ok' },
+    { key: 'ENABLE_GOOGLE_DRIVE', name: 'Google Drive', desc: 'Cloud document storage integration', on: true, rollout: 100, status: 'ok' },
+    { key: 'ENABLE_SALESFORCE_SYNC', name: 'Salesforce Sync', desc: 'CRM data synchronization', on: false, rollout: 0, status: 'off' },
+    { key: 'ENABLE_AUDIT_LOGGING', name: 'Audit Logging', desc: 'Full action audit trail', on: true, rollout: 100, status: 'ok' }
+  ]}
+];
+
+var CALIBRATION = [
+  { group: 'Extraction Confidence', badge: '3 params', items: [
+    { key: 'extractor.tier1.confidence', name: 'Tier-1 Anchor Confidence', value: 0.80, def: 0.80, min: 0.50, max: 1.00, step: 0.01, unit: '', desc: 'Minimum confidence for tier-1 anchored extraction', by: 'admin@acme.co', at: '2026-02-28' },
+    { key: 'extractor.tier2.confidence', name: 'Tier-2 Confidence Threshold', value: 0.65, def: 0.65, min: 0.30, max: 1.00, step: 0.01, unit: '', desc: 'Fallback confidence for tier-2 extraction', by: 'admin@acme.co', at: '2026-02-28' },
+    { key: 'extractor.proximity_chars', name: 'Default Proximity Window', value: 200, def: 200, min: 50, max: 500, step: 10, unit: 'chars', desc: 'Character window for anchor proximity matching', by: 'admin@acme.co', at: '2026-01-15' }
+  ]},
+  { group: 'Preflight -- RED Gate Thresholds', badge: '4 params', items: [
+    { key: 'preflight.red.mojibake_ratio', name: 'Mojibake Replacement Ratio', value: 0.05, def: 0.05, min: 0.01, max: 0.20, step: 0.01, unit: '%', desc: 'Document fails if mojibake > this ratio', by: 'admin@acme.co', at: '2026-01-10' },
+    { key: 'preflight.red.control_char_ratio', name: 'Control Character Ratio', value: 0.03, def: 0.03, min: 0.01, max: 0.10, step: 0.01, unit: '%', desc: 'RED gate if control chars exceed this', by: 'admin@acme.co', at: '2026-01-10' },
+    { key: 'preflight.red.page_chars_min', name: 'Min Searchable Page Chars', value: 50, def: 50, min: 10, max: 200, step: 10, unit: 'chars', desc: 'Pages below this char count flag as image-only', by: 'admin@acme.co', at: '2026-01-10' },
+    { key: 'preflight.red.image_ratio_max', name: 'Max Image-Only Page Ratio', value: 0.70, def: 0.70, min: 0.30, max: 1.00, step: 0.05, unit: '', desc: 'RED gate if image-only pages exceed this ratio', by: 'admin@acme.co', at: '2026-01-10' }
+  ]},
+  { group: 'Preflight -- YELLOW Gate Thresholds', badge: '3 params', items: [
+    { key: 'preflight.yellow.counterparty_conf', name: 'Counterparty Confidence (GREEN floor)', value: 0.70, def: 0.70, min: 0.30, max: 1.00, step: 0.05, unit: '', desc: 'Below this = YELLOW gate for counterparty identification', by: 'admin@acme.co', at: '2026-02-20' },
+    { key: 'preflight.yellow.entity_score', name: 'Entity Score (GREEN floor)', value: 0.60, def: 0.60, min: 0.20, max: 1.00, step: 0.05, unit: '', desc: 'Below this = YELLOW gate for entity resolution', by: 'admin@acme.co', at: '2026-02-20' },
+    { key: 'preflight.yellow.doc_mode_majority', name: 'Document Mode Supermajority', value: 0.80, def: 0.80, min: 0.50, max: 1.00, step: 0.05, unit: '', desc: 'Required supermajority for doc mode classification', by: 'admin@acme.co', at: '2026-02-20' }
+  ]},
+  { group: 'Health Score -- Section Weights', badge: '5 params (sum=1.0)', isWeights: true, items: [
+    { key: 'health.weight.opportunities', name: 'Opportunities Readiness', value: 0.25, def: 0.25, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--accent-blue)', by: 'admin@acme.co', at: '2026-02-20' },
+    { key: 'health.weight.schedule', name: 'Schedule Readiness', value: 0.15, def: 0.15, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--teal)', by: 'admin@acme.co', at: '2026-02-20' },
+    { key: 'health.weight.financials', name: 'Financials Readiness', value: 0.25, def: 0.25, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--green)', by: 'admin@acme.co', at: '2026-02-20' },
+    { key: 'health.weight.addons', name: 'Addons Readiness', value: 0.15, def: 0.15, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--amber)', by: 'admin@acme.co', at: '2026-02-20' },
+    { key: 'health.weight.entity', name: 'Entity Resolution', value: 0.20, def: 0.20, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--purple)', by: 'admin@acme.co', at: '2026-03-04' }
+  ]},
+  { group: 'Health Score -- Gate Penalties', badge: '3 params', items: [
+    { key: 'health.penalty.green', name: 'GREEN Gate Penalty', value: 0.00, def: 0.00, min: 0.00, max: 0.50, step: 0.05, unit: '', desc: 'Penalty applied for GREEN gate pass', by: 'admin@acme.co', at: '2026-02-28' },
+    { key: 'health.penalty.yellow', name: 'YELLOW Gate Penalty', value: 0.10, def: 0.10, min: 0.00, max: 0.50, step: 0.05, unit: '', desc: 'Penalty applied for YELLOW gate', by: 'admin@acme.co', at: '2026-02-28' },
+    { key: 'health.penalty.red', name: 'RED Gate Penalty', value: 0.40, def: 0.40, min: 0.00, max: 1.00, step: 0.05, unit: '', desc: 'Penalty applied for RED gate failure', by: 'admin@acme.co', at: '2026-02-28' }
+  ]},
+  { group: 'Health Score -- Band Thresholds', badge: '2 params', items: [
+    { key: 'health.band.very_high', name: 'VERY_HIGH Band Floor', value: 0.95, def: 0.95, min: 0.80, max: 1.00, step: 0.01, unit: '', desc: 'Score >= this = VERY_HIGH classification', by: 'admin@acme.co', at: '2026-03-04' },
+    { key: 'health.band.healthy', name: 'HEALTHY Band Floor', value: 0.80, def: 0.80, min: 0.50, max: 0.95, step: 0.01, unit: '', desc: 'Score >= this = HEALTHY classification', by: 'admin@acme.co', at: '2026-02-28' }
+  ]},
+  { group: 'Entity Resolution -- Score Weights', badge: '4 params', isWeights: true, items: [
+    { key: 'identity.weight.name_max', name: 'Name Score Weight (max)', value: 0.85, def: 0.85, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--accent-blue)', by: 'admin@acme.co', at: '2026-02-15' },
+    { key: 'identity.weight.address_max', name: 'Address Evidence (max)', value: 0.00, def: 0.00, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--teal)', by: 'admin@acme.co', at: '2026-02-15' },
+    { key: 'identity.weight.account_ctx', name: 'Account Context (max)', value: 0.20, def: 0.20, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--green)', by: 'admin@acme.co', at: '2026-02-15' },
+    { key: 'identity.weight.service_penalty', name: 'Service Context Penalty (max)', value: 0.60, def: 0.60, min: 0.00, max: 1.00, step: 0.05, unit: '', color: 'var(--red)', by: 'admin@acme.co', at: '2026-02-15' }
+  ]},
+  { group: 'Entity Resolution -- Match Thresholds', badge: '3 params', items: [
+    { key: 'identity.threshold.match', name: 'Match Threshold', value: 0.72, def: 0.72, min: 0.30, max: 1.00, step: 0.01, unit: '', desc: 'Score above = auto-resolved match', by: 'admin@acme.co', at: '2026-03-04' },
+    { key: 'identity.threshold.review', name: 'Review Threshold', value: 0.45, def: 0.45, min: 0.10, max: 0.80, step: 0.01, unit: '', desc: 'Score above = human review needed', by: 'admin@acme.co', at: '2026-02-15' },
+    { key: 'identity.threshold.display', name: 'Display Threshold', value: 0.25, def: 0.25, min: 0.05, max: 0.50, step: 0.01, unit: '', desc: 'Score above = show as candidate', by: 'admin@acme.co', at: '2026-02-15' }
+  ]},
+  { group: 'Batch Processing', badge: '3 params', items: [
+    { key: 'batch.max_concurrent', name: 'Max Concurrent Jobs', value: 5, def: 5, min: 1, max: 20, step: 1, unit: '', desc: 'Semaphore limit for concurrent batch jobs', by: 'admin@acme.co', at: '2026-01-05' },
+    { key: 'batch.max_attempts', name: 'Max Retry Attempts', value: 3, def: 3, min: 0, max: 10, step: 1, unit: '', desc: 'Number of retry attempts before permanent failure', by: 'admin@acme.co', at: '2026-01-05' },
+    { key: 'batch.pdf_timeout', name: 'PDF Download Timeout', value: 60, def: 60, min: 10, max: 300, step: 5, unit: 's', desc: 'Max seconds to wait for PDF download', by: 'admin@acme.co', at: '2026-01-05' }
+  ]},
+  { group: 'Contract Classification', badge: '2 params', items: [
+    { key: 'subtype.review_delta', name: 'Subtype Review Delta', value: 0.15, def: 0.15, min: 0.05, max: 0.50, step: 0.01, unit: '', desc: 'Score margin triggering human subtype review', by: 'admin@acme.co', at: '2026-02-10' },
+    { key: 'subtype.candidate_threshold', name: 'Candidate Score Threshold', value: 0.20, def: 0.20, min: 0.05, max: 0.50, step: 0.01, unit: '', desc: 'Minimum score for subtype candidate consideration', by: 'admin@acme.co', at: '2026-02-10' }
+  ]}
+];
+
+/* ── AI CONFIGURATION DATA ──────────────────────────── */
+var AI_PROVIDERS = [
+  { alias: 'otto-default', model: 'Claude Sonnet 4', modelId: 'anthropic/claude-sonnet-4-20250514', status: 'connected', latency: '1.2s', cost: '$0.003/1k', keyTail: '3f9a', endpoint: null },
+  { alias: 'otto-fast', model: 'Claude Haiku 4', modelId: 'anthropic/claude-haiku-4-20250414', status: 'connected', latency: '0.4s', cost: '$0.001/1k', keyTail: '3f9a', endpoint: null },
+  { alias: 'otto-local', model: 'Llama 3.1', modelId: 'ollama/llama3.1', status: 'offline', latency: null, cost: 'Free', keyTail: null, endpoint: 'http://ollama:11434' },
+  { alias: 'gpt-fallback', model: 'GPT-4o', modelId: 'openai/gpt-4o', status: 'connected', latency: '0.9s', cost: '$0.005/1k', keyTail: '8b2c', endpoint: null }
+];
+
+var AI_AGENTS = [
+  { name: 'Contract Coach', enabled: true, model: 'otto-default', prompt: 'You are Otto, an AI assistant specializing in contract analysis. Help users understand extraction results, resolve entity ambiguities, and navigate the contract lifecycle.', skills: ['create_patch', 'resolve_entity', 'classify_contract', 'search_corpus', 'explain_field', 'get_gate_blockers'], temperature: 0.3, maxTokens: 2048 },
+  { name: 'Quick Reviewer', enabled: true, model: 'otto-fast', prompt: 'You are a fast contract reviewer. Provide concise answers about field values, health scores, and extraction quality. Optimize for speed over depth.', skills: ['explain_field', 'get_health_breakdown'], temperature: 0.1, maxTokens: 1024 },
+  { name: 'Legal Analyst', enabled: false, model: 'otto-default', prompt: 'You are a legal analysis specialist. Perform deep analysis of contract clauses, identify risks, compare terms across contracts, and provide detailed legal context.', skills: ['all'], temperature: 0.5, maxTokens: 4096 }
+];
+
+var AI_RUNTIME = [
+  { label: 'Streaming', value: 'Enabled', on: true },
+  { label: 'Tool Use', value: 'Enabled', on: true },
+  { label: 'Max Tool Calls per Turn', value: '5', on: true },
+  { label: 'Enrichment Timeout', value: '2s', on: true },
+  { label: 'Session Persistence', value: 'Enabled', on: true },
+  { label: 'Cost Tracking', value: 'Enabled', on: true },
+  { label: 'Prompt Caching', value: 'Enabled', on: true },
+  { label: 'Rate Limit (req/min)', value: '60', on: true }
+];
+
+var FALLBACK_CHAIN = {
+  order: ['otto-default', 'otto-fast', 'gpt-fallback'],
+  routing: 'simple-shuffle',
+  retries: 2,
+  timeout: '30s'
+};
+
+/* ── FAILURE FEED DATA ──────────────────────────────── */
+var FAILURES = [
+  { feature: 'Otto AI Agent', severity: 'critical', type: 'circuit', msg: 'Circuit breaker tripped: 14 errors in 60s window', context: 'Provider timeout after 30s -- Claude API unreachable', time: '14:23:01' },
+  { feature: 'Otto AI Agent', severity: 'critical', type: 'critical', msg: 'LiteLLM proxy connection refused: litellm:4000', context: 'ECONNREFUSED -- container may be down', time: '14:22:48' },
+  { feature: 'Identity Resolver', severity: 'warning', type: 'warning', msg: 'Latency exceeding threshold: 890ms avg (500ms threshold)', context: 'Degraded performance on context_scorer -- consider increasing timeout', time: '14:18:22' },
+  { feature: 'Text Extractor', severity: 'warning', type: 'warning', msg: 'spaCy model reload triggered mid-batch', context: 'Model en_core_web_sm loaded in 3.2s -- batch CTR-2024-BATCH-089', time: '14:17:05' },
+  { feature: 'Split Extractor', severity: 'warning', type: 'warning', msg: 'Low confidence extraction: OPP_ADVANCE_AMOUNT scored 0.31 on CTR-2024-0892', context: 'No anchors matched for currency field -- non-standard format', time: '14:15:40' },
+  { feature: 'Batch Processor', severity: 'info', type: 'info', msg: 'Contract CTR-2024-0891 failed 2nd attempt -- will retry', context: 'TimeoutError: extraction exceeded 60s limit', time: '14:12:01' },
+  { feature: 'OCR Pipeline', severity: 'warning', type: 'warning', msg: 'Scanned document quality below threshold: DPI=72 (min 150)', context: 'Contract CTR-2024-0890 -- suggesting re-scan at higher quality', time: '14:05:33' },
+  { feature: 'Preflight', severity: 'info', type: 'info', msg: 'Mojibake detected: 3.2% replacement chars on page 4', context: 'CTR-2024-0889 -- below RED threshold (5%) -- YELLOW gate', time: '13:58:11' },
+  { feature: 'Health Scoring', severity: 'info', type: 'info', msg: 'Calibration drift detected: identity model accuracy dropped 3.2%', context: 'Suggest re-training isotonic calibrator with recent data', time: '13:42:08' }
+];
+
+/* ── AUDIT LOG DATA ─────────────────────────────────── */
+var AUDIT_LOG = [
+  { action: '<strong>Circuit breaker tripped</strong> on ENABLE_AI_FLAGS', actor: 'SYSTEM', time: '14:23:01', type: 'circuit', detail: 'error_count: 14, threshold: 10, window: 60s, cooldown: 300s' },
+  { action: '<strong>Flag auto-disabled</strong> ENABLE_AI_FLAGS: ON \u2192 OFF', actor: 'SYSTEM (circuit breaker)', time: '14:23:01', type: 'toggle', detail: 'Auto-disabled due to circuit breaker trip. Auto-recover in 300s.' },
+  { action: '<strong>Model provider tested</strong> otto-local (ollama/llama3.1)', actor: 'admin@acme.co', time: '14:20:15', type: 'ai', detail: 'Test failed: ECONNREFUSED http://ollama:11434/api/generate' },
+  { action: '<strong>Agent role created</strong> "Legal Analyst"', actor: 'admin@acme.co', time: '14:00:33', type: 'ai', detail: 'model: otto-default, skills: all, temp: 0.5, max_tokens: 4096' },
+  { action: '<strong>Calibration changed</strong> identity.threshold.match: 0.68 \u2192 0.72', actor: 'admin@acme.co', time: '13:45:20', type: 'calibration', detail: 'Reason: Too many false-positive auto-matches on name similarity' },
+  { action: '<strong>Calibration changed</strong> health.weight.entity: 0.15 \u2192 0.20', actor: 'admin@acme.co', time: '13:40:12', type: 'calibration', detail: 'Reason: Entity resolution impacting score accuracy. Reduced addons from 0.20 to 0.15 to compensate.' },
+  { action: '<strong>Flag rollout changed</strong> ENABLE_EXPORT_DOCX: 30% \u2192 50%', actor: 'admin@acme.co', time: '12:30:00', type: 'toggle', detail: 'Gradual rollout -- monitoring conversion quality' },
+  { action: '<strong>Flag rollout changed</strong> extractor.text.enabled: 100% \u2192 80%', actor: 'admin@acme.co', time: '11:15:44', type: 'toggle', detail: 'Pulling back text extractor due to spaCy model instability' },
+  { action: '<strong>Calibration changed</strong> health.band.very_high: 0.90 \u2192 0.95', actor: 'admin@acme.co', time: '10:22:18', type: 'calibration', detail: 'Tightening quality bar for VERY_HIGH band classification' },
+  { action: '<strong>Fallback chain updated</strong> otto-default \u2192 otto-fast \u2192 gpt-fallback', actor: 'admin@acme.co', time: '09:55:00', type: 'ai', detail: 'Added gpt-fallback as third option in chain' },
+  { action: '<strong>Member role changed</strong> ana.chen@acme.co: Builder \u2192 Gatekeeper', actor: 'admin@acme.co', time: '09:45:00', type: 'member', detail: 'Promoted to Gatekeeper for verifier access' },
+  { action: '<strong>Module enabled</strong> Contract Generator', actor: 'admin@acme.co', time: '09:12:33', type: 'module', detail: 'Enabled for Acme Corp workspace' }
+];
+
+/* ═══════════════════════════════════════════════════════
+   RENDER FUNCTIONS
+   ═══════════════════════════════════════════════════════ */
+
+/* ── HEALTH STRIP ────────────────────────────────────── */
+function renderHealthStrip() {
+  var el = document.getElementById('healthStrip');
+  el.innerHTML = FEATURES.map(function(f) {
+    var sparkSvg = renderSparkline(f.sparkline, f.status);
+    var errClass = f.status === 'amber' ? 'amber-err' : '';
+    var fieldsHtml = f.fields ? '<div class="health-card-fields">' + f.fields + ' fields</div>' : '';
+    return '<div class="health-card" data-id="' + f.id + '" onclick="selectHealthCard(\'' + f.id + '\')">'
+      + '<div class="health-card-top">'
+      + '<span class="health-card-name">' + f.name + '</span>'
+      + '<span class="health-dot ' + f.status + '"></span>'
+      + '</div>'
+      + '<div class="health-card-stats">'
+      + '<div class="health-stat"><span class="health-stat-val">' + f.rps + '</span><span class="health-stat-lbl">req/min</span></div>'
+      + '<div class="health-stat"><span class="health-stat-val">' + f.latency + '</span><span class="health-stat-lbl">avg latency</span></div>'
+      + '</div>'
+      + fieldsHtml
+      + (f.error ? '<div class="health-card-error ' + errClass + '">' + f.error + '</div>' : '')
+      + '<div class="health-card-sparkline">' + sparkSvg + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function renderSparkline(data, status) {
+  var max = Math.max.apply(null, data) || 1;
+  var w = 130, h = 20, step = w / (data.length - 1);
+  var color = status === 'red' ? 'var(--red)' : status === 'amber' ? 'var(--amber)' : 'var(--green)';
+  var points = data.map(function(v, i) { return (i * step) + ',' + (h - (v / max) * (h - 2)); }).join(' ');
+  var fillPoints = '0,' + h + ' ' + points + ' ' + (w) + ',' + h;
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">'
+    + '<polygon points="' + fillPoints + '" fill="' + color + '" opacity="0.15"/>'
+    + '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>';
+}
+
+function selectHealthCard(id) {
+  document.querySelectorAll('.health-card').forEach(function(c) { c.classList.remove('selected'); });
+  var card = document.querySelector('.health-card[data-id="' + id + '"]');
+  if (card) card.classList.add('selected');
+  if (id === 'otto') openCBModal();
+}
+
+/* ── FEATURE FLAGS TAB ───────────────────────────────── */
+function renderToggles() {
+  return FLAGS.map(function(group) {
+    return '<div class="flag-group">'
+      + '<div class="flag-group-header">' + group.group + '</div>'
+      + group.items.map(function(f) {
+        var checked = f.on ? 'checked' : '';
+        var descHtml = f.desc ? '<div class="flag-desc">' + f.desc + '</div>' : '';
+        return '<div class="flag-row">'
+          + '<label class="flag-toggle"><input type="checkbox" ' + checked + ' onchange="toggleFlag(\'' + f.key + '\', this.checked)"><span class="flag-toggle-track"></span><span class="flag-toggle-knob"></span></label>'
+          + '<div class="flag-info"><div class="flag-name">' + f.name + '</div>' + descHtml + '</div>'
+          + '<span class="flag-key">' + f.key + '</span>'
+          + '<div class="flag-rollout"><div class="flag-rollout-bar"><div class="flag-rollout-fill" style="width:' + f.rollout + '%"></div></div><span class="flag-rollout-pct">' + f.rollout + '%</span></div>'
+          + '<span class="flag-status ' + f.status + '">' + statusLabel(f.status) + '</span>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  }).join('');
+}
+
+function statusLabel(s) {
+  if (s === 'tripped') return 'Tripped';
+  if (s === 'degraded') return 'Degraded';
+  if (s === 'off') return 'Disabled';
+  return 'Healthy';
+}
+
+/* ── CALIBRATION TAB ─────────────────────────────────── */
+function renderCalibration() {
+  return CALIBRATION.map(function(group) {
+    var weightBar = '';
+    if (group.isWeights) {
+      var sum = 0;
+      group.items.forEach(function(p) { sum += p.value; });
+      var sumFixed = sum.toFixed(2);
+      var sumClass = Math.abs(sum - 1.0) < 0.005 ? 'valid' : 'invalid';
+      weightBar = '<div class="cal-weight-bar">' + group.items.map(function(p) {
+        return '<div class="cal-weight-seg" style="width:' + (p.value * 100) + '%;background:' + (p.color || 'var(--accent-blue)') + '"></div>';
+      }).join('') + '</div>'
+      + '<div class="cal-weight-sum ' + sumClass + '">Sum: ' + sumFixed + (sumClass === 'valid' ? ' (valid)' : ' (must equal 1.0)') + '</div>';
+    }
+    return '<div class="cal-group">'
+      + '<div class="cal-group-header"><span class="cal-group-title">' + group.group + '</span><span class="cal-group-badge">' + group.badge + '</span></div>'
+      + weightBar
+      + group.items.map(function(p) {
+        var displayVal = (p.step < 1) ? p.value.toFixed(2) : p.value;
+        var descHtml = p.desc ? '<div class="cal-param-desc">' + p.desc + '</div>' : '';
+        return '<div class="cal-param">'
+          + '<div class="cal-param-top"><span class="cal-param-name">' + p.name + '</span><span class="cal-param-key">' + p.key + '</span></div>'
+          + descHtml
+          + '<div class="cal-slider-row">'
+          + '<input type="range" class="cal-slider" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + p.value + '" oninput="updateSlider(this)" data-key="' + p.key + '">'
+          + '<span class="cal-slider-val">' + displayVal + (p.unit ? ' ' + p.unit : '') + '</span>'
+          + '</div>'
+          + '<div class="cal-slider-range"><span>' + p.min + '</span><span>' + p.max + '</span></div>'
+          + '<div class="cal-param-meta"><span>Last calibrated: ' + p.at + ' by ' + p.by + '</span><button class="cal-reset" onclick="resetParam(\'' + p.key + '\', ' + p.def + ', this)">Reset to ' + p.def + '</button></div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  }).join('');
+}
+
+/* ── AI CONFIGURATION TAB ────────────────────────────── */
+function renderAIConfig() {
+  return renderProviders() + renderAgentRoles() + renderRuntimeSettings();
+}
+
+function renderProviders() {
+  var html = '<div class="ai-section">'
+    + '<div class="ai-section-header">'
+    + '<span class="ai-section-title">Model Providers (LiteLLM Gateway)</span>'
+    + '<button class="ai-add-btn" onclick="showToast(\'Add Model dialog would open here\')">+ Add Model</button>'
+    + '</div>';
+
+  html += AI_PROVIDERS.map(function(p) {
+    var cardClass = p.status === 'connected' ? 'connected' : p.status === 'offline' ? 'offline' : 'disabled';
+    var dotClass = p.status === 'connected' ? 'online' : p.status === 'offline' ? 'off' : 'idle';
+    var statusText = p.status === 'connected' ? 'Connected' : p.status === 'offline' ? 'Offline' : 'Disabled';
+    var statusIcon = p.status === 'connected' ? '&#10003;' : '&#10007;';
+
+    var metaItems = [];
+    metaItems.push('<span class="provider-status-dot ' + dotClass + '"></span> ' + statusText);
+    if (p.latency) metaItems.push('Latency: ' + p.latency);
+    metaItems.push('Cost: ' + p.cost);
+
+    var keyLine = '';
+    if (p.keyTail) {
+      keyLine = '<div class="provider-key">API Key: &#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;&#183;' + p.keyTail + '</div>';
+    } else if (p.endpoint) {
+      keyLine = '<div class="provider-key">Endpoint: ' + p.endpoint + '</div>';
+    }
+
+    return '<div class="provider-card ' + cardClass + '">'
+      + '<div class="provider-header"><span class="provider-name">' + statusIcon + ' ' + p.alias + '</span></div>'
+      + '<div class="provider-model">' + p.model + ' (' + p.modelId + ')</div>'
+      + '<div class="provider-meta">' + metaItems.join(' &middot; ') + '</div>'
+      + keyLine
+      + '<div class="provider-actions">'
+      + '<button class="provider-btn" onclick="testProvider(\'' + p.alias + '\')">Test</button>'
+      + '<button class="provider-btn" onclick="showToast(\'Edit dialog for ' + p.alias + ' would open\')">Edit</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  /* Fallback chain */
+  html += '<div class="fallback-chain">'
+    + '<div class="fallback-chain-title">Fallback Chain</div>'
+    + '<div class="fallback-chain-flow">'
+    + FALLBACK_CHAIN.order.map(function(a) { return '<strong>' + a + '</strong>'; }).join('<span class="arrow">&rarr;</span>')
+    + '</div>'
+    + '<div class="fallback-chain-meta">Routing: ' + FALLBACK_CHAIN.routing + ' &middot; Retries: ' + FALLBACK_CHAIN.retries + ' &middot; Timeout: ' + FALLBACK_CHAIN.timeout + '</div>'
+    + '</div>';
+
+  html += '</div>';
+  return html;
+}
+
+function renderAgentRoles() {
+  var html = '<div class="ai-section">'
+    + '<div class="ai-section-header">'
+    + '<span class="ai-section-title">Agent Roles</span>'
+    + '<button class="ai-add-btn" onclick="showToast(\'Create Role dialog would open here\')">+ Create Role</button>'
+    + '</div>';
+
+  html += AI_AGENTS.map(function(a) {
+    var cardClass = a.enabled ? 'enabled' : 'disabled-agent';
+    var statusIcon = a.enabled ? '&#10003;' : '&#9675;';
+    var toggleLabel = a.enabled ? 'Disable' : 'Enable';
+
+    var skillsHtml = a.skills.map(function(s) {
+      return '<span class="agent-skill">' + s + '</span>';
+    }).join('');
+
+    return '<div class="agent-card ' + cardClass + '">'
+      + '<div class="agent-name">'
+      + '<span>' + statusIcon + ' ' + a.name + (a.enabled ? '' : ' (disabled)') + '</span>'
+      + '<span class="agent-model-badge">' + a.model + '</span>'
+      + '</div>'
+      + '<div class="agent-prompt">"' + a.prompt.substring(0, 100) + '..."</div>'
+      + '<div class="agent-skills">' + skillsHtml + '</div>'
+      + '<div class="agent-params">Temperature: ' + a.temperature + ' &middot; Max tokens: ' + a.maxTokens + '</div>'
+      + '<div class="agent-actions">'
+      + '<button class="provider-btn" onclick="editAgent(\'' + a.name + '\')">Edit</button>'
+      + '<button class="provider-btn" onclick="showToast(\'Duplicated agent: ' + a.name + '\')">Duplicate</button>'
+      + '<button class="provider-btn" onclick="toggleAgent(\'' + a.name + '\', ' + !a.enabled + ')">' + toggleLabel + '</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  html += '</div>';
+  return html;
+}
+
+function renderRuntimeSettings() {
+  var html = '<div class="ai-section">'
+    + '<div class="ai-section-header">'
+    + '<span class="ai-section-title">Runtime Settings</span>'
+    + '</div>'
+    + '<div class="runtime-settings">';
+
+  html += AI_RUNTIME.map(function(r) {
+    var valClass = r.on ? 'on' : 'off';
+    var display = r.value;
+    if (r.value === 'Enabled') display = '&#10003; Enabled';
+    if (r.value === 'Disabled') display = '&#10007; Disabled';
+    return '<div class="runtime-row">'
+      + '<span class="runtime-label">' + r.label + '</span>'
+      + '<span class="runtime-value ' + valClass + '">' + display + '</span>'
+      + '</div>';
+  }).join('');
+
+  html += '</div></div>';
+  return html;
+}
+
+/* ── AUDIT LOG TAB ───────────────────────────────────── */
+function renderAuditLog() {
+  var colors = { circuit: 'var(--red)', toggle: 'var(--accent-blue)', calibration: 'var(--amber)', member: 'var(--purple)', module: 'var(--green)', ai: 'var(--cyan)' };
+  return AUDIT_LOG.map(function(a) {
+    return '<div class="audit-row">'
+      + '<div class="audit-dot" style="background:' + (colors[a.type] || 'var(--text-muted)') + '"></div>'
+      + '<div class="audit-content">'
+      + '<div class="audit-action">' + a.action + '</div>'
+      + '<div class="audit-meta">' + a.actor + ' &middot; <span>' + a.time + '</span></div>'
+      + (a.detail ? '<div class="audit-detail">' + a.detail + '</div>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+/* ── FAILURE FEED ────────────────────────────────────── */
+var activeFailureFilter = 'all';
+function renderFailureFeed(filter) {
+  var el = document.getElementById('failureFeed');
+  var items = FAILURES;
+  if (filter && filter !== 'all') {
+    items = FAILURES.filter(function(f) {
+      if (filter === 'critical') return f.severity === 'critical';
+      if (filter === 'warning') return f.severity === 'warning';
+      if (filter === 'info') return f.severity === 'info';
+      if (filter === 'circuit') return f.type === 'circuit';
+      return true;
+    });
+  }
+  document.getElementById('failureCount').textContent = items.length;
+  el.innerHTML = items.map(function(f) {
+    var itemClass = '';
+    if (f.type === 'circuit') itemClass = 'circuit';
+    else if (f.severity === 'warning') itemClass = 'warning';
+    else if (f.severity === 'info') itemClass = 'info-item';
+    return '<div class="failure-item ' + itemClass + '">'
+      + '<div class="failure-item-top">'
+      + '<span class="failure-item-feature">' + f.feature + '</span>'
+      + '<span class="failure-severity ' + f.severity + '">' + f.severity + '</span>'
+      + '</div>'
+      + '<div class="failure-item-msg">' + f.msg + '</div>'
+      + '<div class="failure-item-top"><span class="failure-item-time">' + f.time + '</span></div>'
+      + (f.context ? '<div class="failure-item-context">' + f.context + '</div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════
+   TAB SWITCHING
+   ═══════════════════════════════════════════════════════ */
+var activeTab = 'toggles';
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.fcp-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === tab); });
+  var content = document.getElementById('tabContent');
+  if (tab === 'toggles') content.innerHTML = renderToggles();
+  else if (tab === 'calibration') content.innerHTML = renderCalibration();
+  else if (tab === 'ai') content.innerHTML = renderAIConfig();
+  else if (tab === 'audit') content.innerHTML = renderAuditLog();
+}
+
+/* ═══════════════════════════════════════════════════════
+   INTERACTIONS
+   ═══════════════════════════════════════════════════════ */
+function toggleFlag(key, on) {
+  showToast((on ? 'Enabled' : 'Disabled') + ': ' + key);
+}
+
+function updateSlider(el) {
+  var val = parseFloat(el.value);
+  var step = parseFloat(el.step);
+  var display = step < 1 ? val.toFixed(2) : val;
+  var unit = '';
+  CALIBRATION.forEach(function(g) {
+    g.items.forEach(function(p) {
+      if (p.key === el.dataset.key) { unit = p.unit; p.value = val; }
+    });
+  });
+  el.parentElement.querySelector('.cal-slider-val').textContent = display + (unit ? ' ' + unit : '');
+
+  /* Re-render weight bar and sum if this is a weight group */
+  CALIBRATION.forEach(function(g) {
+    if (g.isWeights) {
+      var match = false;
+      g.items.forEach(function(p) { if (p.key === el.dataset.key) match = true; });
+      if (match) {
+        /* Find the cal-group parent and update weight bar + sum */
+        var calParam = el.closest('.cal-param');
+        var calGroup = calParam ? calParam.parentElement : null;
+        if (calGroup) {
+          var sum = 0;
+          g.items.forEach(function(p) { sum += p.value; });
+          var sumFixed = sum.toFixed(2);
+          var sumClass = Math.abs(sum - 1.0) < 0.005 ? 'valid' : 'invalid';
+          var sumEl = calGroup.querySelector('.cal-weight-sum');
+          if (sumEl) {
+            sumEl.className = 'cal-weight-sum ' + sumClass;
+            sumEl.textContent = 'Sum: ' + sumFixed + (sumClass === 'valid' ? ' (valid)' : ' (must equal 1.0)');
+          }
+          var segs = calGroup.querySelectorAll('.cal-weight-seg');
+          g.items.forEach(function(p, idx) {
+            if (segs[idx]) segs[idx].style.width = (p.value * 100) + '%';
+          });
+        }
+      }
+    }
+  });
+}
+
+function resetParam(key, def, btn) {
+  CALIBRATION.forEach(function(g) { g.items.forEach(function(p) { if (p.key === key) p.value = def; }); });
+  switchTab('calibration');
+  showToast('Reset ' + key + ' to default: ' + def);
+}
+
+function testProvider(alias) {
+  var provider = AI_PROVIDERS.find(function(p) { return p.alias === alias; });
+  if (!provider) return;
+  if (provider.status === 'connected') {
+    showToast('Provider ' + alias + ' connection test passed (latency: ' + provider.latency + ')');
+  } else {
+    showToast('Provider ' + alias + ' connection test FAILED', 'err');
+  }
+}
+
+function toggleAgent(name, enabled) {
+  AI_AGENTS.forEach(function(a) {
+    if (a.name === name) a.enabled = enabled;
+  });
+  switchTab('ai');
+  showToast((enabled ? 'Enabled' : 'Disabled') + ' agent: ' + name);
+}
+
+function editAgent(name) {
+  showToast('Edit dialog for agent "' + name + '" would open here');
+}
+
+function openCBModal() { document.getElementById('cbModal').classList.remove('hidden'); }
+function closeCBModal() { document.getElementById('cbModal').classList.add('hidden'); }
+
+function showToast(msg, type) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show';
+  if (type === 'warn') el.className = 'toast show warn';
+  if (type === 'err') el.className = 'toast show err';
+  setTimeout(function() { el.className = 'toast'; }, 2500);
+}
+
+/* ═══════════════════════════════════════════════════════
+   EVENT LISTENERS
+   ═══════════════════════════════════════════════════════ */
+
+/* Failure filter clicks */
+document.querySelectorAll('.failure-filter').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.failure-filter').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    renderFailureFeed(btn.dataset.filter);
+  });
+});
+
+/* Tab clicks */
+document.querySelectorAll('.fcp-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
+});
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════ */
+renderHealthStrip();
+switchTab('toggles');
+renderFailureFeed('all');
+
+/* Update header stats from FEATURES data */
+(function updateHeaderStats() {
+  var ok = 0, warn = 0, err = 0;
+  FEATURES.forEach(function(f) {
+    if (f.status === 'green') ok++;
+    else if (f.status === 'amber') warn++;
+    else if (f.status === 'red') err++;
+  });
+  document.getElementById('statOk').textContent = ok + ' Healthy';
+  document.getElementById('statWarn').textContent = warn + ' Degraded';
+  document.getElementById('statErr').textContent = err + ' Tripped';
+})();
+
+/* Simulate live polling indicator update */
+setInterval(function() {
+  var el = document.querySelector('.fcp-last-check');
+  if (el) {
+    var secs = [3, 6, 9, 12, 3];
+    var cur = parseInt(el.textContent.match(/\d+/)) || 3;
+    var next = cur >= 12 ? 3 : cur + 3;
+    el.innerHTML = '<span class="live-dot"></span>Live &middot; polled ' + next + 's ago';
+  }
+}, 3000);
+</script>
+</body>
+</html>

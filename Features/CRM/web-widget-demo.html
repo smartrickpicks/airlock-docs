@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Widget Demo - Airlock</title>
+<style>
+:root {
+  --bg-darkest: #0d1017;
+  --bg-page: #12161f;
+  --bg-input: #161b28;
+  --bg-panel: #1a1f2e;
+  --bg-card: #1e2436;
+  --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #6b7280;
+  --accent-blue: #0091ea;
+  --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50;
+  --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800;
+  --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336;
+  --red-dim: rgba(244,67,54,0.12);
+  --cyan: #00bcd4;
+  --cyan-dim: rgba(0,188,212,0.12);
+  --border: #2a3040;
+  --border-light: #333b4f;
+  --border-focus: #0091ea;
+  --mono: 'SF Mono','Cascadia Code','Consolas',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --widget-cta: #F59E0B;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── SPLIT LAYOUT ─── */
+.demo-layout {
+  display: flex;
+  height: 100%;
+}
+
+/* ─── LEFT: WIDGET STATES ─── */
+.widget-states-panel {
+  width: 420px;
+  min-width: 420px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--bg-panel);
+}
+.states-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.states-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.state-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.state-card:hover { border-color: var(--border-light); }
+.state-card.active { border-color: var(--accent-blue); }
+.state-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+}
+.state-number {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+}
+.state-label { color: var(--text-primary); }
+.state-device {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.state-device.desktop { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.state-device.mobile { background: var(--green-dim); color: var(--green); }
+.state-device.both { background: var(--amber-dim); color: var(--amber); }
+
+/* Widget mockup inside state card */
+.widget-mockup {
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+/* The actual widget frame */
+.widget-frame {
+  width: 300px;
+  background: var(--bg-darkest);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.widget-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.widget-header-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+.widget-close {
+  margin-left: auto;
+  font-size: 16px;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.widget-close:hover { background: var(--bg-card); color: var(--text-primary); }
+.widget-body {
+  padding: 16px 14px;
+}
+.widget-body p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 14px;
+}
+.widget-input-group {
+  margin-bottom: 12px;
+}
+.widget-input-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.widget-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  outline: none;
+}
+.widget-input:focus { border-color: var(--border-focus); }
+.widget-input::placeholder { color: var(--text-muted); }
+.widget-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.widget-topic-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  width: 100%;
+}
+.widget-topic {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+}
+.widget-topic:hover { border-color: var(--border-light); color: var(--text-primary); }
+.widget-topic.selected { background: var(--accent-blue-dim); color: var(--accent-blue); border-color: var(--accent-blue); }
+.widget-cta-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--widget-cta);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: opacity 0.15s;
+  letter-spacing: 0.2px;
+}
+.widget-cta-btn:hover { opacity: 0.9; }
+.widget-cta-btn.messages-btn { background: var(--accent-blue); color: white; }
+.widget-footer-note {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.widget-footer-note .smart-number { color: var(--accent-blue); font-weight: 600; font-family: var(--mono); }
+
+/* Collapsed state (floating button) */
+.widget-collapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--widget-cta);
+  color: #000;
+  border-radius: 28px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(245,158,11,0.3);
+  font-family: var(--sans);
+  transition: transform 0.15s, box-shadow 0.15s;
+  animation: pulse-glow 3s infinite;
+}
+.widget-collapsed:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.4); }
+.widget-collapsed-arrow { font-size: 16px; }
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 4px 16px rgba(245,158,11,0.3); }
+  50% { box-shadow: 0 4px 24px rgba(245,158,11,0.5); }
+}
+
+/* Sending spinner */
+.widget-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  margin: 20px auto;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Success check */
+.widget-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--green-dim);
+  border: 2px solid var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--green);
+  margin: 0 auto 12px;
+}
+
+/* Masked phone */
+.masked-phone {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+/* ─── RIGHT: HANDOFF FLOW ─── */
+.handoff-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+.handoff-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.handoff-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* Flow timeline */
+.flow-timeline {
+  position: relative;
+  padding-left: 32px;
+}
+.flow-timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.flow-step {
+  position: relative;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.flow-step:last-child { border-bottom: none; }
+.flow-dot {
+  position: absolute;
+  left: -32px;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  z-index: 1;
+}
+.flow-dot.web { background: var(--amber-dim); color: var(--widget-cta); border: 2px solid var(--widget-cta); }
+.flow-dot.bridge { background: var(--accent-blue-dim); color: var(--accent-blue); border: 2px solid var(--accent-blue); }
+.flow-dot.ai { background: var(--cyan-dim); color: var(--cyan); border: 2px solid var(--cyan); }
+.flow-dot.human { background: var(--green-dim); color: var(--green); border: 2px solid var(--green); }
+.flow-dot.crm { background: var(--purple-dim); color: #7b1fa2; border: 2px solid #7b1fa2; }
+.flow-step-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.flow-step-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.flow-step-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+/* Mock iMessage bubbles */
+.imessage-mock {
+  background: var(--bg-darkest);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 12px;
+  margin-top: 10px;
+  max-width: 320px;
+}
+.imessage-mock-header {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.imsg-bubble {
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+  max-width: 85%;
+}
+.imsg-bubble.them {
+  background: #333;
+  color: white;
+  border-bottom-left-radius: 4px;
+}
+.imsg-bubble.us {
+  background: #0b84fe;
+  color: white;
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
+}
+.imsg-bubble.ai-auto {
+  background: rgba(0,188,212,0.15);
+  border: 1px solid rgba(0,188,212,0.25);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+  position: relative;
+}
+.imsg-bubble.ai-auto::after {
+  content: 'AI';
+  position: absolute;
+  top: -6px;
+  right: 8px;
+  font-size: 7px;
+  font-weight: 800;
+  color: var(--cyan);
+  background: var(--bg-darkest);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.imsg-time {
+  font-size: 8px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 8px 0 4px;
+}
+
+/* Analytics strip */
+.analytics-strip {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.analytics-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  text-align: center;
+}
+.analytics-value {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--mono);
+}
+.analytics-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.analytics-value.green { color: var(--green); }
+.analytics-value.blue { color: var(--accent-blue); }
+.analytics-value.amber { color: var(--amber); }
+.analytics-value.cyan { color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<div class="demo-layout">
+
+  <!-- LEFT: WIDGET STATES -->
+  <div class="widget-states-panel">
+    <div class="states-title">Smart Widget States</div>
+    <div class="states-subtitle">Click each state to see it in action. The widget adapts based on device type.</div>
+
+    <!-- State 0: Collapsed -->
+    <div class="state-card active" data-state="0">
+      <div class="state-card-header">
+        <div class="state-number">0</div>
+        <span class="state-label">Collapsed (Default)</span>
+        <span class="state-device both">All</span>
+      </div>
+      <div class="widget-mockup">
+        <div class="widget-collapsed">
+          Text us <span class="widget-collapsed-arrow">&#10148;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 1: Expanded (Desktop) -->
+    <div class="state-card" data-state="1">
+      <div class="state-card-header">
+        <div class="state-number">1</div>
+        <span class="state-label">Expanded (Desktop)</span>
+        <span class="state-device desktop">Desktop</span>
+      </div>
+      <div class="widget-mockup">
+        <div class="widget-frame">
+          <div class="widget-header">
+            <span class="widget-header-title">Text Us</span>
+            <div class="widget-close">&times;</div>
+          </div>
+          <div class="widget-body">
+            <p>Skip the form. We'll text you instead.</p>
+            <div class="widget-input-group">
+              <div class="widget-input-label">Phone Number</div>
+              <input type="text" class="widget-input" placeholder="(___) ___-____" value="(415) 555-9021">
+            </div>
+            <div class="widget-topics">
+              <div class="widget-topic-label">What's this about?</div>
+              <button class="widget-topic selected">Contracts</button>
+              <button class="widget-topic">Pricing</button>
+              <button class="widget-topic">Partnership</button>
+              <button class="widget-topic">Other</button>
+            </div>
+            <button class="widget-cta-btn">Send me a text &#10148;</button>
+            <div class="widget-footer-note">We text from <span class="smart-number">(310) 555-0142</span><br>Normal messaging rates apply</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 2: Expanded (Mobile / iOS) -->
+    <div class="state-card" data-state="2">
+      <div class="state-card-header">
+        <div class="state-number">2</div>
+        <span class="state-label">Expanded (Mobile)</span>
+        <span class="state-device mobile">iOS</span>
+      </div>
+      <div class="widget-mockup">
+        <div class="widget-frame">
+          <div class="widget-header">
+            <span class="widget-header-title">Text Us</span>
+            <div class="widget-close">&times;</div>
+          </div>
+          <div class="widget-body">
+            <p>Skip the form. Text us directly and we'll take it from there.</p>
+            <div class="widget-topics">
+              <div class="widget-topic-label">What's this about?</div>
+              <button class="widget-topic selected">Contracts</button>
+              <button class="widget-topic">Pricing</button>
+              <button class="widget-topic">Partnership</button>
+              <button class="widget-topic">Other</button>
+            </div>
+            <button class="widget-cta-btn messages-btn">Open Messages &#10148;</button>
+            <div class="widget-footer-note">Opens iMessage with our<br>number pre-filled. Just tap send.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 3: Sending -->
+    <div class="state-card" data-state="3">
+      <div class="state-card-header">
+        <div class="state-number">3</div>
+        <span class="state-label">Sending</span>
+        <span class="state-device desktop">Desktop</span>
+      </div>
+      <div class="widget-mockup">
+        <div class="widget-frame">
+          <div class="widget-header">
+            <span class="widget-header-title">Text Us</span>
+          </div>
+          <div class="widget-body" style="text-align:center;padding:24px 14px">
+            <div class="widget-spinner"></div>
+            <p style="font-size:13px;color:var(--text-secondary)">Sending you a text...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State 4: Sent (Confirmation) -->
+    <div class="state-card" data-state="4">
+      <div class="state-card-header">
+        <div class="state-number">4</div>
+        <span class="state-label">Sent (Confirmation)</span>
+        <span class="state-device both">All</span>
+      </div>
+      <div class="widget-mockup">
+        <div class="widget-frame">
+          <div class="widget-header">
+            <span class="widget-header-title">You're set</span>
+            <div class="widget-close">&times;</div>
+          </div>
+          <div class="widget-body" style="text-align:center">
+            <div class="widget-check">&#10003;</div>
+            <p style="margin-bottom:6px">Check your messages.<br>We just texted you at</p>
+            <div class="masked-phone">(***) ***-9021</div>
+            <p style="font-size:11px;margin-top:12px">Reply to continue the conversation there.</p>
+            <div class="widget-footer-note" style="margin-top:16px;border-top:1px solid var(--border);padding-top:10px">Didn't get it? Text us directly:<br><span class="smart-number">(310) 555-0142</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: HANDOFF FLOW -->
+  <div class="handoff-panel">
+    <div class="handoff-title">The Handoff Flow</div>
+    <div class="handoff-subtitle">What happens after someone uses the widget. Website visitor to qualified lead in under 5 minutes.</div>
+
+    <div class="flow-timeline">
+
+      <div class="flow-step">
+        <div class="flow-dot web">1</div>
+        <div class="flow-step-title">Visitor lands on /pricing page</div>
+        <div class="flow-step-desc">Widget renders in the bottom-right corner. Detects iOS device. Shows "Open Messages" instead of phone number field. Page context captured: pricing page, utm_source=google, utm_campaign=spring-2026.</div>
+        <div class="flow-step-time">T+0s</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot web">2</div>
+        <div class="flow-step-title">Visitor taps "Open Messages"</div>
+        <div class="flow-step-desc">sms: URI opens Messages app with pre-filled message: "Hi! I'm on your site, interested in Contracts." Visitor taps Send. This is prospect-initiated contact. No rate limit risk.</div>
+        <div class="flow-step-time">T+8s</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot bridge">3</div>
+        <div class="flow-step-title">Message hits the Smart Line</div>
+        <div class="flow-step-desc">iMessage bridge detects new message via chat.db polling (2s interval). Webhook fires to Airlock backend. Phone number lookup: no match found. New lead workflow triggers.</div>
+        <div class="flow-step-time">T+12s</div>
+
+        <div class="imessage-mock">
+          <div class="imessage-mock-header">iMessage &middot; (310) 555-0142</div>
+          <div class="imsg-bubble them">Hi! I'm on your site, interested in Contracts.</div>
+          <div class="imsg-time">Just now</div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot ai">4</div>
+        <div class="flow-step-title">AI Conversational Ask begins</div>
+        <div class="flow-step-desc">Workflow node 1: AI responds within 15 seconds. Asks for name and company. Uses page context to personalize the opener. Workflow pauses, waiting for response (BullMQ delayed job).</div>
+        <div class="flow-step-time">T+15s</div>
+
+        <div class="imessage-mock">
+          <div class="imessage-mock-header">iMessage &middot; (310) 555-0142</div>
+          <div class="imsg-bubble them">Hi! I'm on your site, interested in Contracts.</div>
+          <div class="imsg-bubble ai-auto">Hey! Saw you checking out our pricing. I'm here to help. What's your name and company?</div>
+          <div class="imsg-bubble them">Lisa Wong, Summit Records</div>
+          <div class="imsg-time">Just now</div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot ai">5</div>
+        <div class="flow-step-title">Qualifying question</div>
+        <div class="flow-step-desc">AI parses response, creates vault_contact (Lisa Wong, Summit Records). Asks qualifying question based on topic (contracts). Response determines routing: enterprise AE vs SDR pool.</div>
+        <div class="flow-step-time">T+45s</div>
+
+        <div class="imessage-mock">
+          <div class="imessage-mock-header">iMessage &middot; (310) 555-0142</div>
+          <div class="imsg-bubble ai-auto">Nice to meet you, Lisa! How many contracts does Summit manage per quarter?</div>
+          <div class="imsg-bubble them">About 200 per quarter</div>
+          <div class="imsg-time">Just now</div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot ai">6</div>
+        <div class="flow-step-title">Lead scored + routed</div>
+        <div class="flow-step-desc">AI scores lead: 62/100 (mid-market, 200 contracts/quarter, organic traffic). Lifecycle: MQL. Routed to SDR pool. Task created: "Follow up with Lisa Wong from Summit Records - Contracts" (1-hour SLA).</div>
+        <div class="flow-step-time">T+48s</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot human">7</div>
+        <div class="flow-step-title">Human rep takes over</div>
+        <div class="flow-step-desc">SDR claims conversation from pool. Sees full context: page visited, topic selected, lead score, qualification answers, AI conversation transcript. Responds from the same Smart Line number. Lisa sees one continuous thread.</div>
+        <div class="flow-step-time">T+3m</div>
+
+        <div class="imessage-mock">
+          <div class="imessage-mock-header">iMessage &middot; (310) 555-0142</div>
+          <div class="imsg-bubble ai-auto">Thanks Lisa! One of our team members will follow up shortly. They'll text from this same number.</div>
+          <div class="imsg-time">2 minutes ago</div>
+          <div class="imsg-bubble us">Hey Lisa! I'm Sarah from the team. I see you manage about 200 contracts per quarter at Summit. Would you be open to a 15-minute demo this week?</div>
+          <div class="imsg-time">Just now</div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-dot crm">8</div>
+        <div class="flow-step-title">CRM record fully populated</div>
+        <div class="flow-step-desc">Without filling out a single form, the CRM now has: contact name, company, phone, title (from LinkedIn enrichment), volume (200/quarter), pain points (spreadsheets), source (web widget, /pricing, Google Ads), lead score (62), full conversation transcript, and an active task assigned to the SDR.</div>
+        <div class="flow-step-time">T+5m &mdash; Complete</div>
+      </div>
+
+    </div>
+
+    <!-- Analytics Strip -->
+    <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+      <div style="font-size:11px;font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted)">Widget Performance (Last 30 Days)</div>
+      <div class="analytics-strip">
+        <div class="analytics-card">
+          <div class="analytics-value blue">2,400</div>
+          <div class="analytics-label">Widget Opens</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-value amber">960</div>
+          <div class="analytics-label">Handoffs</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-value green">638</div>
+          <div class="analytics-label">Replies</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-value cyan">287</div>
+          <div class="analytics-label">Qualified</div>
+        </div>
+      </div>
+      <div class="analytics-strip" style="margin-top:8px">
+        <div class="analytics-card">
+          <div class="analytics-value green">40%</div>
+          <div class="analytics-label">Open-to-Handoff</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-value green">70%</div>
+          <div class="analytics-label">Reply Rate</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-value amber">18s</div>
+          <div class="analytics-label">Avg First Response</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-value cyan">4.2m</div>
+          <div class="analytics-label">Avg to Qualified</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// State card click highlighting
+document.querySelectorAll('.state-card').forEach(function(card) {
+  card.addEventListener('click', function() {
+    document.querySelectorAll('.state-card').forEach(function(c) { c.classList.remove('active'); });
+    this.classList.add('active');
+  });
+});
+
+// Topic selection
+document.querySelectorAll('.widget-topic').forEach(function(topic) {
+  topic.addEventListener('click', function() {
+    this.closest('.widget-topics').querySelectorAll('.widget-topic').forEach(function(t) { t.classList.remove('selected'); });
+    this.classList.add('selected');
+  });
+});
+</script>
+</body>
+</html>

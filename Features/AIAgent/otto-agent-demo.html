@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Otto AI Agent — Airlock</title>
+<style>
+  :root {
+    --bg-darkest:#0d1017; --bg-page:#12161f; --bg-input:#161b28; --bg-panel:#1a1f2e;
+    --bg-card:#1e2436; --bg-card-hover:#242b3d; --bg-input-focus:#1c2235;
+    --text-primary:#e8eaed; --text-secondary:#9aa0a6; --text-muted:#6b7280;
+    --accent-blue:#0091ea; --green:#4caf50; --green-dim:rgba(76,175,80,0.15);
+    --amber:#ff9800; --amber-dim:rgba(255,152,0,0.12); --red:#f44336; --red-dim:rgba(244,67,54,0.12);
+    --teal:#26a69a; --teal-dim:rgba(38,166,154,0.12); --purple:#a78bfa; --purple-dim:rgba(167,139,250,0.12);
+    --cyan:#00D1FF; --cyan-dim:rgba(0,209,255,0.10);
+    --border:#2a3040; --border-light:#333b4f;
+    --radius-sm:4px; --radius-md:6px; --radius-lg:10px;
+    --mono:'SF Mono','Cascadia Code','Consolas',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--sans);background:var(--bg-page);color:var(--text-primary);height:100vh;overflow:hidden;display:flex}
+
+  /* === LEFT: CONTEXT ENRICHMENT === */
+  .context-panel{width:320px;background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+  .ctx-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .ctx-header .otto-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a78bfa,#c4b5fd);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;box-shadow:0 0 12px rgba(167,139,250,0.3)}
+  .ctx-header .otto-label{font-size:14px;font-weight:600}
+  .ctx-header .otto-status{font-size:10px;color:var(--purple);display:flex;align-items:center;gap:4px}
+  .ctx-header .otto-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--purple);box-shadow:0 0 6px var(--purple)}
+  .ctx-header .model-badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;background:var(--cyan-dim);color:var(--cyan);text-transform:uppercase;letter-spacing:0.5px}
+
+  .ctx-body{flex:1;overflow-y:auto;padding:0}
+
+  .ctx-section{border-bottom:1px solid var(--border)}
+  .ctx-section-header{display:flex;align-items:center;gap:6px;padding:10px 16px;cursor:pointer;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);transition:color 0.12s}
+  .ctx-section-header:hover{color:var(--text-secondary)}
+  .ctx-section-header .arrow{font-size:8px;transition:transform 0.15s}
+  .ctx-section-header .arrow.open{transform:rotate(90deg)}
+  .ctx-section-header .ctx-badge{margin-left:auto;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px}
+  .ctx-section-content{padding:0 16px 10px;font-size:11px;line-height:1.6;color:var(--text-secondary)}
+
+  .enrichment-row{display:flex;align-items:flex-start;gap:8px;padding:4px 0}
+  .enrichment-row .e-icon{width:16px;text-align:center;flex-shrink:0;font-size:11px}
+  .enrichment-row .e-label{color:var(--text-muted);width:90px;flex-shrink:0;font-size:10px}
+  .enrichment-row .e-value{color:var(--text-primary);font-size:11px;flex:1}
+
+  .health-bar{height:6px;background:var(--bg-darkest);border-radius:3px;overflow:hidden;margin:4px 0}
+  .health-bar .fill{height:100%;border-radius:3px}
+
+  .confidence-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase}
+  .confidence-badge.high{background:var(--green-dim);color:var(--green)}
+  .confidence-badge.medium{background:var(--amber-dim);color:var(--amber)}
+  .confidence-badge.low{background:var(--red-dim);color:var(--red)}
+
+  .field-mini{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:10px;font-family:var(--mono)}
+  .field-mini .f-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+  .field-mini .f-name{color:var(--text-muted);flex:1}
+  .field-mini .f-val{color:var(--text-primary)}
+
+  /* === CENTER: CHAT === */
+  .chat-area{flex:1;display:flex;flex-direction:column;background:var(--bg-page);min-width:0}
+
+  .chat-header{height:42px;padding:0 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--bg-panel);flex-shrink:0}
+  .chat-header .vault-name{font-size:13px;font-weight:600;color:var(--text-primary)}
+  .chat-header .vault-meta{font-size:11px;color:var(--text-muted)}
+  .chat-header .gate-dot{width:8px;height:8px;border-radius:50%}
+  .chat-header .scope-pills{margin-left:auto;display:flex;gap:2px}
+  .chat-header .scope-pill{font-size:10px;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:var(--sans);transition:all 0.12s}
+  .chat-header .scope-pill.active{background:var(--purple-dim);border-color:rgba(167,139,250,0.3);color:var(--purple)}
+
+  .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+  .msg{display:flex;gap:10px;max-width:85%}
+  .msg.otto{align-self:flex-start}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .msg.system{align-self:center;max-width:100%}
+
+  .msg-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+  .msg.otto .msg-avatar{background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff}
+  .msg.user .msg-avatar{background:var(--accent-blue);color:#fff}
+
+  .msg-content{display:flex;flex-direction:column;gap:2px}
+  .msg-bubble{padding:10px 14px;border-radius:12px;font-size:12px;line-height:1.6}
+  .msg.otto .msg-bubble{background:var(--bg-card);border:1px solid var(--border);border-top-left-radius:4px}
+  .msg.user .msg-bubble{background:var(--purple-dim);border:1px solid rgba(167,139,250,0.2);border-top-right-radius:4px;color:var(--text-primary)}
+  .msg.system .msg-bubble{background:transparent;border:1px dashed var(--border);color:var(--text-muted);font-size:11px;text-align:center;padding:6px 14px}
+
+  .msg-meta{font-size:9px;color:var(--text-muted);display:flex;align-items:center;gap:6px}
+  .msg.user .msg-meta{justify-content:flex-end}
+  .msg-meta .ai-badge{font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;background:var(--purple-dim);color:var(--purple);text-transform:uppercase;letter-spacing:0.3px}
+
+  /* Suggestion cards inside otto messages */
+  .suggestion-card{margin-top:8px;padding:10px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);border-left:3px solid var(--cyan)}
+  .suggestion-card .sc-title{font-size:11px;font-weight:600;color:var(--cyan);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+  .suggestion-card .sc-body{font-size:11px;color:var(--text-secondary);line-height:1.5}
+  .suggestion-card .sc-actions{display:flex;gap:6px;margin-top:8px}
+  .suggestion-card .sc-btn{font-size:10px;padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);cursor:pointer;font-family:var(--sans);transition:all 0.12s}
+  .suggestion-card .sc-btn:hover{background:var(--bg-card-hover);color:var(--text-primary)}
+  .suggestion-card .sc-btn.primary{background:var(--cyan-dim);border-color:rgba(0,209,255,0.3);color:var(--cyan)}
+
+  /* Corrections table */
+  .corrections-table{width:100%;margin-top:8px;border-collapse:collapse;font-size:10px}
+  .corrections-table th{text-align:left;padding:4px 8px;background:var(--bg-darkest);color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;font-size:9px;border:1px solid var(--border)}
+  .corrections-table td{padding:4px 8px;border:1px solid var(--border);color:var(--text-secondary)}
+  .corrections-table .old-val{color:var(--red);text-decoration:line-through;opacity:0.7}
+  .corrections-table .new-val{color:var(--green);font-weight:600}
+  .corrections-table .conf{font-family:var(--mono);font-size:9px}
+
+  /* Typing indicator */
+  .typing-indicator{display:flex;align-items:center;gap:4px;padding:4px 0}
+  .typing-indicator .dot{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:typePulse 1.4s infinite}
+  .typing-indicator .dot:nth-child(2){animation-delay:0.2s}
+  .typing-indicator .dot:nth-child(3){animation-delay:0.4s}
+  @keyframes typePulse{0%,60%,100%{opacity:0.3;transform:scale(0.8)}30%{opacity:1;transform:scale(1)}}
+
+  /* Composer */
+  .chat-composer{padding:12px 16px;border-top:1px solid var(--border);background:var(--bg-panel);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+  .composer-input{flex:1;min-height:36px;max-height:120px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:12px;padding:8px 12px;outline:none;font-family:var(--sans);resize:none;line-height:1.5}
+  .composer-input:focus{border-color:var(--purple)}
+  .composer-input::placeholder{color:var(--text-muted)}
+  .composer-send{width:36px;height:36px;border-radius:var(--radius-md);background:var(--purple);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:filter 0.12s}
+  .composer-send:hover{filter:brightness(1.15)}
+
+  .composer-tools{display:flex;gap:4px;padding:6px 0 0}
+  .composer-tool{font-size:10px;padding:3px 8px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-family:var(--sans);transition:all 0.12s}
+  .composer-tool:hover{background:var(--bg-card);color:var(--text-secondary)}
+
+  /* === RIGHT: SKILLS & ACTIONS === */
+  .skills-panel{width:260px;background:var(--bg-panel);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+  .skills-header{padding:10px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted)}
+
+  .skills-body{flex:1;overflow-y:auto;padding:8px 0}
+
+  .skill-item{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;transition:background 0.12s}
+  .skill-item:hover{background:var(--bg-card)}
+  .skill-item .sk-icon{width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  .skill-item .sk-info{flex:1;min-width:0}
+  .skill-item .sk-name{font-size:11px;font-weight:600;color:var(--text-primary)}
+  .skill-item .sk-desc{font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .skill-item .sk-badge{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;letter-spacing:0.3px}
+
+  .sk-section-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);padding:12px 14px 4px}
+
+  .action-log{padding:8px 14px}
+  .action-log-item{display:flex;align-items:flex-start;gap:6px;padding:4px 0;font-size:10px;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .action-log-item .al-time{color:var(--text-muted);font-family:var(--mono);flex-shrink:0;width:40px}
+  .action-log-item .al-text{color:var(--text-secondary);line-height:1.4}
+  .action-log-item .al-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px}
+
+  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- LEFT: CONTEXT ENRICHMENT PANEL -->
+<div class="context-panel">
+  <div class="ctx-header">
+    <div class="otto-avatar">O</div>
+    <div>
+      <div class="otto-label">Otto</div>
+      <div class="otto-status">Active on this vault</div>
+    </div>
+    <div class="model-badge">Sonnet</div>
+  </div>
+  <div class="ctx-body">
+    <!-- Vault Context -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow open">&#9654;</span> Vault Context
+        <span class="ctx-badge" style="background:var(--green-dim);color:var(--green)">LOADED</span>
+      </div>
+      <div class="ctx-section-content">
+        <div class="enrichment-row"><span class="e-icon">&#128196;</span><span class="e-label">Contract</span><span class="e-value">Henderson MSA</span></div>
+        <div class="enrichment-row"><span class="e-icon">&#127970;</span><span class="e-label">Account</span><span class="e-value">Henderson Corp</span></div>
+        <div class="enrichment-row"><span class="e-icon">&#128176;</span><span class="e-label">Deal Value</span><span class="e-value">$2.4M ARR</span></div>
+        <div class="enrichment-row"><span class="e-icon">&#128197;</span><span class="e-label">Effective</span><span class="e-value">Jan 15, 2025</span></div>
+        <div class="enrichment-row"><span class="e-icon">&#128339;</span><span class="e-label">Term</span><span class="e-value">36 months</span></div>
+      </div>
+    </div>
+
+    <!-- Gate State -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow open">&#9654;</span> Gate State
+        <span class="ctx-badge" style="background:var(--amber-dim);color:var(--amber)">YELLOW</span>
+      </div>
+      <div class="ctx-section-content">
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--amber)">&#9679;</span><span class="e-label">Gate</span><span class="e-value" style="color:var(--amber)">Standardize</span></div>
+        <div class="enrichment-row"><span class="e-icon">&#9888;</span><span class="e-label">Blockers</span><span class="e-value">Low entity confidence (38%)</span></div>
+        <div class="enrichment-row"><span class="e-icon">&#9888;</span><span class="e-label"></span><span class="e-value">Missing payment threshold</span></div>
+      </div>
+    </div>
+
+    <!-- Health Score -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow open">&#9654;</span> Health Score
+        <span class="ctx-badge" style="background:var(--amber-dim);color:var(--amber)">68%</span>
+      </div>
+      <div class="ctx-section-content">
+        <div class="health-bar"><div class="fill" style="width:68%;background:linear-gradient(90deg,var(--amber),var(--green))"></div></div>
+        <div class="field-mini"><span class="f-dot" style="background:var(--green)"></span><span class="f-name">Entity Resolution</span><span class="f-val">0.82</span></div>
+        <div class="field-mini"><span class="f-dot" style="background:var(--amber)"></span><span class="f-name">Opportunities</span><span class="f-val">0.65</span></div>
+        <div class="field-mini"><span class="f-dot" style="background:var(--green)"></span><span class="f-name">Schedule</span><span class="f-val">0.78</span></div>
+        <div class="field-mini"><span class="f-dot" style="background:var(--red)"></span><span class="f-name">Financials</span><span class="f-val">0.42</span></div>
+        <div class="field-mini"><span class="f-dot" style="background:var(--green)"></span><span class="f-name">Addons</span><span class="f-val">0.85</span></div>
+      </div>
+    </div>
+
+    <!-- Field Summary -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow">&#9654;</span> Field Summary (82 fields)
+        <span class="ctx-badge" style="background:var(--teal-dim);color:var(--teal)">45%</span>
+      </div>
+      <div class="ctx-section-content" style="display:none">
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--green)">&#10003;</span><span class="e-label">Pass</span><span class="e-value">37 fields</span></div>
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--amber)">&#9888;</span><span class="e-label">Review</span><span class="e-value">28 fields</span></div>
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--red)">&#10007;</span><span class="e-label">Fail</span><span class="e-value">12 fields</span></div>
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--text-muted)">&#8212;</span><span class="e-label">Skipped</span><span class="e-value">5 fields</span></div>
+      </div>
+    </div>
+
+    <!-- Corpus Search -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow">&#9654;</span> Corpus Context
+        <span class="ctx-badge" style="background:var(--cyan-dim);color:var(--cyan)">10 lines</span>
+      </div>
+      <div class="ctx-section-content" style="display:none">
+        <div style="font-size:10px;color:var(--text-muted);font-family:var(--mono);background:var(--bg-darkest);padding:8px;border-radius:var(--radius-sm);line-height:1.6;white-space:pre-wrap">...the payment threshold shall not exceed fifteen percent (15%) of the gross revenue...
+
+...Henderson Corp agrees to provide quarterly reports detailing all revenue streams...</div>
+      </div>
+    </div>
+
+    <!-- Extraction Meta -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow">&#9654;</span> Extraction Meta
+      </div>
+      <div class="ctx-section-content" style="display:none">
+        <div class="enrichment-row"><span class="e-label">Extractors run</span><span class="e-value">7 / 7</span></div>
+        <div class="enrichment-row"><span class="e-label">Duration</span><span class="e-value">2.3s</span></div>
+        <div class="enrichment-row"><span class="e-label">Pages scanned</span><span class="e-value">14</span></div>
+        <div class="enrichment-row"><span class="e-label">Avg confidence</span><span class="e-value">0.72</span></div>
+      </div>
+    </div>
+
+    <!-- Patch History -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow">&#9654;</span> Patch History
+        <span class="ctx-badge" style="background:var(--purple-dim);color:var(--purple)">3</span>
+      </div>
+      <div class="ctx-section-content" style="display:none">
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--green)">&#10003;</span><span class="e-value">Territory corrected: US &rarr; Global (applied)</span></div>
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--amber)">&#9203;</span><span class="e-value">Effective date under review (pending)</span></div>
+        <div class="enrichment-row"><span class="e-icon" style="color:var(--red)">&#10007;</span><span class="e-value">Contract type rejected (rejected)</span></div>
+      </div>
+    </div>
+
+    <!-- Domain Rules -->
+    <div class="ctx-section">
+      <div class="ctx-section-header" onclick="toggleSection(this)">
+        <span class="arrow">&#9654;</span> Domain Rules
+        <span class="ctx-badge" style="background:var(--bg-card);color:var(--text-muted)">4 active</span>
+      </div>
+      <div class="ctx-section-content" style="display:none">
+        <div style="font-size:10px;color:var(--text-muted);line-height:1.6">
+          <div style="margin-bottom:4px">&#8226; Distribution agreements require territory field</div>
+          <div style="margin-bottom:4px">&#8226; MSAs >$1M require admin approval</div>
+          <div style="margin-bottom:4px">&#8226; Payment threshold max 20% for Tier-1 accounts</div>
+          <div>&#8226; Henderson Corp: preferred terms apply (custom)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER: CHAT AREA -->
+<div class="chat-area">
+  <div class="chat-header">
+    <span class="gate-dot" style="background:var(--amber)"></span>
+    <span class="vault-name">henderson-msa</span>
+    <span class="vault-meta">Distribution Agreement &middot; Standardize</span>
+    <div class="scope-pills">
+      <button class="scope-pill active">This Vault</button>
+      <button class="scope-pill">All Vaults</button>
+    </div>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <div class="msg system"><div class="msg-content"><div class="msg-bubble">Otto loaded context for <strong>henderson-msa</strong> &mdash; 9 enrichment sources active</div></div></div>
+
+    <div class="msg user">
+      <div class="msg-avatar">ZH</div>
+      <div class="msg-content">
+        <div class="msg-bubble">What's wrong with this contract? Why is it stuck at yellow gate?</div>
+        <div class="msg-meta">Zachary Holwerda &middot; 2m ago</div>
+      </div>
+    </div>
+
+    <div class="msg otto">
+      <div class="msg-avatar">O</div>
+      <div class="msg-content">
+        <div class="msg-bubble">
+          The Henderson MSA is blocked at <strong style="color:var(--amber)">Standardize</strong> gate for two reasons:
+          <br><br>
+          <strong>1. Low entity confidence (38%)</strong> &mdash; The counterparty "Henderson Corp" matched with low confidence. I found 3 possible matches in the vault hierarchy:
+          <br>&nbsp;&nbsp;&#8226; <span style="color:var(--text-primary)">Henderson Corporation LLC</span> (38% match)
+          <br>&nbsp;&nbsp;&#8226; <span style="color:var(--text-primary)">Henderson & Co Partners</span> (22% match)
+          <br>&nbsp;&nbsp;&#8226; <span style="color:var(--text-primary)">Henderson Media Group</span> (15% match)
+          <br><br>
+          <strong>2. Missing payment threshold</strong> &mdash; The <code style="background:var(--bg-input);padding:1px 4px;border-radius:2px;font-size:11px">payment_threshold</code> field failed extraction. I found the clause on page 7:
+          <br><em style="color:var(--text-muted)">"...shall not exceed fifteen percent (15%) of the gross revenue..."</em>
+          <br><br>
+          This should be <span style="color:var(--green)">15%</span>. Want me to create a patch?
+        </div>
+        <div class="msg-meta"><span class="ai-badge">Otto AI</span> Claude Sonnet &middot; 2m ago &middot; 9 sources</div>
+
+        <div class="suggestion-card">
+          <div class="sc-title">&#9889; Suggested Actions</div>
+          <div class="sc-body">I can fix both blockers right now:</div>
+          <div class="sc-actions">
+            <button class="sc-btn primary">Resolve Entity &rarr; Henderson Corporation LLC</button>
+            <button class="sc-btn primary">Create Patch: payment_threshold = 15%</button>
+            <button class="sc-btn">Show Evidence</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg user">
+      <div class="msg-avatar">ZH</div>
+      <div class="msg-content">
+        <div class="msg-bubble">Yes, that's Henderson Corporation LLC. Go ahead and create the patch for payment threshold too. Also, what other fields need attention?</div>
+        <div class="msg-meta">Zachary Holwerda &middot; 1m ago</div>
+      </div>
+    </div>
+
+    <div class="msg otto">
+      <div class="msg-avatar">O</div>
+      <div class="msg-content">
+        <div class="msg-bubble">
+          Done. I've:
+          <br>&#10003; Resolved entity &rarr; <strong>Henderson Corporation LLC</strong> (confidence now 1.0)
+          <br>&#10003; Created patch for <code style="background:var(--bg-input);padding:1px 4px;border-radius:2px;font-size:11px">payment_threshold</code> = 15% (submitted for review)
+          <br><br>
+          Here are the other fields that need attention &mdash; 4 corrections I'm confident about:
+        </div>
+
+        <table class="corrections-table">
+          <tr><th>Field</th><th>Current</th><th>Suggested</th><th>Conf</th></tr>
+          <tr>
+            <td>royalty_rate</td>
+            <td class="old-val">not found</td>
+            <td class="new-val">12.5%</td>
+            <td class="conf"><span class="confidence-badge high">92%</span></td>
+          </tr>
+          <tr>
+            <td>territory</td>
+            <td class="old-val">US</td>
+            <td class="new-val">Global (all territories)</td>
+            <td class="conf"><span class="confidence-badge high">88%</span></td>
+          </tr>
+          <tr>
+            <td>auto_renew</td>
+            <td class="old-val">not found</td>
+            <td class="new-val">Yes (12-month cycles)</td>
+            <td class="conf"><span class="confidence-badge medium">74%</span></td>
+          </tr>
+          <tr>
+            <td>termination_notice</td>
+            <td class="old-val">30 days</td>
+            <td class="new-val">90 days</td>
+            <td class="conf"><span class="confidence-badge medium">71%</span></td>
+          </tr>
+        </table>
+
+        <div class="suggestion-card" style="margin-top:10px">
+          <div class="sc-title">&#128203; Batch Patch</div>
+          <div class="sc-body">Apply all 4 corrections as a single patch? This would raise the health score from <strong style="color:var(--amber)">68%</strong> to an estimated <strong style="color:var(--green)">89%</strong>.</div>
+          <div class="sc-actions">
+            <button class="sc-btn primary">Create Batch Patch (4 fields)</button>
+            <button class="sc-btn">Review Each Individually</button>
+            <button class="sc-btn">Skip Low Confidence</button>
+          </div>
+        </div>
+
+        <div class="msg-meta" style="margin-top:6px"><span class="ai-badge">Otto AI</span> Claude Sonnet &middot; 45s ago &middot; corpus + extraction</div>
+      </div>
+    </div>
+
+    <div class="msg user">
+      <div class="msg-avatar">ZH</div>
+      <div class="msg-content">
+        <div class="msg-bubble">The territory one was already patched and applied. Skip that. Create the batch patch for the other 3.</div>
+        <div class="msg-meta">Zachary Holwerda &middot; 30s ago</div>
+      </div>
+    </div>
+
+    <div class="msg otto">
+      <div class="msg-avatar">O</div>
+      <div class="msg-content">
+        <div class="msg-bubble">
+          Got it &mdash; skipping <code style="background:var(--bg-input);padding:1px 4px;border-radius:2px;font-size:11px">territory</code> (already applied). Created batch patch for:
+          <br><br>
+          &#10003; <strong>royalty_rate</strong>: 12.5% (from page 4, clause 3.2)
+          <br>&#10003; <strong>auto_renew</strong>: Yes, 12-month cycles (from page 11, clause 8.1)
+          <br>&#10003; <strong>termination_notice</strong>: 90 days (from page 12, clause 9.3)
+          <br><br>
+          Patch <span style="font-family:var(--mono);color:var(--cyan)">PATCH-2024-0847</span> submitted. Assigned to <strong>Ana Chen</strong> (Verifier) for review.
+          <br><br>
+          <span style="color:var(--text-muted)">Estimated health after approval: <strong style="color:var(--green)">86%</strong> (Healthy Review band)</span>
+        </div>
+        <div class="msg-meta"><span class="ai-badge">Otto AI</span> Claude Sonnet &middot; just now &middot; patch created</div>
+      </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div class="msg otto" id="typingIndicator" style="display:none">
+      <div class="msg-avatar">O</div>
+      <div class="msg-content">
+        <div class="msg-bubble">
+          <div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-composer">
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+      <textarea class="composer-input" placeholder="Ask Otto about this contract..." rows="1" id="composerInput" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+      <div class="composer-tools">
+        <button class="composer-tool">/summarize</button>
+        <button class="composer-tool">/patch</button>
+        <button class="composer-tool">/compare</button>
+        <button class="composer-tool">/explain field</button>
+        <button class="composer-tool">@ mention</button>
+      </div>
+    </div>
+    <button class="composer-send" onclick="sendMessage()">&#9654;</button>
+  </div>
+</div>
+
+<!-- RIGHT: SKILLS & ACTIONS LOG -->
+<div class="skills-panel">
+  <div class="skills-header">Skills & Tools</div>
+  <div class="skills-body">
+    <div class="sk-section-label">ACTIVE SKILLS</div>
+    <div class="skill-item">
+      <div class="sk-icon" style="background:var(--cyan-dim);color:var(--cyan)">&#129504;</div>
+      <div class="sk-info"><div class="sk-name">Contract Analysis</div><div class="sk-desc">Field extraction, clause parsing</div></div>
+      <span class="sk-badge" style="background:var(--green-dim);color:var(--green)">ON</span>
+    </div>
+    <div class="skill-item">
+      <div class="sk-icon" style="background:var(--purple-dim);color:var(--purple)">&#128268;</div>
+      <div class="sk-info"><div class="sk-name">Entity Resolution</div><div class="sk-desc">Match counterparties to vault</div></div>
+      <span class="sk-badge" style="background:var(--green-dim);color:var(--green)">ON</span>
+    </div>
+    <div class="skill-item">
+      <div class="sk-icon" style="background:var(--teal-dim);color:var(--teal)">&#128203;</div>
+      <div class="sk-info"><div class="sk-name">Patch Creator</div><div class="sk-desc">Draft corrections with evidence</div></div>
+      <span class="sk-badge" style="background:var(--green-dim);color:var(--green)">ON</span>
+    </div>
+    <div class="skill-item">
+      <div class="sk-icon" style="background:var(--amber-dim);color:var(--amber)">&#9878;</div>
+      <div class="sk-info"><div class="sk-name">Domain Rules</div><div class="sk-desc">Apply workspace rule constraints</div></div>
+      <span class="sk-badge" style="background:var(--green-dim);color:var(--green)">ON</span>
+    </div>
+    <div class="skill-item">
+      <div class="sk-icon" style="background:var(--bg-card);color:var(--text-muted)">&#128269;</div>
+      <div class="sk-info"><div class="sk-name">Corpus Search</div><div class="sk-desc">RAG over contract text</div></div>
+      <span class="sk-badge" style="background:var(--green-dim);color:var(--green)">ON</span>
+    </div>
+    <div class="skill-item">
+      <div class="sk-icon" style="background:var(--bg-card);color:var(--text-muted)">&#128202;</div>
+      <div class="sk-info"><div class="sk-name">Health Scoring</div><div class="sk-desc">Estimate score impact</div></div>
+      <span class="sk-badge" style="background:var(--green-dim);color:var(--green)">ON</span>
+    </div>
+
+    <div class="sk-section-label" style="margin-top:8px">SESSION LOG</div>
+    <div class="action-log">
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--cyan)"></span>
+        <span class="al-time">0:42</span>
+        <span class="al-text">Loaded 9 enrichment sources</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--purple)"></span>
+        <span class="al-time">0:38</span>
+        <span class="al-text">Analyzed gate blockers (2 found)</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--cyan)"></span>
+        <span class="al-time">0:35</span>
+        <span class="al-text">Corpus search: "payment threshold" (3 hits)</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--green)"></span>
+        <span class="al-time">0:30</span>
+        <span class="al-text">Entity resolved: Henderson Corporation LLC</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--green)"></span>
+        <span class="al-time">0:28</span>
+        <span class="al-text">Patch created: payment_threshold = 15%</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--cyan)"></span>
+        <span class="al-time">0:22</span>
+        <span class="al-text">Scanned 82 fields, found 4 corrections</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--green)"></span>
+        <span class="al-time">0:08</span>
+        <span class="al-text">Batch patch PATCH-2024-0847 created (3 fields)</span>
+      </div>
+      <div class="action-log-item">
+        <span class="al-dot" style="background:var(--teal)"></span>
+        <span class="al-time">0:07</span>
+        <span class="al-text">Assigned to Ana Chen (Verifier)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleSection(el) {
+  var arrow = el.querySelector('.arrow');
+  var content = el.nextElementSibling;
+  if (content.style.display === 'none') {
+    content.style.display = '';
+    arrow.classList.add('open');
+  } else {
+    content.style.display = 'none';
+    arrow.classList.remove('open');
+  }
+}
+
+function sendMessage() {
+  var input = document.getElementById('composerInput');
+  var text = input.value.trim();
+  if (!text) return;
+
+  var messages = document.getElementById('chatMessages');
+
+  // Add user message
+  var userMsg = document.createElement('div');
+  userMsg.className = 'msg user';
+  userMsg.innerHTML = '<div class="msg-avatar">ZH</div><div class="msg-content"><div class="msg-bubble">' + escapeHtml(text) + '</div><div class="msg-meta">Zachary Holwerda &middot; just now</div></div>';
+  messages.insertBefore(userMsg, document.getElementById('typingIndicator'));
+
+  input.value = '';
+
+  // Show typing indicator
+  document.getElementById('typingIndicator').style.display = '';
+  messages.scrollTop = messages.scrollHeight;
+
+  // Simulate otto response after delay
+  setTimeout(function() {
+    document.getElementById('typingIndicator').style.display = 'none';
+
+    var ottoMsg = document.createElement('div');
+    ottoMsg.className = 'msg otto';
+    ottoMsg.innerHTML = '<div class="msg-avatar">O</div><div class="msg-content"><div class="msg-bubble">I\'ll look into that for this contract. Based on my analysis of the Henderson MSA and the 9 enrichment sources I have loaded, I can provide a detailed answer. Let me check the relevant clauses and extraction data...</div><div class="msg-meta"><span class="ai-badge">Otto AI</span> Claude Sonnet &middot; just now</div></div>';
+    messages.insertBefore(ottoMsg, document.getElementById('typingIndicator'));
+    messages.scrollTop = messages.scrollHeight;
+  }, 1800);
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

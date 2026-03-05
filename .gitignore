@@ -1,0 +1,38 @@
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# === IDE ===
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# === Environment ===
+.env
+.env.local
+.env.*
+!.env.example
+
+# === Claude Code local state ===
+.claude/settings.local.json
+
+# === Node ===
+node_modules/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# === Output ===
+out/
+*.log

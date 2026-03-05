@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1">
+<title>OrchestrateOS — Record Inspector Demo</title>
+<link rel="stylesheet" href="../../demo-shell/themes/theme.base.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page); color: var(--text-primary); font-size: 13px; line-height: 1.5; user-select: none;
+}
+/* :root tokens loaded from ../../demo-shell/themes/theme.base.css */
+:root {
+  /* Demo-specific tokens (not in base theme) */
+  --heatmap-1: rgba(255,152,0,0.03); --heatmap-2: rgba(255,152,0,0.06); --heatmap-3: rgba(255,152,0,0.10);
+}
+::selection { background: rgba(0,145,234,0.3); }
+
+/* ═══════════════════════════════════════════════════════════════
+   VIEW SWITCHER
+   ═══════════════════════════════════════════════════════════════ */
+.view-switcher { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: #0d1017; border-bottom: 1px solid var(--border); z-index: 100; position: relative; }
+.view-switcher .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px; }
+.view-btn { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.view-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.view-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOP BAR (44px)
+   ═══════════════════════════════════════════════════════════════ */
+.top-bar { display: flex; align-items: center; height: 44px; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 16px; gap: 10px; }
+.logo-wrap { display: flex; align-items: center; gap: 8px; padding: 3px 12px 3px 6px; border-radius: 6px; white-space: nowrap; }
+.logo-icon-svg { width: 26px; height: 26px; background: linear-gradient(135deg, #26a69a 0%, #4fc3f7 40%, #7c4dff 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; position: relative; }
+.logo-icon-svg::after { content: ''; width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.7); border-radius: 2px; transform: rotate(45deg); }
+.logo-text { font-weight: 700; font-size: 14px; color: var(--text-primary); letter-spacing: -0.3px; }
+.beta-badge { font-size: 9px; background: var(--teal); color: #fff; padding: 1px 6px; border-radius: 3px; font-weight: 700; letter-spacing: 0.5px; margin-left: 2px; }
+.back-btn { color: var(--text-secondary); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.progress-bar-top { width: 130px; height: 5px; background: #2a3040; border-radius: 3px; overflow: hidden; }
+.progress-bar-top .fill { height: 100%; border-radius: 3px; transition: width 0.4s, background 0.4s; }
+.progress-pct { font-size: 12px; color: var(--text-secondary); min-width: 30px; }
+.tools-link { color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.record-inspector-pill { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 14px; font-size: 12px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.record-nav { color: var(--text-muted); font-size: 14px; cursor: pointer; line-height: 1; }
+.record-name { color: var(--text-secondary); font-size: 11px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spacer { flex: 1; }
+.header-btn { padding: 5px 14px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 500; white-space: nowrap; }
+.header-btn.gate { border-color: var(--accent-blue); color: var(--accent-blue); font-weight: 700; }
+.header-btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.signature-badge { display: none; align-items: center; gap: 4px; background: rgba(76,175,80,0.15); color: var(--green); padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.signature-badge.show { display: inline-flex; }
+
+/* ═══════════════════════════════════════════════════════════════
+   APP LAYOUT
+   ═══════════════════════════════════════════════════════════════ */
+.app-layout { display: flex; height: calc(100vh - 78px); }
+.sidebar { width: 200px; min-width: 200px; background: var(--bg-page); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px 0; overflow-y: auto; }
+.sb-logo { display: flex; align-items: center; gap: 10px; padding: 8px 16px 12px; }
+.sb-logo img { width: 32px; height: 32px; flex-shrink: 0; }
+.sb-logo-text-wrap { display: flex; flex-direction: column; gap: 1px; }
+.sb-logo-text-wrap .sb-logo-text { font-size: 13px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.3px; line-height: 1.2; }
+.sb-logo-text-wrap .sb-logo-beta { font-size: 10px; font-weight: 700; color: var(--teal); letter-spacing: 1.5px; line-height: 1.2; }
+.sb-section-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 16px 4px; }
+.sb-nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 16px; font-size: 12px; color: var(--text-secondary); cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s; }
+.sb-nav-item:hover { background: var(--bg-card); }
+.sb-nav-item.active { color: var(--accent-blue); background: rgba(0,145,234,0.06); border-left-color: var(--accent-blue); font-weight: 600; }
+.sb-nav-item .sb-nav-icon { width: 18px; text-align: center; font-size: 14px; }
+.sb-nav-item .sb-nav-badge { margin-left: auto; font-size: 9px; font-weight: 700; background: var(--accent-blue); color: #fff; padding: 1px 6px; border-radius: 8px; min-width: 18px; text-align: center; }
+.sb-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+.sb-bottom { margin-top: auto; padding: 8px 16px; border-top: 1px solid var(--border); }
+.sb-bottom .sb-user { display: flex; align-items: center; gap: 8px; }
+.sb-bottom .sb-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.sb-progress-row { display: flex; align-items: center; gap: 8px; padding: 3px 16px; font-size: 12px; color: var(--text-secondary); }
+.sb-prog-count { font-weight: 700; font-size: 18px; min-width: 28px; }
+.sb-prog-count.todo { color: var(--text-muted); }
+.sb-prog-count.review { color: var(--amber); }
+.sb-prog-count.done { color: var(--green); }
+.sb-prog-label { font-size: 12px; }
+.sb-mini-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin: 4px 16px 2px; background: var(--border); }
+.sb-bar-done { background: var(--green); }
+.sb-bar-review { background: var(--amber); }
+.sb-bar-todo { background: var(--text-muted); }
+.sb-role-row { display: flex; gap: 4px; padding: 6px 0; }
+.sb-rpill { padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 10px; cursor: pointer; font-family: inherit; }
+.sb-rpill.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.sb-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text-secondary); }
+.left-panel { width: 340px; min-width: 340px; background: var(--bg-panel); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
+.left-panel::-webkit-scrollbar { width: 4px; }
+.left-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.right-panel { flex: 1; background: var(--bg-panel); overflow-y: auto; position: relative; }
+.right-panel::-webkit-scrollbar { width: 5px; }
+.right-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* SCROLL PROGRESS */
+.scroll-progress { position: sticky; top: 0; left: 0; right: 0; height: 3px; background: transparent; z-index: 12; }
+.scroll-progress .bar { height: 100%; background: var(--accent-blue); width: 0; transition: width 0.1s; }
+
+/* RP HEADER (48px) */
+.rp-header { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; border-bottom: 1px solid var(--border); position: sticky; top: 3px; background: var(--bg-panel); z-index: 11; }
+.rp-title { font-size: 15px; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.ocr-badge { font-size: 9px; font-weight: 700; background: rgba(76,175,80,0.15); color: var(--green); padding: 2px 8px; border-radius: 3px; }
+.heatmap-toggle { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); cursor: pointer; }
+.rp-search { display: flex; align-items: center; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; }
+.rp-search input { background: transparent; border: none; color: var(--text-primary); font-size: 12px; outline: none; width: 90px; font-family: inherit; }
+.ranap-btn, .select-btn { font-size: 11px; color: var(--text-secondary); cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+.ranap-btn:hover, .select-btn:hover { background: var(--bg-card); }
+
+/* TAB BAR (40px) — FIX #10: visible borders on inactive */
+.tab-bar { display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 16px; border-bottom: 1px solid var(--border); position: sticky; top: 51px; background: var(--bg-panel); z-index: 10; }
+.tab-pill { padding: 5px 12px; border-radius: 5px; font-size: 12px; color: var(--text-secondary); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; transition: background 0.1s; border: 1px solid var(--border); }
+.tab-pill:hover { background: var(--bg-card); }
+.tab-pill.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+.tab-badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; min-width: 16px; text-align: center; }
+.tab-badge.amber { background: rgba(255,152,0,0.25); color: var(--amber); }
+.tab-badge.green-check { color: var(--green); font-size: 11px; background: none; }
+.tab-bar .page-info { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+.tab-bar .nav-arr { cursor: pointer; }
+
+/* ═══════════════════════════════════════════════════════════════
+   LEFT PANEL HEADER — FIX #1: title + pills on same line
+   ═══════════════════════════════════════════════════════════════ */
+.lp-header { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); }
+.lp-title { font-size: 16px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.count-pills { display: flex; gap: 6px; }
+.cpill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.cpill.pass { background: rgba(76,175,80,0.15); color: var(--green); }
+.cpill.review { background: rgba(255,152,0,0.15); color: var(--amber); }
+.cpill.fail { background: rgba(244,67,54,0.15); color: var(--red); }
+.lp-sub { font-size: 11px; color: var(--text-muted); margin: 4px 0; }
+.tag-row { display: flex; gap: 6px; margin: 6px 0; }
+.tag { font-size: 10px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border); color: var(--text-secondary); }
+.mini-bar { display: flex; gap: 2px; align-items: center; margin: 6px 0; }
+.mini-bar .b { height: 10px; border-radius: 2px; }
+.mini-bar .pct { font-size: 11px; color: var(--text-secondary); margin-left: 8px; }
+
+/* TIER SEPARATORS */
+.tier-sep { display: flex; align-items: center; gap: 8px; padding: 10px 16px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.tier-sep .ln { flex: 1; height: 1px; }
+.tier-sep.t0 { color: var(--teal); } .tier-sep.t0 .ln { background: rgba(38,166,154,0.3); }
+.tier-sep.t1 { color: var(--accent-blue); } .tier-sep.t1 .ln { background: rgba(0,145,234,0.3); }
+.tier-sep.t2 { color: var(--text-muted); } .tier-sep.t2 .ln { background: rgba(107,114,128,0.3); }
+
+/* FIELD ROWS */
+.frow { display: flex; align-items: center; padding: 7px 16px; gap: 8px; cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s; }
+.frow:hover { background: var(--bg-card); }
+.frow.expanded { background: var(--bg-card); border-left-color: var(--accent-blue); }
+.frow.hinge { border-left-color: var(--teal); }
+.fname { flex: 1; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+.hinge-badge { font-size: 9px; color: var(--teal); background: rgba(38,166,154,0.12); padding: 1px 6px; border-radius: 3px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
+.sbadge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 3px; letter-spacing: 0.3px; }
+.sbadge.pass { background: rgba(76,175,80,0.15); color: var(--green); }
+.sbadge.review { background: rgba(255,152,0,0.15); color: var(--amber); }
+.sbadge.failed { background: rgba(244,67,54,0.15); color: var(--red); }
+.fval { font-size: 12px; color: var(--text-secondary); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.start-here { font-size: 10px; font-weight: 700; color: var(--teal); background: rgba(38,166,154,0.12); padding: 2px 8px; border-radius: 3px; animation: pulse 2s ease-in-out infinite; white-space: nowrap; box-shadow: 0 0 8px rgba(38,166,154,0.3); }
+@keyframes pulse { 0%,100%{ opacity:1; box-shadow: 0 0 8px rgba(38,166,154,0.3); } 50%{ opacity:0.6; box-shadow: 0 0 16px rgba(38,166,154,0.5); } }
+
+/* FIELD DRAWER */
+.fdrawer { background: var(--bg-card); border-left: 3px solid var(--accent-blue); padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.25s ease, padding 0.25s ease; }
+.fdrawer.open { max-height: 500px; padding: 12px 16px; }
+.fdrawer.hinge-drawer { border-left-color: var(--teal); }
+.fd-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); text-transform: uppercase; margin: 10px 0 3px; }
+.fd-label:first-child { margin-top: 0; }
+.fd-title { font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.tier-badge { font-size: 9px; padding: 1px 6px; border-radius: 3px; font-weight: 700; }
+.tier-badge.hinge { background: rgba(38,166,154,0.12); color: var(--teal); }
+.tier-badge.primary { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.tier-badge.supporting { background: rgba(107,114,128,0.12); color: var(--text-muted); }
+.fd-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin: 2px 0; }
+.fd-meta { font-size: 11px; color: var(--text-muted); margin: 2px 0; }
+.evidence-box { background: var(--bg-page); border-left: 3px solid var(--accent-blue); padding: 8px 12px; margin: 6px 0; font-size: 12px; color: var(--text-secondary); font-style: italic; border-radius: 0 4px 4px 0; }
+.evidence-box .hl { color: var(--accent-blue); text-decoration: underline; }
+.conf-bar { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.conf-bar .track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.conf-bar .fill { height: 100%; border-radius: 2px; }
+.conf-bar .pct { font-size: 11px; color: var(--text-secondary); min-width: 28px; }
+.action-btns { display: flex; gap: 8px; margin-top: 10px; }
+.abtn { padding: 6px 18px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 500; transition: background 0.1s; }
+.abtn:hover { background: var(--bg-card-hover); }
+.abtn.confirm { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.abtn.confirm:hover { background: #0081d4; }
+.next-unresolved { display: flex; align-items: center; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--accent-blue); cursor: pointer; }
+.next-unresolved:hover { text-decoration: underline; }
+
+/* SUGGESTED / WARNING / NEEDS ATTENTION */
+.suggested-sec { padding: 10px 16px; border-top: 1px solid var(--border); }
+.suggested-sec h4 { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.sug-row { display: flex; align-items: center; padding: 4px 0; gap: 6px; font-size: 12px; }
+.sug-row .icon { color: var(--text-muted); font-size: 10px; }
+.sug-row .name { flex: 1; color: var(--text-secondary); }
+.sug-row .pct { color: var(--text-muted); font-size: 11px; }
+.sug-row .val { color: var(--text-secondary); font-size: 11px; font-weight: 600; }
+.accept-btn { font-size: 10px; padding: 2px 10px; border-radius: 3px; border: 1px solid var(--green); color: var(--green); background: transparent; cursor: pointer; font-weight: 600; font-family: inherit; }
+.accept-btn:hover { background: rgba(76,175,80,0.1); }
+/* FIX #6: warning banner amber tint */
+.warn-banner { margin: 8px 16px; padding: 10px 12px; background: rgba(255,152,0,0.08); border: 1px solid rgba(255,152,0,0.25); border-radius: 6px; }
+.warn-banner .wt { font-size: 12px; font-weight: 700; color: var(--amber); display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.warn-banner .wb { font-size: 11px; color: var(--text-secondary); padding-left: 20px; }
+.needs-att { padding: 8px 16px; border-top: 1px solid var(--border); }
+.needs-att h4 { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.na-row { display: flex; align-items: center; padding: 4px 0; gap: 8px; font-size: 12px; }
+.na-row .icon { color: var(--amber); font-size: 11px; }
+.na-row .name { flex: 1; color: var(--text-secondary); }
+.nye-section { padding: 8px 16px; border-top: 1px solid var(--border); }
+.nye-section h4 { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; }
+.nye-row { display: flex; align-items: center; padding: 4px 0; gap: 8px; font-size: 12px; }
+.nye-row .name { flex: 1; color: var(--text-muted); }
+.mini-toggle { width: 30px; height: 16px; border-radius: 8px; background: var(--border); position: relative; cursor: pointer; transition: background 0.2s; }
+.mini-toggle::after { content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left 0.2s; }
+.mini-toggle.on { background: var(--green); }
+.mini-toggle.on::after { left: 16px; }
+
+/* LEFT PANEL BOTTOM */
+.lp-bottom { margin-top: auto; border-top: 1px solid var(--border); padding: 10px 16px; }
+.role-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.rpill { padding: 4px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); color: var(--text-secondary); background: transparent; font-family: inherit; }
+.rpill.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; font-size: 12px; color: var(--text-secondary); }
+.toggle { width: 34px; height: 18px; border-radius: 9px; background: var(--border); position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--green); }
+.toggle::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left 0.2s; }
+.toggle.on::after { left: 18px; }
+.user-info { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.user-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.user-sub { font-size: 10px; color: var(--text-muted); }
+.sandbox-badge { font-size: 9px; background: rgba(255,152,0,0.15); color: var(--amber); padding: 1px 6px; border-radius: 3px; font-weight: 700; margin-left: auto; }
+.sim-label { font-size: 10px; color: var(--teal); font-style: italic; margin-top: 4px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DOCUMENT CONTENT — FIX #7: body text = --text-secondary
+   ═══════════════════════════════════════════════════════════════ */
+.doc-content { padding: 20px 28px 80px; max-width: 780px; margin: 0 auto; }
+.doc-content p, .doc-content .dpara { user-select: text; }
+.doc-title { font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 16px; letter-spacing: -0.3px; }
+.doc-title .hash { color: var(--text-muted); margin-right: 6px; }
+
+/* FIX #2 & #3: section divider — gray labels, transparent icon bg */
+.sec-div { display: flex; align-items: center; gap: 10px; margin: 22px 0 4px; padding: 7px 12px; height: 36px; border-top: 1px solid var(--border); background: transparent; border-radius: 4px; }
+.sec-div .sd-ico { font-size: 14px; width: 22px; text-align: center; color: var(--text-muted); }
+.sec-div .sd-lbl { font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap; }
+/* FIX #4: single dot per section */
+.sec-div .sd-dot { width: 10px; height: 10px; border-radius: 50%; margin-left: auto; flex-shrink: 0; }
+.sd-dot.confirmed { background: var(--accent-blue); }
+.sd-dot.unreviewed { background: var(--text-muted); }
+.sec-div.green-div .sd-lbl { color: var(--green); }
+.sec-div.green-div .sd-ico { color: var(--green); }
+
+/* FIX #9: section summary — no italic */
+.sec-summary { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; padding: 0 2px; }
+
+/* FIX #7: body text secondary */
+.dpara { font-size: 13.5px; line-height: 1.75; color: var(--text-secondary); margin: 10px 0; border-radius: 4px; padding: 2px 0; transition: background 0.3s, opacity 0.3s, filter 0.3s; }
+/* FIX #5: entity AND date highlights in electric blue */
+.dpara .ent { color: var(--accent-blue); text-decoration: underline; text-decoration-color: rgba(0,145,234,0.4); font-weight: 600; }
+.dpara .dt { color: var(--accent-blue); text-decoration: underline; text-decoration-color: rgba(0,145,234,0.4); font-weight: 600; }
+
+/* Heatmap intensities */
+.doc-content.heatmap .dpara.heat-1 { background: var(--heatmap-1); padding: 4px 6px; }
+.doc-content.heatmap .dpara.heat-2 { background: var(--heatmap-2); padding: 4px 6px; }
+.doc-content.heatmap .dpara.heat-3 { background: var(--heatmap-3); padding: 4px 6px; }
+
+/* STRUCTURED DATA CARDS */
+.dcard { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; margin: 14px 0; overflow: hidden; }
+.dcard-title { font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: var(--text-primary); padding: 9px 16px; border-bottom: 1px solid var(--border); }
+.dcard-body { padding: 4px 0; }
+.drow { display: flex; padding: 4px 16px; gap: 10px; align-items: baseline; }
+.drow .dl { min-width: 120px; width: 120px; font-size: 12px; color: var(--text-muted); }
+.drow .dv { font-size: 12px; color: var(--text-primary); font-weight: 500; }
+.drow .dv.mono { font-family: var(--mono); letter-spacing: 0.3px; }
+.drow .dv.key { color: var(--accent-blue); font-weight: 600; }
+.drow .dl2 { min-width: 80px; width: 80px; font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+/* SPOTLIGHT MODE */
+.doc-content.spotlight .dpara { opacity: 0.2; filter: blur(0.8px); }
+.doc-content.spotlight .sec-div { opacity: 0.2; filter: blur(0.4px); }
+.doc-content.spotlight .sec-summary { opacity: 0.2; }
+.doc-content.spotlight .dcard { opacity: 0.2; filter: blur(0.4px); }
+.doc-content.spotlight .doc-title { opacity: 0.2; filter: blur(0.6px); }
+.doc-content.spotlight .sec-div.focus-sec { opacity: 1; filter: none; }
+.doc-content.spotlight .dpara.focused {
+  opacity: 1; filter: none;
+  border: 1.5px solid var(--accent-blue); border-radius: 6px;
+  padding: 14px 16px; background: rgba(0,145,234,0.04);
+  position: relative; animation: spotlight-flash 1.2s ease-out;
+}
+@keyframes spotlight-flash {
+  0% { background: rgba(0,145,234,0.25); box-shadow: 0 0 30px rgba(0,145,234,0.3); }
+  40% { background: rgba(0,145,234,0.08); box-shadow: 0 0 10px rgba(0,145,234,0.1); }
+  100% { background: rgba(0,145,234,0.04); box-shadow: none; }
+}
+.focus-hl { background: rgba(0,145,234,0.3); text-decoration: underline; text-decoration-color: var(--accent-blue); text-shadow: 0 0 10px rgba(0,145,234,0.7), 0 0 20px rgba(0,145,234,0.4); padding: 1px 3px; border-radius: 2px; }
+.match-counter { position: absolute; top: -12px; right: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.match-counter .nav { cursor: pointer; color: var(--text-muted); font-size: 10px; }
+.match-counter .nav:hover { color: var(--accent-blue); }
+.exit-focus { position: sticky; top: 56px; float: right; z-index: 15; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 5px 14px; font-size: 11px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 5px; margin-top: 8px; margin-right: 4px; }
+.exit-focus:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════════════════════════
+   PROGRESS PILL — FIX #8 & #12: red variant + frosted glass
+   ═══════════════════════════════════════════════════════════════ */
+.progress-pill {
+  position: fixed; bottom: 18px; right: 22px;
+  background: rgba(30,36,54,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5); cursor: pointer; z-index: 50; transition: border-color 0.3s;
+}
+.progress-pill .pp-text { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.progress-pill .pp-pct { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.progress-pill .pp-bar { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-pill .pp-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+.progress-pill.amber { border-color: rgba(255,152,0,0.4); }
+.progress-pill.amber .pp-text, .progress-pill.amber .pp-pct { color: var(--amber); }
+.progress-pill.amber .pp-fill { background: var(--amber); }
+.progress-pill.green { border-color: rgba(76,175,80,0.4); box-shadow: 0 0 20px rgba(76,175,80,0.15), 0 4px 24px rgba(0,0,0,0.5); }
+.progress-pill.green .pp-text, .progress-pill.green .pp-pct { color: var(--green); }
+.progress-pill.green .pp-fill { background: var(--green); }
+.progress-pill.red { border-color: rgba(244,67,54,0.4); }
+.progress-pill.red .pp-text, .progress-pill.red .pp-pct { color: var(--red); }
+.progress-pill.red .pp-fill { background: var(--red); }
+
+.pp-popover { position: fixed; bottom: 56px; right: 22px; background: rgba(30,36,54,0.95); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; width: 250px; box-shadow: 0 4px 24px rgba(0,0,0,0.5); z-index: 51; display: none; }
+.pp-popover.open { display: block; }
+.pp-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.pp-row .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pp-row .rname { flex: 1; color: var(--text-secondary); }
+.pp-row .rstatus { font-size: 11px; font-weight: 600; }
+
+/* ═══════════════════════════════════════════════════════════════
+   STATIC CONTEXT MENU OVERLAY (Default view only)
+   ═══════════════════════════════════════════════════════════════ */
+.static-ctx {
+  position: relative; width: 260px;
+  background: rgba(26,31,46,0.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-light); border-radius: 8px;
+  padding: 0; box-shadow: 0 8px 32px rgba(0,0,0,0.6); z-index: 30; font-size: 12px;
+  overflow: hidden;
+}
+.static-ctx .ctx-sel { padding: 8px 14px; background: rgba(0,145,234,0.06); border-bottom: 1px solid var(--border); }
+.static-ctx .ctx-sel .sel-quote { font-size: 11px; color: var(--accent-blue); font-style: italic; line-height: 1.4; }
+.static-ctx .ctx-group { padding: 6px 14px 2px; font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.static-ctx .ctx-row { padding: 5px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.1s; }
+.static-ctx .ctx-row:hover { background: rgba(0,145,234,0.1); }
+.static-ctx .ctx-row.hovered { background: rgba(0,145,234,0.1); }
+.static-ctx .ctx-row.hovered .cr-label, .static-ctx .ctx-row.hovered .cr-icon { color: var(--accent-blue); }
+.static-ctx .cr-icon { width: 16px; text-align: center; color: var(--text-muted); font-size: 12px; }
+.static-ctx .cr-label { flex: 1; color: var(--text-primary); }
+.static-ctx .cr-label u { text-decoration-color: var(--accent-blue); }
+.static-ctx .cr-key { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+.static-ctx .ctx-divider { height: 1px; background: var(--border); margin: 2px 0; }
+.static-ctx .cr-sub { font-size: 8px; color: var(--text-muted); margin-left: auto; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DYNAMIC CONTEXT MENU (right-click)
+   ═══════════════════════════════════════════════════════════════ */
+.ctx-menu { position: fixed; z-index: 200; background: rgba(26,31,46,0.96); backdrop-filter: blur(16px); border: 1px solid var(--border-light); border-radius: 8px; padding: 6px 0; min-width: 240px; max-width: 300px; box-shadow: 0 8px 32px rgba(0,0,0,0.6); display: none; }
+.ctx-menu.open { display: block; }
+.ctx-header { padding: 6px 14px; font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.ctx-item { padding: 5px 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-primary); cursor: pointer; transition: background 0.1s; }
+.ctx-item:hover { background: rgba(0,145,234,0.1); }
+.ctx-item .ci-icon { width: 16px; text-align: center; font-size: 12px; color: var(--text-muted); }
+.ctx-item .ci-label { flex: 1; }
+.ctx-item .ci-label u { text-decoration-color: var(--accent-blue); }
+.ctx-item .ci-key { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+.ctx-divider { height: 1px; background: var(--border); margin: 3px 0; }
+.toast { position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%); background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 20px; font-size: 12px; color: var(--text-primary); box-shadow: 0 4px 16px rgba(0,0,0,0.5); z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════════
+   COUNTERPARTY RESOLUTION (Prompt 2B)
+   ═══════════════════════════════════════════════════════════════ */
+.cp-card {
+  margin: 8px 16px; padding: 14px; background: var(--bg-card);
+  border: 1px solid rgba(255,152,0,0.3); border-left: 3px solid var(--amber);
+  border-radius: 6px;
+}
+.cp-card .cp-header { font-size: 13px; font-weight: 700; color: var(--amber); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.cp-card .cp-alert { font-size: 12px; font-weight: 700; color: var(--red); margin-bottom: 2px; }
+.cp-card .cp-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+.cp-card .cp-name { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.cp-actions { display: flex; gap: 8px; margin: 10px 0; }
+.cp-btn { padding: 5px 14px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 500; }
+.cp-btn:hover { background: var(--bg-card-hover); }
+.cp-btn.purple { background: var(--purple); border-color: var(--purple); color: #fff; }
+.cp-btn.purple:hover { background: #9c27b0; }
+
+.cp-form {
+  margin-top: 10px; padding: 12px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.cp-form-title { font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.cp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cp-form-grid.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.cp-field { display: flex; flex-direction: column; gap: 3px; }
+.cp-field-label { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.cp-field-label .conf { font-family: var(--mono); font-size: 9px; color: var(--text-muted); }
+.cp-field-label .req { color: var(--red); }
+.cp-field-input {
+  padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--bg-page); color: var(--text-primary); font-size: 11px;
+  font-family: inherit;
+}
+.cp-field-input.extracted { border-left: 3px solid var(--purple-light); }
+.cp-form-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* Otto progress dot */
+.pp-row .otto-dot { width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, #00C2FF, #3CB88B); flex-shrink: 0; }
+
+/* Dual static context menu wrapper */
+.static-ctx-wrap { position: absolute; top: 240px; left: 420px; display: flex; gap: 20px; z-index: 30; }
+.static-ctx-col { display: flex; flex-direction: column; gap: 4px; }
+.static-ctx-label { font-size: 10px; color: var(--text-muted); font-style: italic; }
+
+/* Otto Chat FAB */
+.otto-fab { position: fixed; bottom: 80px; right: 24px; width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #00C2FF, #3CB88B); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 16px rgba(0,194,255,0.3); z-index: 49; transition: transform 0.2s, box-shadow 0.2s; }
+.otto-fab:hover { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,194,255,0.4); }
+.otto-fab svg { width: 26px; height: 26px; }
+
+/* Otto Chat Panel */
+.otto-chat-panel { position: fixed; bottom: 140px; right: 24px; width: 380px; height: 480px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); z-index: 55; display: none; flex-direction: column; overflow: hidden; }
+.otto-chat-panel.open { display: flex; }
+.kc-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: linear-gradient(135deg, rgba(0,194,255,0.08), rgba(60,184,139,0.08)); border-bottom: 1px solid var(--border); }
+.kc-header svg { width: 22px; height: 22px; flex-shrink: 0; }
+.kc-header-text { flex: 1; }
+.kc-header-text .kc-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.kc-header-text .kc-sub { font-size: 10px; color: var(--text-muted); }
+.kc-close { color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 4px; }
+.kc-body { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.kc-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 12px; line-height: 1.5; }
+.kc-msg.system { align-self: center; max-width: 90%; background: rgba(0,194,255,0.06); border: 1px solid rgba(0,194,255,0.15); color: var(--text-muted); font-size: 11px; text-align: center; border-radius: 8px; }
+.kc-msg.user { align-self: flex-end; background: var(--accent-blue); color: #fff; border-bottom-right-radius: 4px; }
+.kc-msg.otto { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); border-bottom-left-radius: 4px; }
+.kc-msg.otto .kc-field-ref { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,145,234,0.1); color: var(--accent-blue); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin: 4px 0; cursor: pointer; }
+.kc-footer { padding: 10px 16px; border-top: 1px solid var(--border); }
+.kc-input-row { display: flex; gap: 8px; align-items: center; }
+.kc-input { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text-primary); font-size: 12px; font-family: inherit; outline: none; }
+.kc-input:focus { border-color: var(--accent-blue); }
+.kc-send { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #00C2FF, #3CB88B); border: none; color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.kc-powered { text-align: center; font-size: 9px; color: var(--text-muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<!-- VIEW SWITCHER -->
+<div class="view-switcher">
+  <span class="label">View:</span>
+  <button class="view-btn active" data-view="default">Default View</button>
+  <button class="view-btn" data-view="spotlight">Spotlight Focus</button>
+  <button class="view-btn" data-view="accounts">Accounts Data</button>
+  <button class="view-btn" data-view="complete">Near Complete</button>
+  <button class="view-btn" data-view="counterparty">Counterparty Resolution</button>
+  <button class="view-btn" data-view="ottochat">Otto Chat</button>
+</div>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="logo-wrap">
+    <img width="26" height="26" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADQAAAAjEAYAAACLO/WLAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAABmJLR0QAAAAAAAD5Q7t/AAAAB3RJTUUH6gMBFhESPNwCawAACLJJREFUaN7t2nl0l9WZB/DPzUJYEgKEIAmLIBJAFlEIbiCVFsSlM7ZULccpdKj2VOs249DKaWec6nGj1XHs0R7cF9Qq6kToiKdFRUF0UFCogMWIrCYQdhKykbzzxy8R9IdQlLwRjt9/3nOe9733Wb7vvfe5z70haoBGLPCa55Gvq97ooZeBjn6st8b7aKudY9BWtlyMUBC9h+P1DafiYTNVxWdWSpKkldaykK6FjOaOWoy4zqVRL7zqJdP2iqO7oht9F09E90VXx29WMkEnKTQaXXRT0FzRagYURdP9ApuVKt4rDmcZ60coDKc5L36zUr56F0cJLg3XhkfRzyCj9pFPDjeG2Zjo5+He+M0KSWvQN/gsBsqOpqGPAUbhWW+E3vGp/2YENaLEBstQbqeyfeS1qmxFrRo74jfr6CVouRXm4H/M8h/7eb/LTqUos8lKlCm1EuXKP0NQWkOqlCa9Odw4eglKlaYFWsqQuZ/373rbk3jKIyZgkCG+h87ynYAqlXYQzYgeiS7BRiXei9+Nb9agRtSqVYm0BmKDIBX9ZEX/gkLDTcJjZocY94XJI6jSbrsk5twYN2RfGWO8Zy3GWWrNl2j/jv9zPzYr8+E+8s666IUWMqTG71YyQf9qkgI87RG/jt+gQ8Unj1VPrR3NPZlrX1/fmD/0XVe67jo2ldRsqT624aMFf0dHw5zmcnSU+5n9X6b2OqC1LNnx+5c8xe1WbrvEothC4s9pHb9hX4TyYXserb+RF8/cOH5LFbO3bO24eS0bllfPr/orqc+EUTXj6LGgVYE2/KD+mFEdWjNiTIcnut9Ci9zwcca6AymwSyneMN+d+LNno8nI1z0MxXVu+FIj9EsieQS1lqmdrx0xO2eXP151PdeOfX71ghXc/syyu4r/m8zR0fr0sbS7L+1X6Z0YcFvWeRX9+fZNOWduXMKcDZtHFP+RB15eExbnsGdiNGXPgabuSCRCvXp7sMJSRfjYyujV+P0+YrK44tKKf6ycyFvDn1kx709suq1o0pIprLt21QWbBnL1P3eb3P1Krijp/mL3C2l3eUqX0hPJGZPaPjuLV+4tKcm6lMrL6q4x+gCKsrSVh3Oc5060kqE9MqTvNxtsYqQ1T7gPHVEPFTaRuzhrUMtHKJjYYlVaNmf8eOfsmicYPjUno+1UUNa2nuc6rB7VehFvjdm+cPd/Ub2k9pTwE+pTo6pw7iEo7qKb09BRbujfICs7hPZfEUfMCLJWsVWkPpxSl/JLsrIy17dszweZq5aX/Btb++4YULGd7RtqZ9ZfxbIHt+2pS2HFX8p61J3LztdrssJVRKP1NeEQ9C6z2Ex85IPotfjd3n+avRM1qlXGb9AXIf2S9FtT89hdUjmiagmVj1VtqS1kZ3HFxVU38KPp/zno6elccuOLi1Zcw47fVf20/m7Sz6wZ6lKiO/ecGK0hZYrVYX/Z6e3ucDbescjz+8jTpGiJdKlaxe93MkFvmuspFPvAm/Eb9EXIndD+1Kw6plZed8n3xhFdXffvNdNZ55M5W/L56OINN207mWVr1vXb8RyVQ2tH1s/lpHPya9rcxm+vHHpVfmfazkhfmDJlPwrOMtJlEmtOGzzlYZNAfcMX9UL8fien2Y1ZzKdfCE1qWL06exCkSP379e3uU3lP9TRm/W2upf25J/2FiYvLiF449eKTt3PVbcPP73UX50/rub49WvdLvTks2aeDXXbZjAoVtqOTXD2w2kfewBiDo+fRU2cF6G2AsbjXzNCr6Yn5NPzNXuqZ5yV3o4+BRqOTLvodejfbLtv1XFUW9b8IG8Pl5PTOvCJj6gH1vmoallriT1jslehunOP74WYUeSyahBzZuqKr48IwTHaH0vjCk0zQLE+7VeJsvhNGOttPmtCCGtUqJGpgGUiRGktuOdWvFeCPHoom4CIXhTswwDDjUeYTyzDPzOg36OZ4Z+A3Hgox1rWTQ1Ful60SlYQ47iS0aJjz48YIZ/kZOukYZuFBN0c/xTG6hPnYZpNi7Gh4tpejsXTUMz4zk5OE1Ia1oPF5tCJLlo7I1kY7zFMWbkeBAc4lOj3KqB+PcjtskCBsZfxmJo+gllrJ9LUr9Rx2bLTG21hpUfQUlhscnkSuPCcQHgjLwyB8x4VhsMTa2HjMcHZ8ZiYT9A/GHwlV7K+MDK1kI1tO6Il3vKIb8hzrFLzuBTNwnAHR/eiuwMhE0ziz7eQprtxOWyROFMubMYDFlpiJLUosb4L+C33bZEwwxVJUN/ibI08/PODNcL7EFFeGctttjD8MyQQtNN9zWGWlt+M36FN00FkftJIptwn6n+Uh/4TrfT/6CBXKbbO3grJdmdXorq/RyNcrDI8/DM2/D2ou/NK4aC0ejm5WiBw9jMRF4YowA/P9b3SrBGF1OM4JzsKjFoTTJTb09fZu7FOaJqk6eLF0o08U4zUvebC5o3oY8TM3hQ8xJ2wNvyUarzCaiwX+HP0ePzYlLMBgI1yGvoaEi/Zpv9pKb+ItL7uv6cw8+JawjSwd0F0vg5stnAdHvTq1eN9CM3CCQuPs3QB/HrX2qMEmJYoJV4S/pCzABdZ4Fz+IhkTHoW34lUfRx4nR7ETTAN30MhT5jnVi07l1cIIyGwhqfH59EaRI3B3oKBHFA6VbG23wAT70vleRp6dCZMrWGc+GReEMovyoKLqGMMTwRJIQ+J29xH/RD3CYcOScBx3ck8QacLwBxth7L+7zqFalXILODFzuBvPw3WhwtBiLvGEGBjnFhdhssy3YYL2P43friDlRPWxoJK6rnk7aR35LeCCUIldX/THZRHmEojDdnRhroG9BvNcXj54R9Hn8zV+9jCKPu34fedqnIytIw0KveRInO914ZGrrGMzydHQLWmojF21ky4vfjWSCXlTkfiyxyNz4DTpsyJWnN/obYn93EK50cZRJFEUr63+ICwyLVuNdbynC4+aETKKfRz+Mcoluj673nfjd+H8m2AEPSBmtNgAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNi0wMy0wMVQyMjoxNzoxOCswMDowMC520OwAAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjYtMDMtMDFUMjI6MTc6MTgrMDA6MDBfK2hQAAAAAElFTkSuQmCC" style="border-radius:4px;" />
+    <span class="logo-text">OrchestrateOS</span>
+    <span class="beta-badge">BETA</span>
+  </div>
+  <div class="back-btn">&larr; Back</div>
+  <div class="progress-bar-top"><div class="fill" id="tpFill" style="width:45%;background:var(--amber)"></div></div>
+  <span class="progress-pct" id="tpPct">45%</span>
+  <span class="tools-link">Tools</span>
+  <div class="record-inspector-pill"><span>Record Inspector</span><span class="record-nav">&lsaquo;</span><span class="record-nav">&rsaquo;</span></div>
+  <span class="record-name">Record: Ostereo_Distribution_Agreement...pdf</span>
+  <span class="spacer"></span>
+  <span class="signature-badge" id="sigBadge">Signature &#10003;</span>
+  <button class="header-btn gate">GATE</button>
+  <button class="header-btn">Accept Risk &amp; Continue</button>
+  <button class="header-btn primary">Generate Canonical Copy</button>
+</div>
+
+<!-- APP LAYOUT -->
+<div class="app-layout">
+  <div class="sidebar">
+    <!-- PROGRESS (first item) -->
+    <div class="sb-section-label" style="padding-top:14px;">Progress</div>
+    <div class="sb-progress-row"><span class="sb-prog-count todo">16</span><span class="sb-prog-label">To Do</span></div>
+    <div class="sb-progress-row"><span class="sb-prog-count review">40</span><span class="sb-prog-label">Review</span></div>
+    <div class="sb-progress-row"><span class="sb-prog-count done">7</span><span class="sb-prog-label">Done</span></div>
+    <div class="sb-mini-bar"><div class="sb-bar-done" style="width:11%"></div><div class="sb-bar-review" style="width:63%"></div><div class="sb-bar-todo" style="width:26%"></div></div>
+    <div class="sb-divider"></div>
+    <!-- NAVIGATION -->
+    <div class="sb-section-label">Navigation</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#9776;</span> Triage</div>
+    <div class="sb-nav-item active"><span class="sb-nav-icon">&#128269;</span> Record Inspector</div>
+    <div class="sb-divider"></div>
+    <!-- TOOLS -->
+    <div class="sb-section-label">Tools</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#9881;</span> Patch Studio</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#128218;</span> Glossary</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#128228;</span> Export</div>
+    <div class="sb-bottom">
+      <div class="sb-divider" style="margin:0 0 8px;"></div>
+      <div class="sb-role-row"><button class="sb-rpill active">Analyst</button><button class="sb-rpill">Verifier</button><button class="sb-rpill">Admin</button></div>
+      <div class="sb-toggle-row"><span>Dark Mode</span><div class="toggle on"></div></div>
+      <div class="sb-user"><div class="sb-avatar">ZH</div><div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">Zachary Holwerda</div><div style="font-size:10px;color:var(--text-muted);">Sandbox</div></div><span class="sandbox-badge" style="margin-left:auto;">SANDBOX</span></div>
+    </div>
+  </div>
+  <div class="left-panel" id="leftPanel"></div>
+  <div class="right-panel" id="rightPanel"></div>
+</div>
+
+<!-- PROGRESS PILL -->
+<div class="progress-pill amber" id="ppill" onclick="togglePop()">
+  <span class="pp-text" id="ppText">2/5 sections</span>
+  <span class="pp-pct" id="ppPct">45% ready</span>
+  <div class="pp-bar"><div class="pp-fill" id="ppFill" style="width:45%"></div></div>
+</div>
+<div class="pp-popover" id="ppPop">
+  <div class="pp-row"><div class="dot" style="background:var(--green)"></div><span class="rname">§1 Agreement Parties</span><span class="rstatus" style="color:var(--green)">Complete</span></div>
+  <div class="pp-row"><div class="dot" style="background:var(--green)"></div><span class="rname">§2 Effective Date</span><span class="rstatus" style="color:var(--green)">Complete</span></div>
+  <div class="pp-row"><div class="dot" style="background:var(--amber)"></div><span class="rname">§3 Bank Details</span><span class="rstatus" style="color:var(--amber)">In Review</span></div>
+  <div class="pp-row"><div class="dot" style="background:var(--text-muted)"></div><span class="rname">§4 Exclusions</span><span class="rstatus" style="color:var(--text-muted)">Pending</span></div>
+  <div class="pp-row"><div class="dot" style="background:var(--text-muted)"></div><span class="rname">§8 Payment &amp; Accounting</span><span class="rstatus" style="color:var(--text-muted)">Pending</span></div>
+  <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+  <div class="pp-row"><div class="otto-dot"></div><span class="rname" id="ottoStatusName">&#x1F916; Otto Assistance</span><span class="rstatus" id="ottoStatusText" style="color:var(--text-muted)">Available</span></div>
+</div>
+
+<!-- DYNAMIC CONTEXT MENU -->
+<div class="ctx-menu" id="ctxMenu"></div>
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- OTTO CHAT FAB -->
+<div class="otto-fab" id="ottoFab" onclick="toggleOttoChat()">
+  <svg width="26" height="26" viewBox="0 0 96 96" fill="none"><path d="M48 31.35C47.79 35.54 46.09 39.68 42.88 42.88C39.68 46.09 35.54 47.79 31.35 48C35.54 48.21 39.68 49.91 42.88 53.12C46.09 56.32 47.8 60.46 48 64.65C48.21 60.46 49.91 56.32 53.12 53.12C56.32 49.91 60.46 48.21 64.65 48C60.46 47.79 56.32 46.09 53.12 42.88C49.91 39.68 48.21 35.54 48 31.35Z" fill="#fff"/></svg>
+</div>
+<!-- OTTO CHAT PANEL -->
+<div class="otto-chat-panel" id="ottoPanel">
+  <div class="kc-header">
+    <svg width="22" height="22" viewBox="0 0 96 96" fill="none"><path d="M48 31.35C47.79 35.54 46.09 39.68 42.88 42.88C39.68 46.09 35.54 47.79 31.35 48C35.54 48.21 39.68 49.91 42.88 53.12C46.09 56.32 47.8 60.46 48 64.65C48.21 60.46 49.91 56.32 53.12 53.12C56.32 49.91 60.46 48.21 64.65 48C60.46 47.79 56.32 46.09 53.12 42.88C49.91 39.68 48.21 35.54 48 31.35Z" fill="url(#kch0)"/><defs><linearGradient id="kch0" x1="40" y1="40" x2="56" y2="56" gradientUnits="userSpaceOnUse"><stop stop-color="#00C2FF"/><stop offset="1" stop-color="#3CB88B"/></linearGradient></defs></svg>
+    <div class="kc-header-text"><div class="kc-title">Contract Operations Coach</div><div class="kc-sub">Powered by Otto</div></div>
+    <span class="kc-close" onclick="toggleOttoChat()">&times;</span>
+  </div>
+  <div class="kc-body">
+    <div class="kc-msg system">Otto is ready to help you review this record. Ask about any field, clause, or workflow step.</div>
+    <div class="kc-msg user">What does &ldquo;Role Linkage&rdquo; mean and why is it flagged?</div>
+    <div class="kc-msg otto"><b>Role Linkage</b> maps each contract party to their operational role in your system (e.g., Owner &rarr; Licensor, Distributor &rarr; Payee).<br><br>It&rsquo;s flagged because no linkage was detected in this agreement. Without it, accounting routing and payment allocation can&rsquo;t be automated.<br><br><span class="kc-field-ref" onclick="showToast('Jumping to Role Linkage')">&#128279; Role Linkage &rarr; START HERE</span></div>
+    <div class="kc-msg user">How should I resolve it?</div>
+    <div class="kc-msg otto">Click the <b>START HERE</b> badge on the Role Linkage field to begin. You&rsquo;ll need to:<br>1. Confirm the Owner entity<br>2. Map it to a Salesforce account<br>3. Assign the operational role<br><br>Once linked, the field status will change from REVIEW to PASS and accounting rules will activate.</div>
+  </div>
+  <div class="kc-footer">
+    <div class="kc-input-row"><input class="kc-input" placeholder="Ask Otto about this record..." /><button class="kc-send">&#9654;</button></div>
+    <div class="kc-powered">Powered by Otto &middot; Contract Operations Coach</div>
+  </div>
+</div>
+
+<script>
+let currentView = 'default';
+let heatmapOn = false;
+let popOpen = false;
+let ottoOpen = false;
+function toggleOttoChat() { ottoOpen = !ottoOpen; document.getElementById('ottoPanel').classList.toggle('open', ottoOpen); }
+
+// VIEW SWITCHING
+document.querySelectorAll('.view-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentView = b.dataset.view;
+    renderView(currentView);
+  });
+});
+function switchTo(v) {
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  renderView(v);
+}
+function togglePop() { popOpen = !popOpen; document.getElementById('ppPop').classList.toggle('open', popOpen); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ppill') && !e.target.closest('#ppPop')) { popOpen = false; document.getElementById('ppPop').classList.remove('open'); }
+  if (!e.target.closest('.ctx-menu')) { document.getElementById('ctxMenu').classList.remove('open'); }
+});
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+
+// CONTEXT MENUS (dynamic)
+function showCtxField(e) {
+  e.preventDefault();
+  const m = document.getElementById('ctxMenu');
+  m.innerHTML = `<div class="ctx-header">Field Actions</div>
+    <div class="ctx-item" onclick="showToast('Verify')"><span class="ci-icon">&#10003;</span><span class="ci-label"><u>V</u>erify</span><span class="ci-key">V</span></div>
+    <div class="ctx-item" onclick="showToast('Remap')"><span class="ci-icon">&#9998;</span><span class="ci-label">Re<u>m</u>ap Value</span><span class="ci-key">M</span></div>
+    <div class="ctx-item" onclick="showToast('RFI')"><span class="ci-icon">?</span><span class="ci-label"><u>R</u>equest Info</span><span class="ci-key">R</span></div>
+    <div class="ctx-item" onclick="showToast('Blacklist')"><span class="ci-icon">&#8856;</span><span class="ci-label"><u>B</u>lacklist</span><span class="ci-key">B</span></div>
+    <div class="ctx-item" onclick="showToast('Reset')"><span class="ci-icon">&#8634;</span><span class="ci-label">Reset to <u>T</u>ODO</span><span class="ci-key">T</span></div>
+    <div class="ctx-item" onclick="showToast('View in Doc')"><span class="ci-icon">&#128065;</span><span class="ci-label">View in <u>D</u>ocument</span><span class="ci-key">D</span></div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-header">Document</div>
+    <div class="ctx-item" onclick="showToast('Jump')"><span class="ci-icon">&#8595;</span><span class="ci-label"><u>J</u>ump to Section</span><span class="ci-key">J</span></div>
+    <div class="ctx-item" onclick="showToast('Copy')"><span class="ci-icon">&#128203;</span><span class="ci-label">Copy <u>P</u>aragraph</span><span class="ci-key">P</span></div>
+    <div class="ctx-item" onclick="showToast('Comment')"><span class="ci-icon">&#128172;</span><span class="ci-label">Add Comme<u>n</u>t</span><span class="ci-key">N</span></div>`;
+  m.style.left = Math.min(e.clientX, innerWidth-300) + 'px';
+  m.style.top = Math.min(e.clientY, innerHeight-400) + 'px';
+  m.classList.add('open');
+}
+function handleDocCtx(e) {
+  const sel = window.getSelection().toString().trim();
+  e.preventDefault();
+  const m = document.getElementById('ctxMenu');
+  if (sel) {
+    m.innerHTML = `<div style="padding:8px 14px;background:rgba(0,145,234,0.06);border-bottom:1px solid var(--border);font-size:11px;color:var(--accent-blue);font-style:italic;">"${sel.substring(0,80)}${sel.length>80?'...':''}"</div>
+      <div class="ctx-header">Selection</div>
+      <div class="ctx-item" onclick="showToast('Ask Otto')"><span class="ci-icon">&#10022;</span><span class="ci-label">As<u>k</u> Otto</span><span class="ci-key">K &#9654;</span></div>
+      <div class="ctx-item" onclick="showToast('Alias')"><span class="ci-icon">&#128279;</span><span class="ci-label">Create <u>A</u>lias</span><span class="ci-key">A</span></div>
+      <div class="ctx-item" onclick="showToast('Copy')"><span class="ci-icon">&#128203;</span><span class="ci-label"><u>C</u>opy</span><span class="ci-key">C</span></div>
+      <div class="ctx-item" onclick="showToast('Evidence Mark')"><span class="ci-icon">&#128278;</span><span class="ci-label"><u>E</u>vidence Mark</span><span class="ci-key">E</span></div>
+      <div class="ctx-item" onclick="showToast('Glossary')"><span class="ci-icon">&#128214;</span><span class="ci-label">Search <u>G</u>lossary</span><span class="ci-key">G</span></div>
+      <div class="ctx-divider"></div>
+      <div class="ctx-header">Document</div>
+      <div class="ctx-item" onclick="showToast('Jump')"><span class="ci-icon">&#8595;</span><span class="ci-label"><u>J</u>ump to Section</span><span class="ci-key">J</span></div>
+      <div class="ctx-item" onclick="showToast('Copy Para')"><span class="ci-icon">&#128203;</span><span class="ci-label">Copy <u>P</u>aragraph</span><span class="ci-key">P</span></div>
+      <div class="ctx-item" onclick="showToast('Comment')"><span class="ci-icon">&#128172;</span><span class="ci-label">Add Comme<u>n</u>t</span><span class="ci-key">N</span></div>`;
+  } else {
+    m.innerHTML = `<div class="ctx-header">Document</div>
+      <div class="ctx-item" onclick="showToast('Jump')"><span class="ci-icon">&#8595;</span><span class="ci-label"><u>J</u>ump to Section</span><span class="ci-key">J</span></div>
+      <div class="ctx-item" onclick="showToast('Copy Para')"><span class="ci-icon">&#128203;</span><span class="ci-label">Copy <u>P</u>aragraph</span><span class="ci-key">P</span></div>
+      <div class="ctx-item" onclick="showToast('Comment')"><span class="ci-icon">&#128172;</span><span class="ci-label">Add Comme<u>n</u>t</span><span class="ci-key">N</span></div>`;
+  }
+  m.style.left = Math.min(e.clientX, innerWidth-300) + 'px';
+  m.style.top = Math.min(e.clientY, innerHeight-400) + 'px';
+  m.classList.add('open');
+}
+document.addEventListener('keydown', e => {
+  const m = document.getElementById('ctxMenu');
+  if (!m.classList.contains('open')) return;
+  const map = {v:'Verify',m:'Remap',r:'Request Info',b:'Blacklist',t:'Reset',d:'View in Doc',j:'Jump',p:'Copy Paragraph',n:'Add Comment',k:'Ask Otto',a:'Alias',c:'Copy',e:'Evidence Mark',g:'Glossary'};
+  const a = map[e.key.toLowerCase()];
+  if (a) { showToast(a); m.classList.remove('open'); e.preventDefault(); }
+});
+
+function setupScrollProgress() {
+  const rp = document.getElementById('rightPanel');
+  const bar = rp.querySelector('.scroll-progress .bar');
+  if (!bar) return;
+  rp.addEventListener('scroll', () => { bar.style.width = Math.min(rp.scrollTop / (rp.scrollHeight - rp.clientHeight) * 100, 100) + '%'; });
+}
+function toggleField(row) {
+  const d = row.nextElementSibling;
+  if (!d || !d.classList.contains('fdrawer')) return;
+  const was = d.classList.contains('open');
+  document.querySelectorAll('.fdrawer.open').forEach(x => { x.classList.remove('open'); if(x.previousElementSibling) x.previousElementSibling.classList.remove('expanded'); });
+  if (!was) { d.classList.add('open'); row.classList.add('expanded'); }
+}
+function toggleHeatmap() {
+  heatmapOn = !heatmapOn;
+  const dc = document.querySelector('.doc-content');
+  if (dc) dc.classList.toggle('heatmap', heatmapOn);
+  const t = document.getElementById('hmToggle');
+  if (t) t.classList.toggle('on', heatmapOn);
+}
+function clickTab(el) { el.parentElement.querySelectorAll('.tab-pill').forEach(t => t.classList.remove('active')); el.classList.add('active'); }
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED FRAGMENTS
+// ═══════════════════════════════════════════════════════════════
+function bankCard() { return `<div class="dcard"><div class="dcard-title">BANK DETAILS</div><div class="dcard-body"><div class="drow"><span class="dl">Bank Name</span><span class="dv">Axis Bank</span><span class="dl2">IFSC Code</span><span class="dv mono">UTIB0004735</span></div><div class="drow"><span class="dl">Address</span><span class="dv">Ground Floor, Chak Hard</span><span class="dl2">SWIFT</span><span class="dv mono">AXISINBB282</span></div><div class="drow"><span class="dl">City</span><span class="dv">Rampur, Uttar Pradesh, 244924</span><span class="dl2">Sort Code</span><span class="dv">&mdash;</span></div><div class="drow"><span class="dl">Account Name</span><span class="dv mono">RAVEL MUSIC DISTRIBUTION PRIVATE LIMITED</span><span class="dl2">IBAN</span><span class="dv">&mdash;</span></div><div class="drow"><span class="dl">Account Number</span><span class="dv mono" style="font-weight:700">922020004860878</span></div></div></div>`; }
+function addressCard() { return `<div class="dcard"><div class="dcard-title">ADDRESS</div><div class="dcard-body"><div class="drow"><span class="dl">Street</span><span class="dv">International House, 61 Mosley Street</span></div><div class="drow"><span class="dl">City</span><span class="dv">Manchester</span><span class="dl2">Postal Code</span><span class="dv mono">M2 3HZ</span></div><div class="drow"><span class="dl">Country</span><span class="dv">United Kingdom</span></div></div></div>`; }
+function personCard() { return `<div class="dcard"><div class="dcard-title">PERSON DETAILS</div><div class="dcard-body"><div class="drow"><span class="dl">Name</span><span class="dv key">Muhammad Adeel</span><span class="dl2">Role</span><span class="dv">Owner Representative</span></div><div class="drow"><span class="dl">Email</span><span class="dv mono">madkarthurny86@gmail.com</span><span class="dl2">Phone</span><span class="dv">+91 (not provided)</span></div></div></div>`; }
+
+function rpHeader(showHeatmap) {
+  return `<div class="scroll-progress"><div class="bar"></div></div><div class="rp-header"><span class="rp-title">Document Content</span><span class="ocr-badge">OCR Enhanced</span>${showHeatmap?`<div class="heatmap-toggle" onclick="toggleHeatmap()"><div class="toggle${heatmapOn?' on':''}" id="hmToggle"></div><span>Heatmap</span></div>`:''}<span class="spacer"></span><div class="rp-search"><span style="color:var(--text-muted)">&#128269;</span><input placeholder="Search" /></div><span class="ranap-btn">Remap</span><span class="select-btn">Select</span></div>`;
+}
+function tabBar(active, badges) {
+  const tabs = ['Accounts','Opportunities','Schedule','Financials','Add-ons','Full Document','Original'];
+  return `<div class="tab-bar">${tabs.map(t => { const a=t===active; const b=(badges&&badges[t])||''; return `<div class="tab-pill${a?' active':''}" onclick="clickTab(this)">${t}${b?(' '+b):''}</div>`; }).join('')}<span class="page-info"><span class="nav-arr">&lsaquo;</span><span class="nav-arr">&rsaquo;</span><span>4,286</span></span></div>`;
+}
+// FIX #11: Add-ons badges always amber
+const defaultBadges = {Schedule:'<span class="tab-badge amber">3R</span>','Add-ons':'<span class="tab-badge amber">2R</span>','Full Document':'<span class="tab-badge" style="background:rgba(0,145,234,0.15);color:var(--accent-blue);font-size:8px;font-weight:700;">ACTIVE</span>'};
+const finBadges = {Schedule:'<span class="tab-badge amber">3R</span>',Financials:'<span class="tab-badge" style="background:rgba(0,145,234,0.15);color:var(--accent-blue);font-size:8px;font-weight:700;">ACTIVE</span>','Add-ons':'<span class="tab-badge amber">2R</span>'};
+const acctBadges = {Accounts:'<span class="tab-badge" style="background:rgba(0,145,234,0.15);color:var(--accent-blue);font-size:8px;font-weight:700;">ACTIVE</span>',Schedule:'<span class="tab-badge amber">3R</span>','Add-ons':'<span class="tab-badge amber">2R</span>'};
+const completeBadges = {};
+['Accounts','Opportunities','Schedule','Financials','Add-ons'].forEach(t => completeBadges[t] = '<span class="tab-badge green-check">&#10003;</span>');
+completeBadges['Full Document'] = '<span class="tab-badge" style="background:rgba(0,145,234,0.15);color:var(--accent-blue);font-size:8px;font-weight:700;">ACTIVE</span>';
+
+// DRAWER GENERATOR
+function drawer(o) {
+  const tb = o.tier==='hinge'?'<span class="tier-badge hinge">HINGE</span>':o.tier==='primary'?'<span class="tier-badge primary">PRIMARY</span>':'<span class="tier-badge supporting">SUPPORTING</span>';
+  const hc = o.tier==='hinge'?' hinge-drawer':'';
+  const wm = o.why?`<div class="fd-label">WHY IT MATTERS</div><div class="fd-text">${o.why}</div>`:'';
+  const cp = o.conf||0;
+  const cc = cp>=80?'var(--green)':cp>=50?'var(--amber)':'var(--red)';
+  const nb = o.showNext?'<div class="next-unresolved" onclick="showToast(\'Next unresolved\')">Next Unresolved &#9654;</div>':'';
+  return `<div class="fdrawer${hc}${o.open?' open':''}">
+    <div class="fd-label">INFORMATION SECTION</div>
+    <div class="fd-title">${o.name} ${o.statusHtml||''} ${tb}</div>
+    ${o.sf?`<div class="fd-meta">SF Field: ${o.sf}</div>`:''}
+    ${o.finding?`<div class="fd-meta">Finding: &ldquo;${o.finding}&rdquo;</div>`:''}
+    <div class="fd-label">DEFINITION</div><div class="fd-text">${o.def||'No definition available.'}</div>
+    ${wm}
+    ${o.evidence?`<div class="fd-label">EVIDENCE</div><div class="evidence-box">${o.evidence}</div>`:'<div class="fd-label">EVIDENCE</div><div class="fd-meta" style="font-style:italic;">No evidence extracted</div>'}
+    ${o.source?`<div class="fd-meta">Source: ${o.source}</div>`:''}
+    <div class="fd-meta">Confidence: ${cp}%</div>
+    <div class="conf-bar"><div class="track"><div class="fill" style="width:${cp}%;background:${cc}"></div></div><span class="pct">${cp}%</span></div>
+    <div class="action-btns"><button class="abtn" onclick="showToast('Change')">Change</button><button class="abtn" onclick="showToast('Ask')">Ask</button><button class="abtn confirm" onclick="showToast('Confirmed')">Confirm</button></div>
+    ${nb}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEFT PANEL: DEFAULT
+// ═══════════════════════════════════════════════════════════════
+function leftDefault(isComplete) {
+  const pc=isComplete?'20 Passed':'15 Passed', rc=isComplete?'0 Review':'3 Review', fc=isComplete?'0 Failed':'2 Failed';
+  const rcC=isComplete?'pass':'review', fcC=isComplete?'pass':'fail', pctV=isComplete?'96%':'45%';
+  const bars=isComplete?'<div class="b" style="background:var(--green);width:94%"></div><div class="b" style="background:var(--green);width:2%"></div>':'<div class="b" style="background:var(--accent-blue);width:30%"></div><div class="b" style="background:var(--accent-blue);width:10%"></div><div class="b" style="background:var(--amber);width:8%"></div><div class="b" style="background:var(--amber);width:6%"></div><div class="b" style="background:var(--red);width:4%"></div><div class="b" style="background:var(--red);width:3%"></div>';
+  const revBadge=isComplete?'<span class="sbadge pass">PASS</span>':'<span class="sbadge review">REVIEW</span>';
+  const rlV=isComplete?'Linked':'&mdash;';
+  const sh=isComplete?'':'<span class="start-here">START HERE &rarr;</span>';
+  const dsS=isComplete?'<span class="sbadge pass">PASS</span>':'<span class="sbadge failed">FAILED</span> <span style="color:var(--red);font-size:10px;">&#9650;</span>';
+  const na=isComplete?'':`<div class="needs-att"><h4>&#8964; Needs Attention (3)</h4><div class="na-row"><span class="icon">&#9889;</span><span class="name">Advance Details</span><span class="sbadge review">REVIEW</span></div><div class="na-row"><span class="icon">&#9889;</span><span class="name">Date Signed</span>${dsS}</div><div class="na-row"><span class="icon">&#9889;</span><span class="name">Collection Period</span><span class="sbadge review">REVIEW</span></div></div>`;
+  const nye=isComplete?`<div class="nye-section"><h4>&#9660; Not Yet Extracted</h4><div class="nye-row"><span class="name">Physical Distribution</span><div class="mini-toggle" onclick="this.classList.toggle('on')"></div></div><div class="nye-row"><span class="name">Include CPA</span><div class="mini-toggle" onclick="this.classList.toggle('on')"></div></div><div class="nye-row"><span class="name">Use Holdback</span><div class="mini-toggle" onclick="this.classList.toggle('on')"></div></div></div>`:'';
+
+  return `<div class="lp-header">
+    <div class="lp-title">Opportunities Readiness <div class="count-pills"><span class="cpill pass">${pc}</span><span class="cpill ${rcC}">${rc}</span><span class="cpill ${fcC}">${fc}</span></div></div>
+    <div class="lp-sub">38 / 82 applicable fields complete &middot; 5 suggested &middot; 25 pruned</div>
+    <div class="tag-row"><span class="tag">[distribution]</span><span class="tag">[CMA]</span></div>
+    <div class="mini-bar">${bars}<span class="pct">${pctV}</span></div>
+  </div>
+  <div class="tier-sep t0"><span class="ln"></span>CLASSIFIERS &amp; HINGES<span class="ln"></span></div>
+  <div class="frow hinge" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span class="hinge-badge">&#9670; HINGE</span> Contract Type</span><span class="sbadge pass">PASS</span><span class="fval">CMA</span></div>
+  ${drawer({name:'Contract Type',tier:'hinge',sf:'CONTRACT_TYPE',finding:'Distribution agreement classified as CMA',def:'The primary classification of this agreement within the content management taxonomy.',why:'Gates all downstream field validation. Incorrect classification cascades errors.',evidence:'"...exclusive digital distribution agreement..."',source:'§1',conf:95,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+  <div class="frow hinge" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span class="hinge-badge">&#9670; HINGE</span> Contract Subtype</span><span class="sbadge pass">PASS</span><span class="fval">CMA</span></div>
+  ${drawer({name:'Contract Subtype',tier:'hinge',sf:'CONTRACT_SUBTYPE',finding:'CMA subtype confirmed',def:'Narrows the contract type to a specific subclassification.',why:'Determines which rule bundle applies.',evidence:'"...digital distribution..."',source:'§1',conf:93,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+  <div class="tier-sep t1"><span class="ln"></span>PRIMARY TERMS<span class="ln"></span></div>
+  <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname">Role Linkage ${sh}</span>${revBadge}<span class="fval">${rlV}</span></div>
+  ${drawer({name:'Role Linkage',tier:'primary',sf:'ROLE_LINKAGE',finding:isComplete?'Role linkage confirmed':'No role linkage detected',def:'Establishes the formal relationship between contract parties and their assigned operational roles.',why:'Gates: accounting routing and payment allocation.',evidence:isComplete?'"...Owner shall be the designated..."':null,source:isComplete?'§1':'N/A',conf:isComplete?88:0,statusHtml:revBadge,showNext:!isComplete})}
+  <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname">Effective Date</span><span class="sbadge pass">PASS</span><span class="fval">01/15/2025</span></div>
+  ${drawer({name:'Effective Date',tier:'primary',sf:'EFFECTIVE_DATE',finding:'Date clearly stated',def:'The date on which the agreement becomes legally binding.',evidence:'"...entered into as of <span class=hl>16/11/2022</span>..."',source:'§1',conf:97,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+  <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname">Term</span><span class="sbadge pass">PASS</span><span class="fval">5 years</span></div>
+  ${drawer({name:'Term',tier:'primary',sf:'CONTRACT_TERM',finding:'5 year term identified',def:'The total duration for which the agreement remains in force.',evidence:'"...for a period of five (5) years..."',source:'§5',conf:94,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+  <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname">Territory</span><span class="sbadge pass">PASS</span><span class="fval">Worldwide</span></div>
+  ${drawer({name:'Territory',tier:'primary',sf:'TERRITORY',finding:'Worldwide scope confirmed',def:'The geographical boundaries within which rights may be exercised.',evidence:'"...worldwide..."',source:'§2',conf:96,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+  <div class="tier-sep t2"><span class="ln"></span>SUPPORTING DETAILS<span class="ln"></span></div>
+  <div style="padding:5px 16px;font-size:11px;color:var(--text-muted);font-style:italic;">Additional fields below fold...</div>
+  <div class="suggested-sec"><h4>&#9662; Suggested Fields</h4>
+    <div class="sug-row"><span class="icon">&#10022;</span><span class="name">Front Catalog Split</span><span class="pct">SUGGESTED</span><span class="val">92%</span><button class="accept-btn">Accept</button></div>
+    <div class="sug-row"><span class="icon">&#9679;</span><span class="name">Initial Term Length</span><span class="pct">SUGGESTED</span><span class="val">87%</span><button class="accept-btn">Accept</button></div>
+    <div class="sug-row"><span class="icon">&#10022;</span><span class="name">Renewal Term Length</span><span class="pct">SUGGESTED</span><span class="val">87%</span><button class="accept-btn">Accept</button></div>
+    <div class="sug-row"><span class="icon">&#10010;</span><span class="name">Exclusivity</span><span class="pct">SUGGESTED</span><span class="val">75%</span><button class="accept-btn">Accept</button></div>
+    <div class="sug-row"><span class="icon">&#10010;</span><span class="name">Retention Period</span><span class="pct">SUGGESTED</span><span class="val">66%</span><button class="accept-btn">Accept</button></div>
+  </div>
+  <div class="warn-banner"><div class="wt">&#9888; Requires Approval</div><div class="wb">&bull; Non-standard split (80/20 detected)</div></div>
+  ${na}${nye}
+  <div class="lp-bottom"><div class="user-info"><div class="user-avatar">ZH</div><div><div class="user-name">Zachary Holwerda</div><div class="user-sub">Simulating: Analyst</div></div><span class="sandbox-badge">SANDBOX</span></div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEFT PANEL: SPOTLIGHT (FIX #13: dev tools values)
+// ═══════════════════════════════════════════════════════════════
+function leftSpotlight() {
+  return `<div class="lp-header"><div class="lp-title">Financials Readiness <span class="cpill pass" style="margin-left:auto;">5 Passed</span></div></div>
+  <div style="padding:4px 0;">
+    <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-blue);display:inline-block;"></span> Financial Amounts</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">95%</span><span class="fval">1 amounts, 6 keywords</span></div>
+    ${drawer({name:'Financial Amounts',tier:'primary',sf:'FIN_AMOUNTS',finding:'Currency amounts detected',def:'Monetary values referenced in the agreement.',evidence:'"...less than one hundred pounds (&pound;100)..."',source:'§8',conf:95,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+    <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-blue);display:inline-block;"></span> Financial Rates</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">95%</span><span class="fval">2 rates, 5 keywords</span></div>
+    ${drawer({name:'Financial Rates',tier:'primary',sf:'FIN_RATES',finding:'Rate structures identified',def:'Percentage-based terms including royalty rates.',evidence:'"...ten per cent (10%)..."',source:'§8',conf:95,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+    <div class="frow expanded" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span style="width:6px;height:6px;border-radius:50%;background:var(--amber);display:inline-block;"></span> <b>Payment Terms</b></span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">81%</span><span class="fval" style="color:var(--green);font-weight:600;">3 payment term signals</span></div>
+    ${drawer({name:'Payment Terms',tier:'primary',sf:'FIN_PAYMENT_TERMS',finding:'Payment terms well-defined',def:'The schedule, conditions, and method by which payments are made.',evidence:'"... transfer charges which are to be borne by the Owner; and (iv) <span class=hl>payable</span> monthly in respect of Revenue received by ..."',source:'§8 / §10',conf:81,statusHtml:'<span class="sbadge pass">PASS</span> <span style="font-size:11px;color:var(--text-muted);">81%</span>',open:true})}
+    <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-blue);display:inline-block;"></span> Currency Signals</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">95%</span><span class="fval">4 currency signals</span></div>
+    ${drawer({name:'Currency Signals',tier:'primary',sf:'FIN_CURRENCY',def:'Identifies currencies referenced in the agreement.',evidence:'"...pounds (&pound;100)..."',source:'§8',conf:95,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+    <div class="frow" onclick="toggleField(this)" oncontextmenu="showCtxField(event)"><span class="fname"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-blue);display:inline-block;"></span> Financial Completeness</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">95%</span><span class="fval">3/3 pillars</span></div>
+    ${drawer({name:'Financial Completeness',tier:'primary',sf:'FIN_COMPLETENESS',def:'Checks all required financial components are present.',conf:95,statusHtml:'<span class="sbadge pass">PASS</span>'})}
+  </div>
+  <div class="lp-bottom"><div class="user-info"><div class="user-avatar">ZH</div><div><div class="user-name">Zachary Holwerda</div><div class="user-sub">Simulating: Analyst</div></div><span class="sandbox-badge">SANDBOX</span></div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEFT PANEL: COUNTERPARTY RESOLUTION
+// ═══════════════════════════════════════════════════════════════
+function leftCounterparty() {
+  return `<div class="lp-header">
+    <div class="lp-title">Accounts Readiness <div class="count-pills"><span class="cpill pass">3 Passed</span><span class="cpill review">2 Review</span><span class="cpill fail">1 Failed</span></div></div>
+  </div>
+  <div class="cp-card">
+    <div class="cp-header">&#9888; COUNTERPARTY RESOLUTION</div>
+    <div class="cp-alert">New account detected.</div>
+    <div class="cp-name">Daniele Leoni</div>
+    <div class="cp-sub">Not found in Salesforce index.</div>
+    <div class="cp-actions"><button class="cp-btn">Search Existing</button><button class="cp-btn purple">Create New Counterparty</button></div>
+    <div class="cp-form">
+      <div class="cp-form-title">&#9662; Create New Counterparty</div>
+      <div class="cp-form-grid" style="margin-bottom:8px;">
+        <div class="cp-field"><span class="cp-field-label">Legal Entity <span class="req">*</span></span><select class="cp-field-input" style="color:var(--text-muted);"><option>Select entity...</option></select></div>
+        <div class="cp-field"><span class="cp-field-label">Counterparty Name</span><input class="cp-field-input extracted" value="Daniele Leoni" /></div>
+      </div>
+      <div class="cp-form-grid" style="margin-bottom:8px;">
+        <div class="cp-field"><span class="cp-field-label">Street Address <span class="req">*</span> <span class="conf">96%</span></span><input class="cp-field-input extracted" value="Via Per Acquaria" /></div>
+        <div class="cp-field"><span class="cp-field-label">City <span class="req">*</span> <span class="conf">94%</span></span><input class="cp-field-input extracted" value="Pavullo Nel Fr." /></div>
+      </div>
+      <div class="cp-form-grid g3" style="margin-bottom:8px;">
+        <div class="cp-field"><span class="cp-field-label">State <span class="req">*</span> <span class="conf">89%</span></span><input class="cp-field-input extracted" value="Modena" /></div>
+        <div class="cp-field"><span class="cp-field-label">Postal <span class="req">*</span> <span class="conf">94%</span></span><input class="cp-field-input extracted" value="41026" /></div>
+        <div class="cp-field"><span class="cp-field-label">Country <span class="conf">96%</span></span><input class="cp-field-input extracted" value="Italy" /></div>
+      </div>
+      <div class="cp-form-grid g3" style="margin-bottom:8px;">
+        <div class="cp-field"><span class="cp-field-label">Contact Name</span><input class="cp-field-input" placeholder="Full name" /></div>
+        <div class="cp-field"><span class="cp-field-label">Email</span><input class="cp-field-input" placeholder="email@..." /></div>
+        <div class="cp-field"><span class="cp-field-label">Phone</span><input class="cp-field-input" placeholder="+39..." /></div>
+      </div>
+      <div class="cp-form-actions"><button class="cp-btn purple">Create Counterparty</button><button class="cp-btn">Back to Search</button></div>
+    </div>
+  </div>
+  <div class="tier-sep t1"><span class="ln"></span>ACCOUNT DETAILS<span class="ln"></span></div>
+  <div class="frow" onclick="toggleField(this)"><span class="fname">Counterparty (Extracted)</span><span class="sbadge review">REVIEW</span><span class="fval">Daniele Leoni</span></div>
+  <div class="fdrawer"></div>
+  <div class="frow" onclick="toggleField(this)"><span class="fname">Suggested Account Type</span><span class="sbadge review">REVIEW</span><span class="fval">Artist</span></div>
+  <div class="fdrawer"></div>
+  <div class="tier-sep t2"><span class="ln"></span>CONTRACT METADATA<span class="ln"></span></div>
+  <div class="frow" onclick="toggleField(this)"><span class="fname">Agreement Type</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">100%</span><span class="fval">distribution</span></div>
+  <div class="fdrawer"></div>
+  <div class="frow" onclick="toggleField(this)"><span class="fname">Recital Parties</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">100%</span><span class="fval">Daniele Leoni</span></div>
+  <div class="fdrawer"></div>
+  <div class="frow" onclick="toggleField(this)"><span class="fname">Legal Entity</span><span class="sbadge pass">PASS</span><span style="font-size:11px;color:var(--text-secondary);margin-left:4px;">85%</span><span class="fval">Ostereo Limited</span></div>
+  <div class="fdrawer"></div>
+  <div class="lp-bottom"><div class="user-info"><div class="user-avatar">ZH</div><div><div class="user-name">Zachary Holwerda</div><div class="user-sub">Simulating: Analyst</div></div><span class="sandbox-badge">SANDBOX</span></div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOCUMENT VIEWS — FIX #4: single dots
+// ═══════════════════════════════════════════════════════════════
+function docDefault() {
+  const ctx = ' oncontextmenu="handleDocCtx(event)"';
+  return `<div class="doc-content${heatmapOn?' heatmap':''}" id="docContent"${ctx}>
+    <div class="doc-title"><span class="hash">#</span> DIGITAL DISTRIBUTION AGREEMENT</div>
+    <div class="sec-div"><span class="sd-ico">&#128100;</span><span class="sd-lbl">§1 AGREEMENT PARTIES</span><span class="sd-dot confirmed"></span></div>
+    <div class="sec-summary">Type: Distribution &middot; Split: 80/20 &middot; Term: 5yr &middot; Territory: Worldwide &middot; Parties: 2</div>
+    <div class="dpara heat-3">This exclusive digital distribution agreement (&ldquo;Agreement&rdquo;) is made and entered into as of <span class="dt">16/11/2022</span> (&ldquo;Effective Date&rdquo;) by and between <span class="ent">Ostereo</span> of International House, 61 Mosley Street, Manchester (&ldquo;Owner&rdquo;), of HN 303 Village Dhanori, and <span class="ent">Ravel Music Distribution Pvt Ltd.</span> c/o Sharzab Khan</div>
+    <div class="dpara heat-2">Tehsil Swar, District Rampur, Uttar Pradesh, 244924, INDIA.<br>Email: sharzabkhan1@gmail.com / support@ravelmusic.in</div>
+    <div class="dpara">All payments to Owner pursuant to this Agreement shall be made to:</div>
+    <div class="sec-div"><span class="sd-ico">&#128197;</span><span class="sd-lbl">§2 EFFECTIVE DATE</span><span class="sd-dot confirmed"></span></div>
+    <div class="sec-summary">Date: 16/11/2022 &middot; Cross-referenced with header &middot; Confirmed</div>
+    <div class="dpara heat-1">The effective date of this agreement is <span class="dt">16/11/2022</span> as stated in the preamble above.</div>
+    <div class="sec-div"><span class="sd-ico">&#127974;</span><span class="sd-lbl">§3 BANK DETAILS</span><span class="sd-dot confirmed"></span></div>
+    <div class="sec-summary">Bank: Axis Bank &middot; Acct: ****0878 &middot; SWIFT: AXISINBB282</div>
+    ${bankCard()}
+    <div class="sec-div"><span class="sd-ico">&#128683;</span><span class="sd-lbl">§4 EXCLUSIONS</span><span class="sd-dot unreviewed"></span></div>
+    <div class="sec-summary">No exclusions listed &mdash; section not processed</div>
+    <div class="dpara">If Owner wishes to exclude any DSPs, platforms or channels from the rights granted to Ostereo pursuant to Clause 2.1 below these (if any) shall be listed here:</div>
+    <div class="sec-div"><span class="sd-ico">&#128176;</span><span class="sd-lbl">§8 PAYMENT &amp; ACCOUNTING</span><span class="sd-dot confirmed"></span></div>
+    <div class="sec-summary">Payment: monthly &middot; Threshold: &pound;100 &middot; Reserves: yes &middot; Audit: annual</div>
+    <div class="dpara heat-2">Neither we nor any third party authorised by us to exploit the Masters shall be obliged to make any payments of any nature for or in connection with the acquisition, exercise or exploitation of any rights granted to us hereunder, except as specifically provided in this Agreement.</div>
+    <div class="dpara heat-1">9. You shall not have any entitlement to the so-called &lsquo;label share&rsquo; of PPL, SoundExchange or any similar payments but you shall, where you qualify for the registration in accordance with the rules of the relevant societies...</div>
+    <div class="dpara heat-3">10. Subject to our receipt of your bank account information specified in the Schedule below, you shall be accounted to on a monthly basis (every 30 days), provided that we may retain reasonable reserves against anticipated returns. We shall not be liable to account to you in respect of accounting periods in respect of which less than one hundred pounds (&pound;100) is payable to you by way of royalties. You shall have the right to inspect our books and records of account but not more than once per year and no more than once in respect of any statement and provided that such statements shall become final and binding upon you unless your specific written objection to such statements shall be received by us within three (3) years after the date on which such statement shall have been rendered to you.</div>
+    <!-- DUAL STATIC CONTEXT MENUS (Prompt 4) -->
+    <div class="static-ctx-wrap" id="staticCtx">
+      <div class="static-ctx-col">
+        <span class="static-ctx-label">Right-click on field</span>
+        <div class="static-ctx">
+          <div class="ctx-group">FIELD ACTIONS</div>
+          <div class="ctx-row hovered"><span class="cr-icon">&#10003;</span><span class="cr-label"><u>V</u>erify</span><span class="cr-key">V</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#9998;</span><span class="cr-label">Re<u>m</u>ap Value</span><span class="cr-key">M</span></div>
+          <div class="ctx-row"><span class="cr-icon">?</span><span class="cr-label"><u>R</u>equest Info</span><span class="cr-key">R</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#8856;</span><span class="cr-label"><u>B</u>lacklist</span><span class="cr-key">B</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#8634;</span><span class="cr-label">Reset to <u>T</u>ODO</span><span class="cr-key">T</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128065;</span><span class="cr-label">View in <u>D</u>ocument</span><span class="cr-key">D</span></div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-group">OTTO</div>
+          <div class="ctx-row"><span class="cr-icon">&#10022;</span><span class="cr-label">As<u>k</u> Otto about field</span><span class="cr-key">K</span><span class="cr-sub">&#9654;</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128172;</span><span class="cr-label">Explain this field</span></div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-group">DOCUMENT</div>
+          <div class="ctx-row"><span class="cr-icon">&#8595;</span><span class="cr-label"><u>J</u>ump to Section</span><span class="cr-key">J</span><span class="cr-sub">&#9654;</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128203;</span><span class="cr-label">Copy <u>P</u>aragraph</span><span class="cr-key">P</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128172;</span><span class="cr-label">Add Comme<u>n</u>t</span><span class="cr-key">N</span></div>
+        </div>
+      </div>
+      <div class="static-ctx-col">
+        <span class="static-ctx-label">Right-click on text</span>
+        <div class="static-ctx">
+          <div class="ctx-sel"><div class="sel-quote">&ldquo;...transfer charges which are to be borne by the Owner...&rdquo;</div></div>
+          <div class="ctx-group">SELECTION</div>
+          <div class="ctx-row hovered"><span class="cr-icon">&#10022;</span><span class="cr-label">As<u>k</u> Otto</span><span class="cr-key">K</span><span class="cr-sub">&#9654;</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128279;</span><span class="cr-label">Create <u>A</u>lias</span><span class="cr-key">A</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128203;</span><span class="cr-label"><u>C</u>opy</span><span class="cr-key">C</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128278;</span><span class="cr-label"><u>E</u>vidence Mark</span><span class="cr-key">E</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128214;</span><span class="cr-label">Search <u>G</u>lossary</span><span class="cr-key">G</span></div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-group">OTTO</div>
+          <div class="ctx-row"><span class="cr-icon">&#10022;</span><span class="cr-label">Summarize selection</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128172;</span><span class="cr-label">Explain clause</span></div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-group">DOCUMENT</div>
+          <div class="ctx-row"><span class="cr-icon">&#8595;</span><span class="cr-label"><u>J</u>ump to Section</span><span class="cr-key">J</span><span class="cr-sub">&#9654;</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128203;</span><span class="cr-label">Copy <u>P</u>aragraph</span><span class="cr-key">P</span></div>
+          <div class="ctx-row"><span class="cr-icon">&#128172;</span><span class="cr-label">Add Comme<u>n</u>t</span><span class="cr-key">N</span></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function docSpotlight() {
+  return `<div class="exit-focus" onclick="switchTo('default')">&#10005; Exit focus</div>
+  <div class="doc-content spotlight" id="docContent">
+    <div class="doc-title"><span class="hash">#</span> DIGITAL DISTRIBUTION AGREEMENT</div>
+    <div class="sec-div focus-sec"><span class="sd-ico">&#128176;</span><span class="sd-lbl">§8 PAYMENT &amp; ACCOUNTING</span><span class="sd-dot confirmed"></span></div>
+    <div class="dpara">Neither we nor any third party authorised by us to exploit the Masters shall be obliged to make any payments of any nature for or in connection with the acquisition, exercise or exploitation of any rights granted to us hereunder, except as specifically provided in this Agreement.</div>
+    <div class="dpara">9. You shall not have any entitlement to the so-called &lsquo;label share&rsquo; of PPL, SoundExchange or any similar payments but you shall, where you qualify for the registration in accordance with the rules of the relevant societies...</div>
+    <div class="dpara focused" oncontextmenu="handleDocCtx(event)"><div class="match-counter"><span class="nav">&#9664;</span> 1/4 <span class="nav">&#9654;</span></div>10. Subject to our receipt of your bank account information specified in the Schedule below, you shall be accounted to on a monthly basis (every 30 days), provided that we may retain reasonable reserves against anticipated returns. We shall not be liable to account to you in respect of accounting periods in respect of which less than one hundred pounds (&pound;100) is <span class="focus-hl">payable</span> to you by way of royalties. You shall have the right to inspect our books and records of account but not more than once per year and no more than once in respect of any statement and provided that such statements shall become final and binding upon you unless your specific written objection to such statements shall be received by us within three (3) years after the date on which such statement shall have been rendered to you.</div>
+    <div class="dpara">If any such inspection of our books and accounts shall reveal an agreed underpayment then we shall credit the amount of such underpayment to your account and if any such underpayment shall exceed the greater of (i) ten per cent (10%) of the amount which was properly due to you and (ii) five thousand pounds (&pound;5,000) then in addition to paying the relevant agreed underpayment we shall...</div>
+  </div>`;
+}
+function docAccounts() {
+  return `<div class="doc-content" id="docContent" oncontextmenu="handleDocCtx(event)">
+    <div class="sec-div"><span class="sd-ico">&#128100;</span><span class="sd-lbl">§ PARTIES &amp; ENTITIES</span><span class="sd-dot confirmed"></span></div>
+    <div class="sec-summary">2 parties identified &middot; 3 entities extracted &middot; 1 pending verification</div>
+    <div class="dpara heat-3">This exclusive digital distribution agreement (&ldquo;Agreement&rdquo;) is made and entered into as of <span class="dt">16/11/2022</span> (&ldquo;Effective Date&rdquo;) by and between <span class="ent">Ostereo</span> of International House, 61 Mosley Street, Manchester (&ldquo;Owner&rdquo;), of HN 303 Village Dhanori, and <span class="ent">Ravel Music Distribution Pvt Ltd.</span> c/o <span class="ent">Sharzab Khan</span>. Tehsil Swar, District Rampur, Uttar Pradesh, 244924, INDIA. Email: sharzabkhan1@gmail.com / support@ravelmusic.in</div>
+    <div class="dpara">All payments to Owner pursuant to this Agreement shall be made to:</div>
+    ${bankCard()}${addressCard()}${personCard()}
+    <div class="dpara" style="margin-top:14px;">of Plot Do D.12, Hob Hire, Balakistan, Pakistan. The parties agree that all correspondence regarding accounting and payments shall be directed to the addresses specified above unless otherwise notified in writing.</div>
+  </div>`;
+}
+function docComplete() {
+  const gDiv = (ico,lbl) => `<div class="sec-div green-div"><span class="sd-ico">${ico}</span><span class="sd-lbl">${lbl}</span><span class="sd-dot confirmed"></span></div>`;
+  return `<div class="doc-content" id="docContent" oncontextmenu="handleDocCtx(event)">
+    <div class="doc-title"><span class="hash">#</span> DIGITAL DISTRIBUTION AGREEMENT</div>
+    ${gDiv('&#10003;','§1 AGREEMENT PARTIES')}
+    <div class="sec-summary" style="color:var(--green)">All entities verified &#10003;</div>
+    <div class="dpara heat-3">This exclusive digital distribution agreement (&ldquo;Agreement&rdquo;) is made and entered into as of <span class="dt">16/11/2022</span> (&ldquo;Effective Date&rdquo;) by and between <span class="ent">Ostereo</span> of International House, 61 Mosley Street, Manchester (&ldquo;Owner&rdquo;), of HN 303 Village Dhanori, and <span class="ent">Ravel Music Distribution Pvt Ltd.</span> c/o Sharzab Khan</div>
+    ${gDiv('&#10003;','§2 EFFECTIVE DATE')}
+    <div class="sec-summary" style="color:var(--green)">Date verified &#10003;</div>
+    <div class="dpara heat-1">The effective date of this agreement is <span class="dt">16/11/2022</span> as stated in the preamble above.</div>
+    ${gDiv('&#10003;','§3 BANK DETAILS')}
+    <div class="sec-summary" style="color:var(--green)">All banking fields validated &#10003;</div>
+    ${bankCard()}
+    ${gDiv('&#10003;','§4 EXCLUSIONS')}
+    <div class="sec-summary" style="color:var(--green)">Exclusions confirmed &#10003;</div>
+    <div class="dpara">If Owner wishes to exclude any DSPs, platforms or channels from the rights granted to Ostereo pursuant to Clause 2.1 below these (if any) shall be listed here:</div>
+    ${gDiv('&#10003;','§8 PAYMENT &amp; ACCOUNTING')}
+    <div class="sec-summary" style="color:var(--green)">Payment terms verified &#10003;</div>
+    <div class="dpara heat-2">Neither we nor any third party authorised by us to exploit the Masters shall be obliged to make any payments of any nature for or in connection with the acquisition, exercise or exploitation of any rights granted to us hereunder, except as specifically provided in this Agreement.</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOCUMENT: ORIGINAL (Prompt 3 — raw unprocessed text)
+// ═══════════════════════════════════════════════════════════════
+function docOriginal() {
+  return `<div class="doc-content" id="docContent">
+    <div class="doc-title" style="color:var(--text-muted);font-size:18px;font-weight:600;"><span class="hash">#</span> RAW DOCUMENT — UNPROCESSED</div>
+    <div style="padding:8px 12px;background:rgba(107,114,128,0.08);border:1px solid var(--border);border-radius:6px;margin-bottom:16px;font-size:11px;color:var(--text-muted);">This view shows the original extracted text before any NLP processing, entity recognition, or field mapping has been applied.</div>
+    <div style="font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--text-secondary);white-space:pre-wrap;">DIGITAL DISTRIBUTION AGREEMENT
+
+This exclusive digital distribution agreement ("Agreement") is made and entered into as of 16/11/2022 ("Effective Date") by and between Ostereo of International House, 61 Mosley Street, Manchester ("Owner"), of HN 303 Village Dhanori, and Ravel Music Distribution Pvt Ltd. c/o Sharzab Khan Tehsil Swar, District Rampur, Uttar Pradesh, 244924, INDIA. Email: sharzabkhan1@gmail.com / support@ravelmusic.in
+
+All payments to Owner pursuant to this Agreement shall be made to:
+
+Bank Name: Axis Bank
+Address: Ground Floor, Chak Hard
+City: Rampur, Uttar Pradesh, 244924
+Account Name: RAVEL MUSIC DISTRIBUTION PRIVATE LIMITED
+Account Number: 922020004860878
+IFSC Code: UTIB0004735
+SWIFT: AXISINBB282
+
+If Owner wishes to exclude any DSPs, platforms or channels from the rights granted to Ostereo pursuant to Clause 2.1 below these (if any) shall be listed here:
+
+[No exclusions listed]
+
+Neither we nor any third party authorised by us to exploit the Masters shall be obliged to make any payments of any nature for or in connection with the acquisition, exercise or exploitation of any rights granted to us hereunder, except as specifically provided in this Agreement.
+
+9. You shall not have any entitlement to the so-called &lsquo;label share&rsquo; of PPL, SoundExchange or any similar payments but you shall, where you qualify for the registration in accordance with the rules of the relevant societies...
+
+10. Subject to our receipt of your bank account information specified in the Schedule below, you shall be accounted to on a monthly basis (every 30 days), provided that we may retain reasonable reserves against anticipated returns. We shall not be liable to account to you in respect of accounting periods in respect of which less than one hundred pounds (&pound;100) is payable to you by way of royalties. You shall have the right to inspect our books and records of account but not more than once per year and no more than once in respect of any statement and provided that such statements shall become final and binding upon you unless your specific written objection to such statements shall be received by us within three (3) years after the date on which such statement shall have been rendered to you.
+
+If any such inspection of our books and accounts shall reveal an agreed underpayment then we shall credit the amount of such underpayment to your account and if any such underpayment shall exceed the greater of (i) ten per cent (10%) of the amount which was properly due to you and (ii) five thousand pounds (&pound;5,000) then in addition to paying the relevant agreed underpayment we shall...</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════
+function renderView(view) {
+  const lp = document.getElementById('leftPanel');
+  const rp = document.getElementById('rightPanel');
+  const sig = document.getElementById('sigBadge');
+  sig.classList.remove('show');
+  // Reset otto state
+  if (view !== 'ottochat') { ottoOpen = false; document.getElementById('ottoPanel').classList.remove('open'); document.getElementById('ottoStatusText').textContent='Available'; document.getElementById('ottoStatusText').style.color='var(--text-muted)'; }
+
+  switch(view) {
+    case 'default':
+      lp.innerHTML = leftDefault(false);
+      rp.innerHTML = rpHeader(true) + tabBar('Full Document', defaultBadges) + docDefault();
+      setPill('amber','2/5 sections','45% ready',45); setTop(45,'var(--amber)');
+      break;
+    case 'spotlight':
+      lp.innerHTML = leftSpotlight();
+      rp.innerHTML = rpHeader(false) + tabBar('Financials', finBadges) + docSpotlight();
+      setPill('amber','3/5 sections','72% ready',72); setTop(45,'var(--amber)');
+      break;
+    case 'accounts':
+      lp.innerHTML = leftDefault(false);
+      rp.innerHTML = rpHeader(false) + tabBar('Accounts', acctBadges) + docAccounts();
+      // FIX #8: RED pill at <50%
+      setPill('red','1/5 sections','22% ready',22); setTop(45,'var(--amber)');
+      break;
+    case 'complete':
+      lp.innerHTML = leftDefault(true);
+      rp.innerHTML = rpHeader(false) + tabBar('Full Document', completeBadges) + docComplete();
+      setPill('green','5/5 sections','96% ready',96); setTop(96,'var(--green)');
+      sig.classList.add('show');
+      break;
+    case 'counterparty':
+      lp.innerHTML = leftCounterparty();
+      rp.innerHTML = rpHeader(false) + tabBar('Accounts', acctBadges) + docAccounts();
+      setPill('red','1/5 sections','22% ready',22); setTop(45,'var(--amber)');
+      break;
+    case 'ottochat':
+      lp.innerHTML = leftDefault(false);
+      rp.innerHTML = rpHeader(true) + tabBar('Full Document', defaultBadges) + docDefault();
+      setPill('amber','2/5 sections','45% ready',45); setTop(45,'var(--amber)');
+      ottoOpen = true; document.getElementById('ottoPanel').classList.add('open');
+      document.getElementById('ottoStatusText').textContent='Active'; document.getElementById('ottoStatusText').style.color='var(--green)';
+      break;
+  }
+  setupScrollProgress();
+}
+function setPill(c,t,p,w) { document.getElementById('ppill').className='progress-pill '+c; document.getElementById('ppText').textContent=t; document.getElementById('ppPct').textContent=p; document.getElementById('ppFill').style.width=w+'%'; }
+function setTop(p,c) { document.getElementById('tpFill').style.width=p+'%'; document.getElementById('tpFill').style.background=c; document.getElementById('tpPct').textContent=p+'%'; }
+
+renderView('default');
+</script>
+</body>
+</html>

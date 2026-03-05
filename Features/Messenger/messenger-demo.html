@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — Messenger</title>
+  <style>
+    /* ===== Design Tokens ===== */
+    :root {
+      --bg-darkest:    #0d1017;
+      --bg-page:       #12161f;
+      --bg-input:      #161b28;
+      --bg-panel:      #1a1f2e;
+      --bg-card:       #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary:   #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted:     #6b7280;
+      --accent-blue:    #0091ea;
+      --accent-blue-dim:rgba(0,145,234,0.15);
+      --green:          #4caf50;
+      --green-dim:      rgba(76,175,80,0.15);
+      --amber:          #ff9800;
+      --amber-dim:      rgba(255,152,0,0.12);
+      --red:            #f44336;
+      --red-dim:        rgba(244,67,54,0.12);
+      --cyan:           #00d1ff;
+      --cyan-dim:       rgba(0,209,255,0.10);
+      --purple:         #7b1fa2;
+      --purple-dim:     rgba(123,31,162,0.12);
+      --border:         #2a3040;
+      --border-light:   #333b4f;
+      --mono: 'SF Mono','Cascadia Code','Consolas','Monaco', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+
+      /* Otto AI brand color */
+      --otto:          #a78bfa;
+      --otto-dim:      rgba(167,139,250,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* ===== Conversation List (Left) ===== */
+    .conv-list {
+      width: 300px;
+      min-width: 300px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .conv-header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .conv-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .conv-search {
+      width: 100%;
+      padding: 7px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: var(--sans);
+      outline: none;
+    }
+    .conv-search:focus { border-color: var(--accent-blue); }
+    .conv-search::placeholder { color: var(--text-muted); }
+
+    /* Tabs */
+    .conv-tabs {
+      display: flex;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+    }
+    .conv-tab {
+      flex: 1;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .conv-tab:hover { color: var(--text-secondary); }
+    .conv-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+    .conv-tab.active[data-tab="otto"] { color: var(--otto); border-bottom-color: var(--otto); }
+    .conv-tab .tab-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .conv-tab .tab-badge.unread { background: var(--red); color: #fff; }
+
+    /* Conversation items */
+    .conv-items {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .conv-items::-webkit-scrollbar { width: 4px; }
+    .conv-items::-webkit-scrollbar-track { background: transparent; }
+    .conv-items::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .conv-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+      border-left: 3px solid transparent;
+    }
+    .conv-item:hover { background: var(--bg-card); }
+    .conv-item.active { background: var(--accent-blue-dim); border-left-color: var(--accent-blue); }
+    .conv-item.active[data-type="otto"] { background: var(--otto-dim); border-left-color: var(--otto); }
+    .conv-item.unread .conv-name { color: var(--text-primary); font-weight: 700; }
+    .conv-item.unread .conv-preview { color: var(--text-secondary); }
+
+    .conv-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #fff;
+    }
+    .conv-avatar.online::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      border: 2px solid var(--bg-panel);
+    }
+    .conv-avatar { position: relative; }
+
+    .conv-info { flex: 1; min-width: 0; }
+    .conv-top { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+    .conv-name { font-size: 13px; font-weight: 500; color: var(--text-secondary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .conv-time { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+    .conv-bottom { display: flex; align-items: center; gap: 6px; }
+    .conv-preview { font-size: 11px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .conv-unread-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      flex-shrink: 0;
+    }
+
+    /* Channel-type items */
+    .conv-item .channel-hash {
+      font-size: 16px;
+      color: var(--text-muted);
+      font-weight: 400;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      flex-shrink: 0;
+    }
+    .conv-item .channel-hash.contract { color: var(--accent-blue); background: var(--accent-blue-dim); }
+    .conv-item .channel-hash.general { color: var(--green); background: var(--green-dim); }
+
+    /* Otto avatar */
+    .conv-avatar.otto {
+      background: linear-gradient(135deg, #a78bfa, #6d28d9);
+      font-size: 12px;
+    }
+
+    /* Section labels */
+    .conv-section {
+      padding: 10px 16px 4px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Message Area (Center) ===== */
+    .msg-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg-page);
+    }
+
+    /* Channel header */
+    .msg-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      flex-shrink: 0;
+      height: 52px;
+    }
+    .msg-header .header-icon {
+      font-size: 20px;
+    }
+    .msg-header .header-info { flex: 1; }
+    .msg-header .header-name { font-size: 14px; font-weight: 600; }
+    .msg-header .header-meta { font-size: 11px; color: var(--text-muted); }
+    .msg-header .header-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .header-action-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      background: none;
+      border: none;
+      transition: all 0.1s;
+    }
+    .header-action-btn:hover { background: var(--bg-card); color: var(--text-secondary); }
+
+    /* Messages */
+    .msg-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+    .msg-list::-webkit-scrollbar { width: 6px; }
+    .msg-list::-webkit-scrollbar-track { background: transparent; }
+    .msg-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Date divider */
+    .msg-date-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0 12px;
+    }
+    .msg-date-divider::before,
+    .msg-date-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .msg-date-divider span {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Message group */
+    .msg-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .msg-group .msg-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #fff;
+      margin-top: 2px;
+    }
+    .msg-group .msg-body { flex: 1; min-width: 0; }
+    .msg-group .msg-sender {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+    .msg-group .msg-sender-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .msg-group .msg-sender-time { font-size: 10px; color: var(--text-muted); }
+    .msg-group .msg-sender-badge {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .msg-text {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .msg-text code {
+      background: var(--bg-input);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--cyan);
+    }
+    .msg-text strong { color: var(--text-primary); }
+    .msg-text a { color: var(--accent-blue); text-decoration: none; }
+    .msg-text a:hover { text-decoration: underline; }
+
+    /* System message */
+    .msg-system {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      margin-bottom: 8px;
+    }
+    .msg-system .sys-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .msg-system .sys-text { font-size: 11px; color: var(--text-muted); }
+    .msg-system .sys-text strong { color: var(--text-secondary); }
+
+    /* Otto AI message styling */
+    .msg-group.otto .msg-avatar { background: linear-gradient(135deg, #a78bfa, #6d28d9); }
+    .msg-group.otto .msg-sender-name { color: var(--otto); }
+    .msg-group.otto .msg-text {
+      background: var(--otto-dim);
+      border: 1px solid rgba(167,139,250,0.15);
+      border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+      padding: 10px 14px;
+      color: var(--text-primary);
+    }
+    .msg-group.otto .msg-text code { background: rgba(167,139,250,0.15); color: var(--otto); }
+
+    /* Context card (AI references) */
+    .msg-context-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-top: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .msg-context-card:hover { border-color: var(--accent-blue); }
+    .msg-context-card .ctx-icon { font-size: 14px; }
+    .msg-context-card .ctx-info { flex: 1; }
+    .msg-context-card .ctx-title { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+    .msg-context-card .ctx-meta { font-size: 10px; color: var(--text-muted); }
+    .msg-context-card .ctx-arrow { color: var(--text-muted); font-size: 12px; }
+
+    /* Reaction bar */
+    .msg-reactions {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .msg-reaction {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .msg-reaction:hover { border-color: var(--accent-blue); }
+    .msg-reaction .react-count { font-size: 10px; color: var(--text-muted); }
+
+    /* Typing indicator */
+    .typing-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+    }
+    .typing-dots span {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: typingBounce 1.4s infinite ease-in-out;
+    }
+    .typing-dots span:nth-child(1) { animation-delay: 0s; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    /* ===== Composer ===== */
+    .composer {
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-panel);
+      flex-shrink: 0;
+    }
+    .composer-inner {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      transition: border-color 0.15s;
+    }
+    .composer-inner:focus-within { border-color: var(--accent-blue); }
+    .composer-actions {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .composer-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 14px;
+      background: none;
+      border: none;
+      transition: all 0.1s;
+    }
+    .composer-btn:hover { background: var(--bg-card); color: var(--text-secondary); }
+    .composer-input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: var(--sans);
+      resize: none;
+      outline: none;
+      min-height: 20px;
+      max-height: 120px;
+      line-height: 1.4;
+    }
+    .composer-input::placeholder { color: var(--text-muted); }
+    .composer-send {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .composer-send:hover { opacity: 0.85; }
+    .composer-send.otto-send { background: linear-gradient(135deg, #a78bfa, #6d28d9); }
+
+    .composer-hint {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 6px;
+      padding-left: 4px;
+    }
+
+    /* Slash command dropdown */
+    .slash-menu {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 12px;
+      right: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      display: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+    .slash-menu.visible { display: block; }
+    .slash-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .slash-item:hover { background: var(--bg-card-hover); }
+    .slash-item .slash-cmd { font-family: var(--mono); font-size: 12px; color: var(--accent-blue); font-weight: 600; }
+    .slash-item .slash-desc { font-size: 11px; color: var(--text-muted); }
+
+    /* ===== Right panel: thread/details ===== */
+    .detail-panel {
+      width: 280px;
+      min-width: 280px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .detail-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .detail-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1;
+    }
+    .detail-close {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      font-size: 14px;
+    }
+    .detail-close:hover { background: var(--bg-card); }
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+    }
+    .detail-section {
+      margin-bottom: 16px;
+    }
+    .detail-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .member-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+    }
+    .member-item .member-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .member-item .member-name { font-size: 12px; color: var(--text-secondary); flex: 1; }
+    .member-item .member-role {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--text-muted);
+      background: var(--bg-input);
+    }
+
+    .pinned-item {
+      padding: 8px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .pinned-item:hover { border-color: var(--accent-blue); }
+    .pinned-item .pin-author { font-weight: 600; color: var(--text-primary); }
+
+    .linked-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .linked-item:hover { border-color: var(--accent-blue); }
+    .linked-item .link-icon { font-size: 14px; }
+    .linked-item .link-title { font-size: 11px; font-weight: 500; color: var(--text-primary); }
+    .linked-item .link-type { font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
+
+    /* Hidden utility */
+    .hidden { display: none !important; }
+
+    /* Tab content switching */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Conversation List ===== -->
+  <div class="conv-list">
+    <div class="conv-header">
+      <h2>Messenger</h2>
+      <input class="conv-search" type="text" placeholder="Search conversations..." id="convSearch">
+    </div>
+
+    <div class="conv-tabs">
+      <div class="conv-tab active" data-tab="dms" onclick="switchTab(this)">
+        DMs <span class="tab-badge unread">3</span>
+      </div>
+      <div class="conv-tab" data-tab="channels" onclick="switchTab(this)">
+        Channels
+      </div>
+      <div class="conv-tab" data-tab="otto" onclick="switchTab(this)">
+        Otto <span class="tab-badge" style="background:var(--otto-dim);color:var(--otto)">AI</span>
+      </div>
+    </div>
+
+    <div class="conv-items">
+      <!-- DMs Tab -->
+      <div class="tab-content active" id="tab-dms">
+        <div class="conv-section">Online</div>
+        <div class="conv-item active unread" data-conv="dm-alice" onclick="selectConv(this)">
+          <div class="conv-avatar online" style="background:#e91e63">AC</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Alice Chen</span>
+              <span class="conv-time">2m</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Can you review the Henderson MSA?</span>
+              <span class="conv-unread-dot"></span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item unread" data-conv="dm-marcus" onclick="selectConv(this)">
+          <div class="conv-avatar online" style="background:#2196f3">MW</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Marcus Webb</span>
+              <span class="conv-time">15m</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Patch #47 approved. Moving to admin...</span>
+              <span class="conv-unread-dot"></span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="dm-sarah" onclick="selectConv(this)">
+          <div class="conv-avatar" style="background:#ff9800">SC</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Sarah Kim</span>
+              <span class="conv-time">1h</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">I'll send the rate sheet tomorrow</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conv-section">Recent</div>
+        <div class="conv-item unread" data-conv="dm-daniele" onclick="selectConv(this)">
+          <div class="conv-avatar" style="background:#4caf50">DL</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Daniele Leoni</span>
+              <span class="conv-time">3h</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Entity resolution is flagging the Sony sub...</span>
+              <span class="conv-unread-dot"></span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="dm-james" onclick="selectConv(this)">
+          <div class="conv-avatar" style="background:#9c27b0">JL</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">James Liu</span>
+              <span class="conv-time">1d</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Batch 12 export complete</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channels Tab -->
+      <div class="tab-content" id="tab-channels">
+        <div class="conv-section">Contract Channels</div>
+        <div class="conv-item" data-conv="ch-henderson" onclick="selectConv(this)">
+          <div class="channel-hash contract">#</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">henderson-msa</span>
+              <span class="conv-time">5m</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Otto: Gate advanced to Verify</span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="ch-sony" onclick="selectConv(this)">
+          <div class="channel-hash contract">#</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">sony-dist-2024</span>
+              <span class="conv-time">30m</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Entity needs disambiguation</span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="ch-warner" onclick="selectConv(this)">
+          <div class="channel-hash contract">#</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">warner-amendment</span>
+              <span class="conv-time">2h</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Patch submitted by Marcus</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conv-section">Workspace</div>
+        <div class="conv-item" data-conv="ch-general" onclick="selectConv(this)">
+          <div class="channel-hash general">#</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">general</span>
+              <span class="conv-time">1h</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">New batch uploaded: Ostereo Q1</span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="ch-announcements" onclick="selectConv(this)">
+          <div class="channel-hash general">#</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">announcements</span>
+              <span class="conv-time">2d</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Feature update: Calendar module live</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Otto AI Tab -->
+      <div class="tab-content" id="tab-otto">
+        <div class="conv-section">Active Conversations</div>
+        <div class="conv-item" data-conv="otto-henderson" data-type="otto" onclick="selectConv(this)">
+          <div class="conv-avatar otto">Ot</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Otto &middot; Henderson MSA</span>
+              <span class="conv-time">5m</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">The late payment clause exceeds...</span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="otto-triage" data-type="otto" onclick="selectConv(this)">
+          <div class="conv-avatar otto">Ot</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Otto &middot; Triage Review</span>
+              <span class="conv-time">1h</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Summarized 12 open blockers...</span>
+            </div>
+          </div>
+        </div>
+        <div class="conv-item" data-conv="otto-general" data-type="otto" onclick="selectConv(this)">
+          <div class="conv-avatar otto">Ot</div>
+          <div class="conv-info">
+            <div class="conv-top">
+              <span class="conv-name">Otto &middot; General Assistant</span>
+              <span class="conv-time">3h</span>
+            </div>
+            <div class="conv-bottom">
+              <span class="conv-preview">Here's the extraction accuracy report...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conv-section">Quick Actions</div>
+        <div class="conv-item" style="opacity:0.6" onclick="return false">
+          <div class="conv-avatar" style="background:var(--bg-card);color:var(--otto);font-size:16px">+</div>
+          <div class="conv-info">
+            <div class="conv-top"><span class="conv-name" style="color:var(--otto)">New Otto Conversation</span></div>
+            <div class="conv-bottom"><span class="conv-preview">Start a context-aware AI session</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Message Area ===== -->
+  <div class="msg-area">
+    <div class="msg-header" id="msgHeader">
+      <div class="header-icon">&#128172;</div>
+      <div class="header-info">
+        <div class="header-name" id="headerName">Alice Chen</div>
+        <div class="header-meta" id="headerMeta">Online &middot; Analyst &middot; Contracts Team</div>
+      </div>
+      <div class="header-actions">
+        <button class="header-action-btn" title="Search">&#128269;</button>
+        <button class="header-action-btn" title="Pin">&#128204;</button>
+        <button class="header-action-btn" title="Members">&#128101;</button>
+        <button class="header-action-btn" title="Details">&#9776;</button>
+      </div>
+    </div>
+
+    <div class="msg-list" id="msgList">
+      <!-- DM: Alice Chen conversation -->
+      <div id="conv-dm-alice">
+        <div class="msg-date-divider"><span>Today &middot; March 3, 2026</span></div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#e91e63">AC</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Alice Chen</span>
+              <span class="msg-sender-badge" style="background:var(--green-dim);color:var(--green)">Analyst</span>
+              <span class="msg-sender-time">9:14 AM</span>
+            </div>
+            <div class="msg-text">Hey, have you looked at the Henderson MSA yet? The preflight flagged some issues with the late payment clause.</div>
+          </div>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#0091ea">ZH</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">You</span>
+              <span class="msg-sender-time">9:16 AM</span>
+            </div>
+            <div class="msg-text">Yeah I saw the RED gate. The 1.5%/month late fee is above the market standard threshold. I think Otto flagged it too.</div>
+          </div>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#e91e63">AC</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Alice Chen</span>
+              <span class="msg-sender-time">9:18 AM</span>
+            </div>
+            <div class="msg-text">Right. I asked Otto about it and it referenced 3 similar contracts where we negotiated it down to 1%. Want me to draft a patch?</div>
+            <div class="msg-context-card">
+              <span class="ctx-icon">&#128196;</span>
+              <div class="ctx-info">
+                <div class="ctx-title">Henderson MSA &mdash; Late Payment Clause</div>
+                <div class="ctx-meta">Section 3 &middot; Gate: RED &middot; Health: 62%</div>
+              </div>
+              <span class="ctx-arrow">&#8594;</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#0091ea">ZH</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">You</span>
+              <span class="msg-sender-time">9:20 AM</span>
+            </div>
+            <div class="msg-text">Yes, go ahead. Reference those 3 contracts in the evidence pack. I'll verify once it's submitted.</div>
+            <div class="msg-reactions">
+              <span class="msg-reaction">&#128077; <span class="react-count">1</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--accent-blue-dim);color:var(--accent-blue)">&#8594;</span>
+          <span class="sys-text"><strong>Alice Chen</strong> created Patch #52 for henderson-msa &middot; <a href="#" style="color:var(--accent-blue);text-decoration:none">View Patch</a></span>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#e91e63">AC</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Alice Chen</span>
+              <span class="msg-sender-time">9:45 AM</span>
+            </div>
+            <div class="msg-text">Done! Patch #52 submitted. Can you review the Henderson MSA when you get a chance? Also tagged the evidence from the 3 similar deals.</div>
+          </div>
+        </div>
+
+        <div class="typing-indicator">
+          <div class="typing-dots"><span></span><span></span><span></span></div>
+          Alice is typing...
+        </div>
+      </div>
+
+      <!-- Other conversations are hidden by default -->
+      <div id="conv-dm-marcus" class="hidden">
+        <div class="msg-date-divider"><span>Today &middot; March 3, 2026</span></div>
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#2196f3">MW</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Marcus Webb</span>
+              <span class="msg-sender-badge" style="background:var(--purple-dim);color:var(--purple)">Verifier</span>
+              <span class="msg-sender-time">8:30 AM</span>
+            </div>
+            <div class="msg-text">Patch #47 for the Sony distribution contract looks good. I've approved it and moved to admin review.</div>
+            <div class="msg-text">The territory clause was updated from "North America" to "Worldwide excl. Japan" per the amendment.</div>
+          </div>
+        </div>
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--green-dim);color:var(--green)">&#10003;</span>
+          <span class="sys-text"><strong>Marcus Webb</strong> approved Patch #47 &middot; Moved to Admin Review</span>
+        </div>
+      </div>
+
+      <!-- Otto AI conversation -->
+      <div id="conv-otto-henderson" class="hidden">
+        <div class="msg-date-divider"><span>Today &middot; March 3, 2026</span></div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#0091ea">ZH</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">You</span>
+              <span class="msg-sender-time">9:10 AM</span>
+            </div>
+            <div class="msg-text">@Otto What's the issue with the Henderson MSA late payment clause? How does it compare to our other deals?</div>
+          </div>
+        </div>
+
+        <div class="msg-group otto">
+          <div class="msg-avatar">Ot</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Otto</span>
+              <span class="msg-sender-badge" style="background:var(--otto-dim);color:var(--otto)">AI</span>
+              <span class="msg-sender-time">9:10 AM</span>
+            </div>
+            <div class="msg-text">
+              The Henderson MSA (Section 3) specifies a <strong>1.5% per month</strong> late payment interest rate. Here's how it compares:
+              <br><br>
+              <strong>Market comparison (3 similar deals):</strong>
+              <br>&bull; Acme Distribution 2023: <code>1.0%/month</code>
+              <br>&bull; Nova License 2024: <code>1.0%/month</code>
+              <br>&bull; Summit Service 2024: <code>0.75%/month</code>
+              <br><br>
+              The Henderson rate is <strong>50-100% above your portfolio average</strong>. I'd recommend negotiating down to 1.0% to stay consistent.
+              <br><br>
+              <strong>Confidence:</strong> 0.92 &mdash; Based on 3 direct comparables and 12 contracts in the same sector.
+            </div>
+            <div class="msg-context-card">
+              <span class="ctx-icon">&#128202;</span>
+              <div class="ctx-info">
+                <div class="ctx-title">Portfolio Late Payment Analysis</div>
+                <div class="ctx-meta">12 contracts analyzed &middot; Music distribution sector</div>
+              </div>
+              <span class="ctx-arrow">&#8594;</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#0091ea">ZH</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">You</span>
+              <span class="msg-sender-time">9:12 AM</span>
+            </div>
+            <div class="msg-text">Can you draft a suggested revision for the clause?</div>
+          </div>
+        </div>
+
+        <div class="msg-group otto">
+          <div class="msg-avatar">Ot</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Otto</span>
+              <span class="msg-sender-badge" style="background:var(--otto-dim);color:var(--otto)">AI</span>
+              <span class="msg-sender-time">9:12 AM</span>
+            </div>
+            <div class="msg-text">
+              Here's a suggested revision:
+              <br><br>
+              <strong>Current:</strong> <em>"Late payments shall bear interest at the rate of 1.5% per month."</em>
+              <br><br>
+              <strong>Proposed:</strong> <em>"Late payments shall bear interest at the rate of 1.0% per month, compounded monthly, with a 15-day grace period from the invoice due date."</em>
+              <br><br>
+              This adds a <code>grace period</code> (standard in 8 of 12 comparable contracts) while reducing the rate. Want me to create a patch with this revision?
+            </div>
+            <div class="msg-reactions">
+              <span class="msg-reaction">&#128077; <span class="react-count">2</span></span>
+              <span class="msg-reaction">&#128161; <span class="react-count">1</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel: henderson-msa -->
+      <div id="conv-ch-henderson" class="hidden">
+        <div class="msg-date-divider"><span>Today &middot; March 3, 2026</span></div>
+
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--green-dim);color:var(--green)">&#10003;</span>
+          <span class="sys-text"><strong>System</strong> &middot; Extraction completed: 142 fields, 89% pass rate</span>
+        </div>
+
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--red-dim);color:var(--red)">&#9888;</span>
+          <span class="sys-text"><strong>Preflight</strong> &middot; Gate: RED &mdash; Late payment rate exceeds threshold (Section 3)</span>
+        </div>
+
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--cyan-dim);color:var(--cyan)">&#9733;</span>
+          <span class="sys-text"><strong>Otto</strong> &middot; AI flag: Late payment rate 1.5%/mo exceeds market standard (confidence: 0.87)</span>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#e91e63">AC</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Alice Chen</span>
+              <span class="msg-sender-badge" style="background:var(--green-dim);color:var(--green)">Analyst</span>
+              <span class="msg-sender-time">9:25 AM</span>
+            </div>
+            <div class="msg-text">Opening a patch for the late payment clause. Otto found 3 comparable deals where we negotiated lower rates.</div>
+          </div>
+        </div>
+
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--accent-blue-dim);color:var(--accent-blue)">&#8594;</span>
+          <span class="sys-text"><strong>Alice Chen</strong> submitted Patch #52 &middot; "Reduce late payment rate to 1.0% + add grace period"</span>
+        </div>
+
+        <div class="msg-group">
+          <div class="msg-avatar" style="background:#2196f3">MW</div>
+          <div class="msg-body">
+            <div class="msg-sender">
+              <span class="msg-sender-name">Marcus Webb</span>
+              <span class="msg-sender-badge" style="background:var(--purple-dim);color:var(--purple)">Verifier</span>
+              <span class="msg-sender-time">9:50 AM</span>
+            </div>
+            <div class="msg-text">Good catch. Reviewing the patch now. The evidence pack looks solid with the 3 comparables.</div>
+          </div>
+        </div>
+
+        <div class="msg-system">
+          <span class="sys-icon" style="background:var(--amber-dim);color:var(--amber)">&#9670;</span>
+          <span class="sys-text"><strong>System</strong> &middot; Gate advanced: Discovery &rarr; Standardize &middot; Health: 62% &rarr; 71%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Composer -->
+    <div class="composer" style="position:relative">
+      <div class="slash-menu" id="slashMenu">
+        <div class="slash-item"><span class="slash-cmd">/otto</span> <span class="slash-desc">Ask Otto AI about current context</span></div>
+        <div class="slash-item"><span class="slash-cmd">/summarize</span> <span class="slash-desc">Summarize this conversation</span></div>
+        <div class="slash-item"><span class="slash-cmd">/patch</span> <span class="slash-desc">Create a new patch from here</span></div>
+        <div class="slash-item"><span class="slash-cmd">/dm @name</span> <span class="slash-desc">Open DM with someone</span></div>
+        <div class="slash-item"><span class="slash-cmd">/link</span> <span class="slash-desc">Link a contract or vault</span></div>
+      </div>
+      <div class="composer-inner">
+        <div class="composer-actions">
+          <button class="composer-btn" title="Attach file">&#128206;</button>
+          <button class="composer-btn" title="Mention">@</button>
+        </div>
+        <textarea class="composer-input" id="composerInput" rows="1" placeholder="Message Alice Chen..." oninput="handleInput(this)" onkeydown="handleKeydown(event)"></textarea>
+        <button class="composer-send" id="sendBtn" title="Send">&#9654;</button>
+      </div>
+      <div class="composer-hint">Press <strong>/</strong> for commands &middot; <strong>Enter</strong> to send &middot; <strong>Shift+Enter</strong> for newline</div>
+    </div>
+  </div>
+
+  <!-- ===== Detail Panel (Right) ===== -->
+  <div class="detail-panel">
+    <div class="detail-header">
+      <h3 id="detailTitle">Conversation Details</h3>
+      <button class="detail-close" title="Close">&times;</button>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <!-- DM details -->
+      <div id="detail-dm" class="detail-section">
+        <div class="detail-section-title">Participants</div>
+        <div class="member-item">
+          <div class="member-avatar" style="background:#e91e63">AC</div>
+          <span class="member-name">Alice Chen</span>
+          <span class="member-role">Analyst</span>
+        </div>
+        <div class="member-item">
+          <div class="member-avatar" style="background:#0091ea">ZH</div>
+          <span class="member-name">You (Zachary)</span>
+          <span class="member-role">Admin</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Linked Resources</div>
+        <div class="linked-item">
+          <span class="link-icon">&#128196;</span>
+          <div>
+            <div class="link-title">Henderson MSA</div>
+            <div class="link-type">Contract &middot; Gate: RED</div>
+          </div>
+        </div>
+        <div class="linked-item">
+          <span class="link-icon">&#128221;</span>
+          <div>
+            <div class="link-title">Patch #52</div>
+            <div class="link-type">Patch &middot; Submitted</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Pinned Messages</div>
+        <div class="pinned-item">
+          <span class="pin-author">Alice Chen:</span> Can you review the Henderson MSA? The preflight flagged some issues...
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Shared Files</div>
+        <div class="linked-item">
+          <span class="link-icon">&#128196;</span>
+          <div>
+            <div class="link-title">MSA-2024-Final.pdf</div>
+            <div class="link-type">1.2 MB &middot; Google Drive</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var currentConv = 'dm-alice';
+
+    // Tab switching
+    function switchTab(el) {
+      document.querySelectorAll('.conv-tab').forEach(function(t) { t.classList.remove('active'); });
+      el.classList.add('active');
+
+      var tab = el.getAttribute('data-tab');
+      document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+
+    // Select conversation
+    function selectConv(el) {
+      document.querySelectorAll('.conv-item').forEach(function(c) { c.classList.remove('active'); });
+      el.classList.add('active');
+      el.classList.remove('unread');
+      var dot = el.querySelector('.conv-unread-dot');
+      if (dot) dot.style.display = 'none';
+
+      var convId = el.getAttribute('data-conv');
+      currentConv = convId;
+
+      // Show the right messages
+      document.querySelectorAll('#msgList > div[id^="conv-"]').forEach(function(c) { c.classList.add('hidden'); });
+      var target = document.getElementById('conv-' + convId);
+      if (target) target.classList.remove('hidden');
+
+      // Update header
+      var name = el.querySelector('.conv-name').textContent;
+      document.getElementById('headerName').textContent = name;
+
+      // Update composer placeholder
+      var isOtto = el.getAttribute('data-type') === 'otto';
+      var isChannel = convId.startsWith('ch-');
+      var input = document.getElementById('composerInput');
+      var sendBtn = document.getElementById('sendBtn');
+
+      if (isOtto) {
+        input.placeholder = 'Ask Otto...';
+        sendBtn.className = 'composer-send otto-send';
+        document.getElementById('headerMeta').textContent = 'AI Assistant \u00b7 Context-aware \u00b7 Provider-agnostic';
+        document.querySelector('#msgHeader .header-icon').textContent = '\u2728';
+      } else if (isChannel) {
+        input.placeholder = 'Message #' + name + '...';
+        sendBtn.className = 'composer-send';
+        document.getElementById('headerMeta').textContent = 'Contract channel \u00b7 5 members';
+        document.querySelector('#msgHeader .header-icon').textContent = '#';
+      } else {
+        input.placeholder = 'Message ' + name + '...';
+        sendBtn.className = 'composer-send';
+        document.getElementById('headerMeta').textContent = 'Online \u00b7 Analyst \u00b7 Contracts Team';
+        document.querySelector('#msgHeader .header-icon').textContent = '\uD83D\uDCAC';
+      }
+
+      // Scroll to bottom
+      var msgList = document.getElementById('msgList');
+      msgList.scrollTop = msgList.scrollHeight;
+    }
+
+    // Slash command handling
+    function handleInput(el) {
+      var val = el.value;
+      var menu = document.getElementById('slashMenu');
+      if (val === '/') {
+        menu.classList.add('visible');
+      } else {
+        menu.classList.remove('visible');
+      }
+      // Auto-resize
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    }
+
+    function handleKeydown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+      if (e.key === 'Escape') {
+        document.getElementById('slashMenu').classList.remove('visible');
+      }
+    }
+
+    function sendMessage() {
+      var input = document.getElementById('composerInput');
+      var text = input.value.trim();
+      if (!text) return;
+
+      // Find the active conversation div
+      var convDiv = document.getElementById('conv-' + currentConv);
+      if (!convDiv) return;
+
+      // Remove typing indicator if present
+      var typing = convDiv.querySelector('.typing-indicator');
+      if (typing) typing.remove();
+
+      // Create message
+      var msgGroup = document.createElement('div');
+      msgGroup.className = 'msg-group';
+      msgGroup.innerHTML = '<div class="msg-avatar" style="background:#0091ea">ZH</div>'
+        + '<div class="msg-body">'
+        + '<div class="msg-sender">'
+        + '<span class="msg-sender-name">You</span>'
+        + '<span class="msg-sender-time">' + new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}) + '</span>'
+        + '</div>'
+        + '<div class="msg-text">' + text.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>'
+        + '</div>';
+      convDiv.appendChild(msgGroup);
+
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('slashMenu').classList.remove('visible');
+
+      // Scroll to bottom
+      var msgList = document.getElementById('msgList');
+      msgList.scrollTop = msgList.scrollHeight;
+    }
+
+    // Scroll to bottom on load
+    document.getElementById('msgList').scrollTop = document.getElementById('msgList').scrollHeight;
+  </script>
+</body>
+</html>

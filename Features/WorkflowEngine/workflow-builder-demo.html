@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workflow Builder — Airlock</title>
+<style>
+  :root {
+    --bg-darkest:    #0d1017;
+    --bg-page:       #12161f;
+    --bg-input:      #161b28;
+    --bg-panel:      #1a1f2e;
+    --bg-card:       #1e2436;
+    --bg-card-hover: #242b3d;
+    --bg-input-focus:#1c2235;
+
+    --text-primary:   #e8eaed;
+    --text-secondary: #9aa0a6;
+    --text-muted:     #6b7280;
+
+    --accent-blue:     #0091ea;
+    --accent-blue-dim: rgba(0,145,234,0.15);
+    --green:           #4caf50;
+    --green-dim:       rgba(76,175,80,0.15);
+    --amber:           #ff9800;
+    --amber-dim:       rgba(255,152,0,0.12);
+    --red:             #f44336;
+    --red-dim:         rgba(244,67,54,0.12);
+    --teal:            #26a69a;
+    --teal-dim:        rgba(38,166,154,0.12);
+    --purple:          #7b1fa2;
+    --purple-dim:      rgba(123,31,162,0.12);
+    --cyan:            #00D1FF;
+    --cyan-dim:        rgba(0,209,255,0.12);
+
+    --border:       #2a3040;
+    --border-light: #333b4f;
+    --border-focus: #0091ea;
+
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 10px;
+
+    --mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+    /* Node colors */
+    --node-trigger: #26a69a;
+    --node-trigger-dim: rgba(38,166,154,0.15);
+    --node-function: #0091ea;
+    --node-function-dim: rgba(0,145,234,0.15);
+    --node-action: #4caf50;
+    --node-action-dim: rgba(76,175,80,0.15);
+    --node-ai: #00D1FF;
+    --node-ai-dim: rgba(0,209,255,0.12);
+    --node-conv: #7b1fa2;
+    --node-conv-dim: rgba(123,31,162,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== TOOLBAR ===== */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    height: 42px;
+    padding: 0 16px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .toolbar-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toolbar-title .wf-icon {
+    width: 22px; height: 22px;
+    background: var(--node-trigger-dim);
+    border: 1px solid var(--node-trigger);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+
+  .toolbar-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--green-dim);
+    color: var(--green);
+  }
+  .toolbar-badge.draft {
+    background: var(--amber-dim);
+    color: var(--amber);
+  }
+
+  .toolbar-sep { width: 1px; height: 20px; background: var(--border); }
+
+  .toolbar-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+
+  .toolbar-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .toolbar-btn {
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s;
+    font-family: var(--sans);
+  }
+  .toolbar-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+  .toolbar-btn.primary {
+    background: var(--node-trigger);
+    border-color: var(--node-trigger);
+    color: #fff;
+  }
+  .toolbar-btn.primary:hover { filter: brightness(1.1); }
+  .toolbar-btn.test {
+    background: var(--cyan-dim);
+    border-color: rgba(0,209,255,0.3);
+    color: var(--cyan);
+  }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ===== NODE PALETTE (LEFT) ===== */
+  .palette {
+    width: 220px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .palette-search {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .palette-search input {
+    width: 100%;
+    height: 28px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 11px;
+    padding: 0 8px 0 28px;
+    outline: none;
+    font-family: var(--sans);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 8px center;
+  }
+  .palette-search input:focus { border-color: var(--border-focus); background-color: var(--bg-input-focus); }
+  .palette-search input::placeholder { color: var(--text-muted); }
+
+  .palette-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .palette-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    padding: 10px 14px 4px;
+  }
+
+  .palette-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: grab;
+    transition: all 0.12s;
+    user-select: none;
+  }
+  .palette-item:hover { background: var(--bg-card); color: var(--text-primary); }
+  .palette-item:active { cursor: grabbing; }
+
+  .palette-item .node-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .palette-item .node-dot.trigger { background: var(--node-trigger); }
+  .palette-item .node-dot.function { background: var(--node-function); }
+  .palette-item .node-dot.action { background: var(--node-action); }
+  .palette-item .node-dot.ai { background: var(--node-ai); }
+
+  .palette-item .node-icon {
+    font-size: 13px;
+    width: 18px;
+    text-align: center;
+  }
+
+  .palette-tabs {
+    display: flex;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .palette-tab {
+    flex: 1;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-top: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .palette-tab:hover { color: var(--text-secondary); }
+  .palette-tab.active { color: var(--accent-blue); border-top-color: var(--accent-blue); }
+
+  /* ===== CANVAS ===== */
+  .canvas-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(0,209,255,0.02) 0%, transparent 70%),
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 100% 100%, 24px 24px, 24px 24px;
+    background-position: center, 0 0, 0 0;
+  }
+
+  .canvas-inner {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    /* transform origin for panning/zooming */
+  }
+
+  /* ===== NODES ON CANVAS ===== */
+  .wf-node {
+    position: absolute;
+    width: 180px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+    font-size: 12px;
+    user-select: none;
+  }
+  .wf-node:hover { border-color: var(--border-light); box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .wf-node.selected {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(0,145,234,0.25), 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .wf-node.running {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 2px rgba(0,209,255,0.2), 0 0 20px rgba(0,209,255,0.1);
+  }
+  .wf-node.completed {
+    border-color: var(--green);
+  }
+  .wf-node.completed .node-header { background: var(--green-dim); }
+
+  .node-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .node-header.trigger { background: var(--node-trigger-dim); color: var(--node-trigger); }
+  .node-header.function { background: var(--node-function-dim); color: var(--node-function); }
+  .node-header.action { background: var(--node-action-dim); color: var(--node-action); }
+  .node-header.ai { background: var(--node-ai-dim); color: var(--node-ai); }
+  .node-header.conv { background: var(--node-conv-dim); color: var(--purple); }
+
+  .node-header .h-icon { font-size: 12px; }
+  .node-header .h-badge {
+    margin-left: auto;
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.1);
+    color: inherit;
+    font-weight: 700;
+  }
+
+  .node-body {
+    padding: 8px 10px;
+  }
+
+  .node-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+  }
+
+  .node-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .node-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-top: 1px solid var(--border);
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+
+  .node-meta .meta-pill {
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+  }
+  .meta-pill.smart-line { background: var(--teal-dim); color: var(--teal); }
+  .meta-pill.ai-model { background: var(--cyan-dim); color: var(--cyan); }
+  .meta-pill.pool { background: var(--purple-dim); color: var(--purple); }
+  .meta-pill.delay { background: var(--amber-dim); color: var(--amber); }
+
+  /* Output handles */
+  .node-outputs {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .node-output {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+    border-top: 1px solid rgba(255,255,255,0.03);
+    position: relative;
+  }
+  .node-output .out-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--border-light);
+    background: var(--bg-card);
+    position: absolute;
+    right: -5px;
+    z-index: 2;
+  }
+  .node-output .out-label { flex: 1; }
+  .node-output .out-count {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+
+  /* Input handle */
+  .node-input-handle {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--border-light);
+    background: var(--bg-card);
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+
+  /* ===== SVG EDGES ===== */
+  .edges-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .edges-layer path {
+    fill: none;
+    stroke: var(--border-light);
+    stroke-width: 1.5;
+  }
+  .edges-layer path.active {
+    stroke: var(--cyan);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 4px rgba(0,209,255,0.3));
+  }
+  .edges-layer path.completed {
+    stroke: var(--green);
+    stroke-width: 2;
+  }
+
+  /* ===== CANVAS CONTROLS ===== */
+  .canvas-controls {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+  }
+  .canvas-ctrl-btn {
+    width: 28px; height: 28px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.12s;
+  }
+  .canvas-ctrl-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+  .canvas-zoom-label {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    padding: 0 6px;
+    display: flex; align-items: center;
+  }
+
+  /* ===== MINIMAP ===== */
+  .minimap {
+    position: absolute;
+    bottom: 12px;
+    right: 332px;
+    width: 140px; height: 90px;
+    background: var(--bg-darkest);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    z-index: 10;
+    overflow: hidden;
+  }
+  .minimap .mm-nodes {
+    position: relative;
+    width: 100%; height: 100%;
+  }
+  .minimap .mm-dot {
+    position: absolute;
+    width: 6px; height: 4px;
+    border-radius: 1px;
+  }
+  .minimap .mm-viewport {
+    position: absolute;
+    border: 1px solid rgba(0,209,255,0.4);
+    border-radius: 1px;
+    background: rgba(0,209,255,0.05);
+  }
+
+  /* ===== PROPERTIES PANEL (RIGHT) ===== */
+  .props-panel {
+    width: 320px;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: width 0.2s;
+  }
+
+  .props-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .props-header .ph-icon {
+    width: 26px; height: 26px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .props-header .ph-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .props-header .ph-type {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .props-header .close-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px;
+  }
+  .props-header .close-btn:hover { color: var(--text-primary); }
+
+  .props-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+  }
+
+  .prop-section {
+    margin-bottom: 16px;
+  }
+
+  .prop-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .prop-input {
+    width: 100%;
+    height: 30px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 0 8px;
+    outline: none;
+    font-family: var(--sans);
+  }
+  .prop-input:focus { border-color: var(--border-focus); }
+
+  .prop-textarea {
+    width: 100%;
+    min-height: 80px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 11px;
+    padding: 8px;
+    outline: none;
+    font-family: var(--mono);
+    resize: vertical;
+    line-height: 1.5;
+  }
+  .prop-textarea:focus { border-color: var(--border-focus); }
+
+  .prop-select {
+    width: 100%;
+    height: 30px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 0 8px;
+    outline: none;
+    font-family: var(--sans);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='%236b7280'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+  .prop-select option { background: var(--bg-panel); }
+
+  .prop-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .prop-row .prop-label { margin-bottom: 0; flex-shrink: 0; width: 80px; }
+
+  .prop-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 2px;
+  }
+  .prop-chip .chip-x {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+  .prop-chip .chip-x:hover { color: var(--red); }
+
+  .prop-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+  }
+
+  /* Condition rows */
+  .condition-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .condition-field { color: var(--cyan); }
+  .condition-op { color: var(--text-muted); }
+  .condition-val { color: var(--green); }
+
+  .add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent-blue);
+    cursor: pointer;
+    padding: 4px 0;
+    background: none;
+    border: none;
+    font-family: var(--sans);
+  }
+  .add-btn:hover { color: #39a5f4; }
+
+  /* Output mapping */
+  .mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .mapping-from { color: var(--cyan); background: var(--cyan-dim); padding: 2px 6px; border-radius: 3px; }
+  .mapping-arrow { color: var(--text-muted); }
+  .mapping-to { color: var(--amber); background: var(--amber-dim); padding: 2px 6px; border-radius: 3px; }
+
+  /* Test result */
+  .test-result {
+    padding: 8px 10px;
+    background: var(--bg-darkest);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .test-result .tr-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    font-family: var(--sans);
+  }
+  .test-result .tr-val {
+    color: var(--green);
+  }
+  .test-result .tr-conf {
+    color: var(--text-muted);
+  }
+
+  .props-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+  }
+  .props-footer button {
+    flex: 1;
+    padding: 6px 0;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-family: var(--sans);
+    transition: all 0.12s;
+  }
+  .props-footer button:hover { background: var(--bg-card-hover); }
+  .props-footer button.del { color: var(--red); }
+  .props-footer button.del:hover { background: var(--red-dim); border-color: rgba(244,67,54,0.3); }
+
+  /* ===== EXECUTION BAR (BOTTOM) ===== */
+  .exec-bar {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 16px;
+    background: var(--bg-darkest);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    gap: 16px;
+    flex-shrink: 0;
+    font-family: var(--mono);
+  }
+
+  .exec-stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .exec-stat .es-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .exec-stat .es-dot.green { background: var(--green); }
+  .exec-stat .es-dot.amber { background: var(--amber); }
+  .exec-stat .es-dot.cyan { background: var(--cyan); box-shadow: 0 0 6px rgba(0,209,255,0.3); }
+
+  .exec-bar .exec-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes pulse-border {
+    0%, 100% { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0,209,255,0.15); }
+    50% { border-color: rgba(0,209,255,0.5); box-shadow: 0 0 0 4px rgba(0,209,255,0.08); }
+  }
+  .wf-node.running {
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes flow-dash {
+    to { stroke-dashoffset: -12; }
+  }
+  .edges-layer path.running {
+    stroke: var(--cyan);
+    stroke-width: 2;
+    stroke-dasharray: 6, 6;
+    animation: flow-dash 0.6s linear infinite;
+    filter: drop-shadow(0 0 3px rgba(0,209,255,0.3));
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-title">
+    <span class="wf-icon">&#9889;</span>
+    Smart Line Lead Qualifier
+  </div>
+  <span class="toolbar-badge">ACTIVE</span>
+  <span class="toolbar-badge draft">DRAFT v2.4</span>
+  <span class="toolbar-sep"></span>
+  <span class="toolbar-meta">12 nodes &middot; 3 branches</span>
+  <div class="toolbar-actions">
+    <button class="toolbar-btn" onclick="resetDemo()">&#8635; Reset</button>
+    <button class="toolbar-btn test" onclick="runSimulation()">&#9654; Test Run</button>
+    <button class="toolbar-btn">&#128190; Commit</button>
+    <button class="toolbar-btn primary">&#9650; Publish</button>
+  </div>
+</div>
+
+<!-- MAIN 3-PANEL -->
+<div class="main">
+
+  <!-- NODE PALETTE -->
+  <div class="palette">
+    <div class="palette-search">
+      <input type="text" placeholder="Search nodes..." id="nodeSearch" oninput="filterPalette(this.value)">
+    </div>
+    <div class="palette-body" id="paletteBody">
+      <div class="palette-section-label">TRIGGERS</div>
+      <div class="palette-item" draggable="true" data-type="inbound_message"><span class="node-dot trigger"></span><span class="node-icon">&#128172;</span> Inbound Message</div>
+      <div class="palette-item" draggable="true" data-type="form_submitted"><span class="node-dot trigger"></span><span class="node-icon">&#128203;</span> Form Submitted</div>
+      <div class="palette-item" draggable="true" data-type="stage_change"><span class="node-dot trigger"></span><span class="node-icon">&#10148;</span> Stage Change</div>
+      <div class="palette-item" draggable="true" data-type="task_created"><span class="node-dot trigger"></span><span class="node-icon">&#9745;</span> Task Created</div>
+      <div class="palette-item" draggable="true" data-type="schedule"><span class="node-dot trigger"></span><span class="node-icon">&#128339;</span> Schedule</div>
+      <div class="palette-item" draggable="true" data-type="record_updated"><span class="node-dot trigger"></span><span class="node-icon">&#9998;</span> Record Updated</div>
+      <div class="palette-item" draggable="true" data-type="webhook"><span class="node-dot trigger"></span><span class="node-icon">&#9889;</span> Webhook</div>
+      <div class="palette-item" draggable="true" data-type="attachment"><span class="node-dot trigger"></span><span class="node-icon">&#128206;</span> Attachment Received</div>
+
+      <div class="palette-section-label">FUNCTIONS</div>
+      <div class="palette-item" draggable="true" data-type="branch"><span class="node-dot function"></span><span class="node-icon">&#128268;</span> Branch</div>
+      <div class="palette-item" draggable="true" data-type="delay"><span class="node-dot function"></span><span class="node-icon">&#9203;</span> Delay</div>
+      <div class="palette-item" draggable="true" data-type="batch"><span class="node-dot function"></span><span class="node-icon">&#128218;</span> Batch</div>
+      <div class="palette-item" draggable="true" data-type="throttle"><span class="node-dot function"></span><span class="node-icon">&#128680;</span> Throttle</div>
+      <div class="palette-item" draggable="true" data-type="fetch"><span class="node-dot function"></span><span class="node-icon">&#127760;</span> Fetch</div>
+      <div class="palette-item" draggable="true" data-type="ai_classify"><span class="node-dot ai"></span><span class="node-icon">&#129504;</span> AI Classify</div>
+      <div class="palette-item" draggable="true" data-type="ai_generate"><span class="node-dot ai"></span><span class="node-icon">&#10024;</span> AI Generate</div>
+      <div class="palette-item" draggable="true" data-type="transform"><span class="node-dot function"></span><span class="node-icon">&#128256;</span> Transform</div>
+      <div class="palette-item" draggable="true" data-type="loop"><span class="node-dot function"></span><span class="node-icon">&#128257;</span> Loop</div>
+
+      <div class="palette-section-label">ACTIONS</div>
+      <div class="palette-item" draggable="true" data-type="send_message"><span class="node-dot action"></span><span class="node-icon">&#128172;</span> Send Message</div>
+      <div class="palette-item" draggable="true" data-type="create_task"><span class="node-dot action"></span><span class="node-icon">&#10133;</span> Create Task</div>
+      <div class="palette-item" draggable="true" data-type="create_vault"><span class="node-dot action"></span><span class="node-icon">&#128193;</span> Create Vault</div>
+      <div class="palette-item" draggable="true" data-type="update_record"><span class="node-dot action"></span><span class="node-icon">&#128190;</span> Update Record</div>
+      <div class="palette-item" draggable="true" data-type="assign"><span class="node-dot action"></span><span class="node-icon">&#128100;</span> Assign</div>
+      <div class="palette-item" draggable="true" data-type="notify"><span class="node-dot action"></span><span class="node-icon">&#128276;</span> Notify</div>
+      <div class="palette-item" draggable="true" data-type="route_pool"><span class="node-dot action"></span><span class="node-icon">&#128101;</span> Route to Pool</div>
+      <div class="palette-item" draggable="true" data-type="conv_ask"><span class="node-dot action" style="background:var(--purple)"></span><span class="node-icon">&#128488;</span> Conversational Ask</div>
+      <div class="palette-item" draggable="true" data-type="set_sla"><span class="node-dot action"></span><span class="node-icon">&#9201;</span> Set SLA</div>
+      <div class="palette-item" draggable="true" data-type="log_event"><span class="node-dot action"></span><span class="node-icon">&#128196;</span> Log Event</div>
+    </div>
+    <div class="palette-tabs">
+      <div class="palette-tab active">Nodes</div>
+      <div class="palette-tab">Vars</div>
+      <div class="palette-tab">Logs</div>
+      <div class="palette-tab">Templates</div>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-area" id="canvasArea">
+    <svg class="edges-layer" id="edgesLayer"></svg>
+    <div class="canvas-inner" id="canvasInner"></div>
+
+    <div class="canvas-controls">
+      <button class="canvas-ctrl-btn" title="Zoom out">&#8722;</button>
+      <span class="canvas-zoom-label">100%</span>
+      <button class="canvas-ctrl-btn" title="Zoom in">&#43;</button>
+      <button class="canvas-ctrl-btn" title="Fit view">&#9634;</button>
+      <button class="canvas-ctrl-btn" title="Auto layout">&#9776;</button>
+    </div>
+
+    <div class="minimap" id="minimap">
+      <div class="mm-nodes" id="mmNodes"></div>
+    </div>
+  </div>
+
+  <!-- PROPERTIES PANEL -->
+  <div class="props-panel" id="propsPanel">
+    <div id="propsContent"></div>
+  </div>
+
+</div>
+
+<!-- EXECUTION BAR -->
+<div class="exec-bar">
+  <div class="exec-stat"><span class="es-dot green"></span> Active</div>
+  <span>Last run: <span id="lastRun">4m ago</span></span>
+  <span>Today: <span style="color:var(--text-primary)">47</span> contacts processed</span>
+  <span>Errors: <span style="color:var(--green)">0</span></span>
+  <div class="exec-right">
+    <span>Avg time: <span style="color:var(--text-primary)">3.2s</span></span>
+    <span>Version: <span style="color:var(--text-primary)">v2.3</span></span>
+  </div>
+</div>
+
+<script>
+// ===================================================================
+// WORKFLOW BUILDER DEMO — "Smart Line Lead Qualifier"
+// ===================================================================
+
+// Node definitions for the demo workflow
+var NODES = [
+  {
+    id: 'trigger-1',
+    type: 'trigger',
+    category: 'trigger',
+    icon: '&#128172;',
+    typeName: 'INBOUND MESSAGE',
+    label: 'Smart Line Message',
+    desc: 'Any message to (310) 555-0142',
+    meta: [{ text: 'Smart Line', cls: 'smart-line' }],
+    x: 320, y: 30,
+    outputs: [{ label: 'message received', to: 'fetch-1' }]
+  },
+  {
+    id: 'fetch-1',
+    type: 'function',
+    category: 'function',
+    icon: '&#127760;',
+    typeName: 'FETCH',
+    label: 'Phone # Lookup',
+    desc: 'Search vault_contacts by phone',
+    meta: [],
+    x: 320, y: 150,
+    outputs: [{ label: 'result', to: 'branch-1' }]
+  },
+  {
+    id: 'branch-1',
+    type: 'function',
+    category: 'function',
+    icon: '&#128268;',
+    typeName: 'BRANCH',
+    label: 'Known Contact?',
+    desc: 'Check if phone matched a record',
+    meta: [],
+    x: 320, y: 270,
+    outputs: [
+      { label: 'YES — existing contact', to: 'assign-1' },
+      { label: 'NO — new prospect', to: 'conv-1' }
+    ]
+  },
+  {
+    id: 'assign-1',
+    type: 'action',
+    category: 'action',
+    icon: '&#128100;',
+    typeName: 'ASSIGN',
+    label: 'Route to Rep',
+    desc: 'Assign to account owner',
+    meta: [],
+    x: 100, y: 400,
+    outputs: [{ label: 'assigned', to: 'notify-1' }]
+  },
+  {
+    id: 'notify-1',
+    type: 'action',
+    category: 'action',
+    icon: '&#128276;',
+    typeName: 'NOTIFY',
+    label: 'Alert Rep',
+    desc: 'Push notification via Novu',
+    meta: [],
+    x: 100, y: 520,
+    outputs: []
+  },
+  {
+    id: 'conv-1',
+    type: 'conv',
+    category: 'action',
+    icon: '&#128488;',
+    typeName: 'CONVERSATIONAL ASK',
+    label: '"What brings you here?"',
+    desc: 'AI-guided qualification question',
+    meta: [{ text: 'AI Parse', cls: 'ai-model' }],
+    x: 490, y: 400,
+    outputs: [{ label: 'response received', to: 'ai-1' }]
+  },
+  {
+    id: 'ai-1',
+    type: 'ai',
+    category: 'function',
+    icon: '&#129504;',
+    typeName: 'AI CLASSIFY',
+    label: 'Score & Classify',
+    desc: 'Intent + lead score from conversation',
+    meta: [{ text: 'Claude Haiku', cls: 'ai-model' }],
+    x: 490, y: 530,
+    outputs: [{ label: 'classified', to: 'branch-2' }]
+  },
+  {
+    id: 'branch-2',
+    type: 'function',
+    category: 'function',
+    icon: '&#128268;',
+    typeName: 'BRANCH',
+    label: 'Lead Score Route',
+    desc: 'Route by qualification score',
+    meta: [],
+    x: 490, y: 650,
+    outputs: [
+      { label: 'Score >= 80 (Hot)', to: 'vault-1' },
+      { label: 'Score 50-79 (Warm)', to: 'pool-1' },
+      { label: 'Score < 50 (Cold)', to: 'msg-nurture' }
+    ]
+  },
+  {
+    id: 'vault-1',
+    type: 'action',
+    category: 'action',
+    icon: '&#128193;',
+    typeName: 'CREATE VAULT',
+    label: 'Create Lead Vault',
+    desc: 'Hot lead → assign AE directly',
+    meta: [],
+    x: 280, y: 790,
+    outputs: [{ label: 'created', to: 'msg-hot' }]
+  },
+  {
+    id: 'msg-hot',
+    type: 'action',
+    category: 'action',
+    icon: '&#128172;',
+    typeName: 'SEND MESSAGE',
+    label: '"Sarah will reach out..."',
+    desc: 'Confirmation via iMessage',
+    meta: [{ text: 'Smart Line', cls: 'smart-line' }],
+    x: 280, y: 910,
+    outputs: []
+  },
+  {
+    id: 'pool-1',
+    type: 'action',
+    category: 'action',
+    icon: '&#128101;',
+    typeName: 'ROUTE TO POOL',
+    label: 'SDR Pool',
+    desc: 'Round-robin to available SDR',
+    meta: [{ text: 'Pool', cls: 'pool' }],
+    x: 500, y: 790,
+    outputs: [{ label: 'claimed', to: 'msg-warm' }]
+  },
+  {
+    id: 'msg-warm',
+    type: 'action',
+    category: 'action',
+    icon: '&#128172;',
+    typeName: 'SEND MESSAGE',
+    label: '"Thanks! One of our team..."',
+    desc: 'Intro via iMessage',
+    meta: [{ text: 'Smart Line', cls: 'smart-line' }],
+    x: 500, y: 910,
+    outputs: []
+  },
+  {
+    id: 'msg-nurture',
+    type: 'action',
+    category: 'action',
+    icon: '&#128172;',
+    typeName: 'SEND MESSAGE',
+    label: '"Here are some resources..."',
+    desc: 'Nurture content + link',
+    meta: [{ text: 'Smart Line', cls: 'smart-line' }],
+    x: 720, y: 790,
+    outputs: [{ label: 'sent', to: 'delay-1' }]
+  },
+  {
+    id: 'delay-1',
+    type: 'function',
+    category: 'function',
+    icon: '&#9203;',
+    typeName: 'DELAY',
+    label: 'Wait 3 Days',
+    desc: 'Re-engage after cooling period',
+    meta: [{ text: '3 days', cls: 'delay' }],
+    x: 720, y: 910,
+    outputs: []
+  }
+];
+
+// Build node ID → node map
+var nodeMap = {};
+NODES.forEach(function(n) { nodeMap[n.id] = n; });
+
+// Selected node state
+var selectedNodeId = null;
+
+// ===== RENDER NODES =====
+function renderNodes() {
+  var canvas = document.getElementById('canvasInner');
+  canvas.innerHTML = '';
+
+  NODES.forEach(function(node) {
+    var el = document.createElement('div');
+    el.className = 'wf-node' + (selectedNodeId === node.id ? ' selected' : '');
+    el.id = 'node-' + node.id;
+    el.style.left = node.x + 'px';
+    el.style.top = node.y + 'px';
+    el.onclick = function(e) { e.stopPropagation(); selectNode(node.id); };
+
+    var html = '<div class="node-input-handle"></div>';
+    html += '<div class="node-header ' + node.type + '">';
+    html += '<span class="h-icon">' + node.icon + '</span>';
+    html += node.typeName;
+    if (node.type === 'ai') html += '<span class="h-badge">AI</span>';
+    if (node.type === 'conv') html += '<span class="h-badge">CONV</span>';
+    html += '</div>';
+
+    html += '<div class="node-body">';
+    html += '<div class="node-label">' + node.label + '</div>';
+    html += '<div class="node-desc">' + node.desc + '</div>';
+    html += '</div>';
+
+    if (node.meta && node.meta.length > 0) {
+      html += '<div class="node-meta">';
+      node.meta.forEach(function(m) {
+        html += '<span class="meta-pill ' + m.cls + '">' + m.text + '</span>';
+      });
+      html += '</div>';
+    }
+
+    if (node.outputs && node.outputs.length > 0) {
+      html += '<div class="node-outputs">';
+      node.outputs.forEach(function(out, i) {
+        html += '<div class="node-output">';
+        html += '<span class="out-label">' + out.label + '</span>';
+        html += '<span class="out-dot"></span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+    canvas.appendChild(el);
+  });
+
+  renderEdges();
+  renderMinimap();
+}
+
+// ===== RENDER EDGES (SVG) =====
+function renderEdges() {
+  var svg = document.getElementById('edgesLayer');
+  svg.innerHTML = '';
+
+  NODES.forEach(function(node) {
+    if (!node.outputs) return;
+    node.outputs.forEach(function(out, outIdx) {
+      if (!out.to) return;
+      var target = nodeMap[out.to];
+      if (!target) return;
+
+      // Calculate positions
+      var nodeEl = document.getElementById('node-' + node.id);
+      var targetEl = document.getElementById('node-' + target.id);
+      if (!nodeEl || !targetEl) return;
+
+      var totalOutputs = node.outputs.length;
+      var outputSection = nodeEl.querySelector('.node-outputs');
+      var outputItems = nodeEl.querySelectorAll('.node-output');
+
+      // Source: right side of the output row
+      var sx = node.x + 180; // right edge
+      var outputTop = 0;
+      if (outputItems[outIdx]) {
+        var nodeRect = nodeEl.getBoundingClientRect();
+        var outRect = outputItems[outIdx].getBoundingClientRect();
+        outputTop = outRect.top - nodeRect.top + outRect.height / 2;
+      } else {
+        outputTop = nodeEl.offsetHeight - 10;
+      }
+      var sy = node.y + outputTop;
+
+      // Target: top center
+      var tx = target.x + 90; // center
+      var ty = target.y;
+
+      // Draw bezier curve
+      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      var midY = (sy + ty) / 2;
+      var d = 'M ' + sx + ' ' + sy
+        + ' C ' + sx + ' ' + midY
+        + ', ' + tx + ' ' + midY
+        + ', ' + tx + ' ' + ty;
+      path.setAttribute('d', d);
+      path.setAttribute('data-from', node.id);
+      path.setAttribute('data-to', out.to);
+      svg.appendChild(path);
+    });
+  });
+}
+
+// ===== MINIMAP =====
+function renderMinimap() {
+  var mm = document.getElementById('mmNodes');
+  mm.innerHTML = '';
+
+  // Scale factor
+  var minX = 999, minY = 999, maxX = 0, maxY = 0;
+  NODES.forEach(function(n) {
+    if (n.x < minX) minX = n.x;
+    if (n.y < minY) minY = n.y;
+    if (n.x + 180 > maxX) maxX = n.x + 180;
+    if (n.y + 100 > maxY) maxY = n.y + 100;
+  });
+
+  var rangeX = maxX - minX + 40;
+  var rangeY = maxY - minY + 40;
+  var scaleX = 140 / rangeX;
+  var scaleY = 90 / rangeY;
+  var scale = Math.min(scaleX, scaleY);
+
+  NODES.forEach(function(n) {
+    var dot = document.createElement('div');
+    dot.className = 'mm-dot';
+    dot.style.left = ((n.x - minX + 20) * scale) + 'px';
+    dot.style.top = ((n.y - minY + 20) * scale) + 'px';
+    dot.style.width = (180 * scale) + 'px';
+    dot.style.height = (40 * scale) + 'px';
+
+    var colors = { trigger: 'var(--node-trigger)', function: 'var(--node-function)', action: 'var(--node-action)', ai: 'var(--node-ai)', conv: 'var(--purple)' };
+    dot.style.background = colors[n.type] || 'var(--border-light)';
+    mm.appendChild(dot);
+  });
+
+  // Viewport indicator
+  var vp = document.createElement('div');
+  vp.className = 'mm-viewport';
+  vp.style.left = '10%'; vp.style.top = '10%';
+  vp.style.width = '70%'; vp.style.height = '70%';
+  mm.appendChild(vp);
+}
+
+// ===== SELECT NODE — Show properties =====
+function selectNode(nodeId) {
+  selectedNodeId = nodeId;
+  renderNodes();
+  renderPropsPanel(nodeId);
+}
+
+function renderPropsPanel(nodeId) {
+  var node = nodeMap[nodeId];
+  if (!node) return;
+  var c = document.getElementById('propsContent');
+
+  var colors = {
+    trigger: { bg: 'var(--node-trigger-dim)', color: 'var(--node-trigger)' },
+    function: { bg: 'var(--node-function-dim)', color: 'var(--node-function)' },
+    action: { bg: 'var(--node-action-dim)', color: 'var(--node-action)' },
+    ai: { bg: 'var(--node-ai-dim)', color: 'var(--node-ai)' },
+    conv: { bg: 'var(--node-conv-dim)', color: 'var(--purple)' }
+  };
+  var clr = colors[node.type] || colors.function;
+
+  var html = '<div class="props-header">';
+  html += '<div class="ph-icon" style="background:' + clr.bg + ';color:' + clr.color + '">' + node.icon + '</div>';
+  html += '<div class="ph-title">' + node.label + '</div>';
+  html += '<span class="ph-type" style="background:' + clr.bg + ';color:' + clr.color + '">' + node.typeName + '</span>';
+  html += '<button class="close-btn" onclick="deselectNode()">&times;</button>';
+  html += '</div>';
+
+  html += '<div class="props-body">';
+
+  // Render different content based on node type
+  if (nodeId === 'trigger-1') {
+    html += renderTriggerProps(node);
+  } else if (nodeId === 'ai-1') {
+    html += renderAIClassifyProps(node);
+  } else if (nodeId === 'branch-1') {
+    html += renderBranchProps(node, ['contact != null'], ['contact == null']);
+  } else if (nodeId === 'branch-2') {
+    html += renderScoreBranchProps(node);
+  } else if (nodeId === 'conv-1') {
+    html += renderConvAskProps(node);
+  } else if (nodeId === 'pool-1') {
+    html += renderPoolProps(node);
+  } else if (nodeId === 'fetch-1') {
+    html += renderFetchProps(node);
+  } else {
+    html += renderGenericProps(node);
+  }
+
+  html += '</div>';
+
+  html += '<div class="props-footer">';
+  html += '<button onclick="deselectNode()">Close</button>';
+  html += '<button class="del">Delete Node</button>';
+  html += '</div>';
+
+  c.innerHTML = html;
+}
+
+// ===== PROPERTY PANEL RENDERERS =====
+
+function renderTriggerProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">TRIGGER TYPE</div>'
+    + '<select class="prop-select"><option selected>Inbound Message</option><option>Form Submitted</option><option>Webhook</option></select>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">SMART LINE NUMBERS</div>'
+    + '<div class="prop-chip">(310) 555-0142 <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip">(415) 555-9021 <span class="chip-x">&times;</span></div>'
+    + '<button class="add-btn">+ Add number</button>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">CHANNEL FILTER</div>'
+    + '<div class="prop-chip">iMessage <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip">SMS <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip">Web Widget <span class="chip-x">&times;</span></div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">OUTPUT VARIABLES</div>'
+    + '<div class="mapping-row"><span class="mapping-from">message.body</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">trigger_data.body</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">message.from</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">trigger_data.phone</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">message.channel</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">trigger_data.channel</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">message.media</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">trigger_data.attachments</span></div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">ENROLLMENT</div>'
+    + '<div class="prop-row"><span class="prop-label" style="width:auto">Active contacts today</span> <span style="color:var(--text-primary);font-family:var(--mono)">47</span></div>'
+    + '<div class="prop-row"><span class="prop-label" style="width:auto">This week</span> <span style="color:var(--text-primary);font-family:var(--mono)">312</span></div>'
+    + '</div>';
+}
+
+function renderAIClassifyProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">PROMPT TEMPLATE</div>'
+    + '<textarea class="prop-textarea">Classify the following iMessage conversation.\n\nMessage: {{trigger_data.body}}\nPrior context: {{contact.history}}\n\nDetermine:\n1. Intent: sales | support | legal | general\n2. Lead score: 0-100 based on urgency, budget signals, decision-maker indicators\n3. Sentiment: positive | neutral | negative</textarea>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-row"><div class="prop-label" style="width:80px">MODEL</div><select class="prop-select" style="flex:1"><option>Claude 3.5 Haiku</option><option selected>Claude 3.5 Sonnet</option><option>GPT-4o mini</option></select></div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:80px">CONFIDENCE</div><input class="prop-input" style="flex:1" type="number" value="0.7" step="0.1" min="0" max="1"></div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">OUTPUT MAPPING</div>'
+    + '<div class="mapping-row"><span class="mapping-from">intent</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">variables.intent</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">lead_score</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">variables.score</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">sentiment</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">variables.sentiment</span></div>'
+    + '<button class="add-btn">+ Add mapping</button>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">TEST RESULT</div>'
+    + '<div class="test-result">'
+    + '<div class="tr-label">Last test (sample data)</div>'
+    + '<div><span class="tr-val">intent: "sales"</span> <span class="tr-conf">(0.94)</span></div>'
+    + '<div><span class="tr-val">lead_score: 82</span></div>'
+    + '<div><span class="tr-val">sentiment: "positive"</span> <span class="tr-conf">(0.88)</span></div>'
+    + '</div>'
+    + '</div>';
+}
+
+function renderBranchProps(node, yesConds, noConds) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">PATH 1 — YES (Existing Contact)</div>'
+    + '<div class="condition-row"><span class="condition-field">contact</span> <span class="condition-op">!=</span> <span class="condition-val">null</span></div>'
+    + '<button class="add-btn">+ Add condition</button>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">PATH 2 — NO (New Prospect)</div>'
+    + '<div class="condition-row"><span class="condition-field">contact</span> <span class="condition-op">==</span> <span class="condition-val">null</span></div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<button class="add-btn">+ Add Path (max 10)</button>'
+    + '</div>';
+}
+
+function renderScoreBranchProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">PATH 1 — HOT (Score >= 80)</div>'
+    + '<div class="condition-row"><span class="condition-field">variables.score</span> <span class="condition-op">&gt;=</span> <span class="condition-val">80</span></div>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">PATH 2 — WARM (Score 50-79)</div>'
+    + '<div class="condition-row"><span class="condition-field">variables.score</span> <span class="condition-op">&gt;=</span> <span class="condition-val">50</span></div>'
+    + '<div class="condition-row"><span class="condition-field">variables.score</span> <span class="condition-op">&lt;</span> <span class="condition-val">80</span></div>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">PATH 3 — COLD (Default)</div>'
+    + '<div class="condition-row" style="color:var(--text-muted);font-style:italic">No conditions (catch-all)</div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<button class="add-btn">+ Add Path (max 10)</button>'
+    + '</div>';
+}
+
+function renderConvAskProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">QUESTION</div>'
+    + '<textarea class="prop-textarea" style="min-height:60px">Hi! Thanks for reaching out. What brings you to {{workspace.name}}?\n\nI can help with:\n1. Contract management\n2. Deal flow & pipeline\n3. General inquiry</textarea>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-row"><div class="prop-label" style="width:100px">RESPONSE TYPE</div><select class="prop-select" style="flex:1"><option selected>Free text (AI parse)</option><option>Multiple choice</option><option>Number</option><option>Yes/No</option></select></div>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">AI PARSE RESPONSE</div>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+    + '<input type="checkbox" checked id="aiParse" style="accent-color:var(--cyan)">'
+    + '<label for="aiParse" style="font-size:11px;color:var(--text-secondary)">Use AI to classify response into categories</label>'
+    + '</div>'
+    + '<div class="prop-chip">contracts <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip">deals <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip">general <span class="chip-x">&times;</span></div>'
+    + '<button class="add-btn">+ Add category</button>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">TIMEOUT</div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:60px">Wait</div><input class="prop-input" style="width:60px" value="24"><select class="prop-select" style="width:80px"><option>minutes</option><option selected>hours</option><option>days</option></select></div>'
+    + '<div style="font-size:10px;color:var(--text-muted);margin-top:4px">On timeout: Send reminder message</div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">OUTPUT</div>'
+    + '<div class="mapping-row"><span class="mapping-from">response</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">variables.interest</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">parsed_category</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">variables.category</span></div>'
+    + '</div>';
+}
+
+function renderPoolProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">POOL</div>'
+    + '<select class="prop-select"><option selected>SDR Team — West Coast</option><option>SDR Team — East Coast</option><option>Enterprise AE Pool</option><option>Support Team</option></select>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">ASSIGNMENT STRATEGY</div>'
+    + '<select class="prop-select"><option selected>Round-robin</option><option>Least busy</option><option>Territory match</option><option>Random</option></select>'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">POOL MEMBERS</div>'
+    + '<div class="prop-chip" style="border-color:var(--green-dim)"><span style="color:var(--green)">&#9679;</span> Sarah Kim <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip" style="border-color:var(--green-dim)"><span style="color:var(--green)">&#9679;</span> Mike Chen <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip" style="border-color:var(--amber-dim)"><span style="color:var(--amber)">&#9679;</span> Alex Rivera <span class="chip-x">&times;</span></div>'
+    + '<div class="prop-chip" style="border-color:var(--border)"><span style="color:var(--text-muted)">&#9679;</span> Chris Park <span class="chip-x">&times;</span></div>'
+    + '<div style="font-size:10px;color:var(--text-muted);margin-top:4px">2 online &middot; 1 busy &middot; 1 offline</div>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">SLA</div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:100px">First response</div><input class="prop-input" style="width:60px" value="5"><span style="font-size:11px;color:var(--text-muted)">minutes</span></div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:100px">Escalation</div><select class="prop-select" style="flex:1"><option selected>Reassign to next agent</option><option>Notify manager</option><option>Route to overflow pool</option></select></div>'
+    + '</div>';
+}
+
+function renderFetchProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">REQUEST</div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:60px">Method</div><select class="prop-select" style="flex:1"><option selected>GET</option><option>POST</option></select></div>'
+    + '<div class="prop-label" style="margin-top:8px">URL</div>'
+    + '<input class="prop-input" value="/api/contacts?phone={{trigger_data.phone}}" style="font-family:var(--mono);font-size:10px">'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">RESPONSE MAPPING</div>'
+    + '<div class="mapping-row"><span class="mapping-from">data[0]</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">contact</span></div>'
+    + '<div class="mapping-row"><span class="mapping-from">data[0].vault_id</span> <span class="mapping-arrow">&rarr;</span> <span class="mapping-to">vault</span></div>'
+    + '<button class="add-btn">+ Add mapping</button>'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">ERROR HANDLING</div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:60px">Retries</div><input class="prop-input" style="width:50px" value="3"></div>'
+    + '<div class="prop-row"><div class="prop-label" style="width:60px">On fail</div><select class="prop-select" style="flex:1"><option selected>Continue (contact = null)</option><option>Stop workflow</option><option>Take error path</option></select></div>'
+    + '</div>';
+}
+
+function renderGenericProps(node) {
+  return '<div class="prop-section">'
+    + '<div class="prop-label">NODE LABEL</div>'
+    + '<input class="prop-input" value="' + node.label + '">'
+    + '</div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">DESCRIPTION</div>'
+    + '<input class="prop-input" value="' + node.desc + '">'
+    + '</div>'
+    + '<div class="prop-divider"></div>'
+    + '<div class="prop-section">'
+    + '<div class="prop-label">CONFIGURATION</div>'
+    + '<div style="font-size:11px;color:var(--text-muted);padding:12px;background:var(--bg-input);border-radius:var(--radius-sm);text-align:center">Click to configure this ' + node.typeName.toLowerCase() + ' node</div>'
+    + '</div>';
+}
+
+function deselectNode() {
+  selectedNodeId = null;
+  renderNodes();
+  var c = document.getElementById('propsContent');
+  c.innerHTML = '<div class="props-header" style="border-bottom:none">'
+    + '<div class="ph-title" style="color:var(--text-muted)">Select a node to edit</div>'
+    + '</div>'
+    + '<div class="props-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-muted)">'
+    + '<div style="font-size:32px;opacity:0.3">&#128268;</div>'
+    + '<div style="font-size:12px;text-align:center;line-height:1.6">Click any node on the canvas<br>to view and edit its properties</div>'
+    + '<div style="font-size:10px;margin-top:8px;padding:6px 10px;background:var(--bg-input);border-radius:var(--radius-sm);border:1px solid var(--border)">Drag nodes from the left palette<br>onto the canvas to add them</div>'
+    + '</div>';
+}
+
+// ===== PALETTE FILTER =====
+function filterPalette(query) {
+  query = query.toLowerCase();
+  var items = document.querySelectorAll('.palette-item');
+  items.forEach(function(item) {
+    var text = item.textContent.toLowerCase();
+    item.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+// ===== SIMULATION (Test Run) =====
+var simRunning = false;
+var simStep = 0;
+
+// Execution path for the "new prospect" branch
+var simPath = [
+  { nodeId: 'trigger-1', edge: 'fetch-1', delay: 600 },
+  { nodeId: 'fetch-1', edge: 'branch-1', delay: 800 },
+  { nodeId: 'branch-1', edge: 'conv-1', delay: 500 },   // takes NO branch
+  { nodeId: 'conv-1', edge: 'ai-1', delay: 1500 },
+  { nodeId: 'ai-1', edge: 'branch-2', delay: 1200 },
+  { nodeId: 'branch-2', edge: 'vault-1', delay: 400 },    // takes HOT branch
+  { nodeId: 'vault-1', edge: 'msg-hot', delay: 600 },
+  { nodeId: 'msg-hot', edge: null, delay: 400 }
+];
+
+function runSimulation() {
+  if (simRunning) return;
+  simRunning = true;
+  simStep = 0;
+  resetNodeStates();
+  document.getElementById('lastRun').textContent = 'running...';
+  document.getElementById('lastRun').style.color = 'var(--cyan)';
+  stepSimulation();
+}
+
+function stepSimulation() {
+  if (simStep >= simPath.length) {
+    simRunning = false;
+    document.getElementById('lastRun').textContent = 'just now';
+    document.getElementById('lastRun').style.color = 'var(--green)';
+    return;
+  }
+
+  var step = simPath[simStep];
+  var nodeEl = document.getElementById('node-' + step.nodeId);
+  if (nodeEl) {
+    // Remove running from previous
+    document.querySelectorAll('.wf-node.running').forEach(function(el) {
+      el.classList.remove('running');
+      el.classList.add('completed');
+    });
+    nodeEl.classList.add('running');
+
+    // Select this node to show props
+    selectedNodeId = step.nodeId;
+    renderPropsPanel(step.nodeId);
+    // Update the selected visual on nodes
+    document.querySelectorAll('.wf-node.selected').forEach(function(el) { el.classList.remove('selected'); });
+    nodeEl.classList.add('selected');
+  }
+
+  // Animate edge
+  if (step.edge) {
+    var paths = document.querySelectorAll('.edges-layer path');
+    paths.forEach(function(p) {
+      if (p.getAttribute('data-from') === step.nodeId && p.getAttribute('data-to') === step.edge) {
+        p.classList.add('running');
+        setTimeout(function() {
+          p.classList.remove('running');
+          p.classList.add('completed');
+        }, step.delay - 100);
+      }
+    });
+  }
+
+  simStep++;
+  setTimeout(stepSimulation, step.delay);
+}
+
+function resetNodeStates() {
+  document.querySelectorAll('.wf-node').forEach(function(el) {
+    el.classList.remove('running', 'completed');
+  });
+  document.querySelectorAll('.edges-layer path').forEach(function(el) {
+    el.classList.remove('running', 'completed', 'active');
+  });
+}
+
+function resetDemo() {
+  simRunning = false;
+  simStep = 0;
+  selectedNodeId = null;
+  resetNodeStates();
+  deselectNode();
+  renderNodes();
+  document.getElementById('lastRun').textContent = '4m ago';
+  document.getElementById('lastRun').style.color = '';
+}
+
+// ===== CANVAS CLICK (deselect) =====
+document.getElementById('canvasArea').addEventListener('click', function(e) {
+  if (e.target === this || e.target.id === 'canvasInner' || e.target.tagName === 'svg') {
+    deselectNode();
+  }
+});
+
+// ===== INIT =====
+renderNodes();
+// Pre-select trigger node
+selectNode('trigger-1');
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Inbox - Airlock</title>
+<style>
+:root {
+  --bg-darkest: #0d1017;
+  --bg-page: #12161f;
+  --bg-input: #161b28;
+  --bg-panel: #1a1f2e;
+  --bg-card: #1e2436;
+  --bg-card-hover: #242b3d;
+  --bg-input-focus: #1c2235;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #6b7280;
+  --accent-blue: #0091ea;
+  --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50;
+  --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800;
+  --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336;
+  --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a;
+  --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2;
+  --purple-dim: rgba(123,31,162,0.12);
+  --cyan: #00bcd4;
+  --cyan-dim: rgba(0,188,212,0.12);
+  --border: #2a3040;
+  --border-light: #333b4f;
+  --border-focus: #0091ea;
+  --mono: 'SF Mono','Cascadia Code','Consolas','Monaco',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── TOOLBAR ─── */
+.inbox-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  min-height: 44px;
+}
+.inbox-toolbar-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin-right: 12px;
+}
+.inbox-filter {
+  display: flex;
+  gap: 4px;
+}
+.inbox-filter-btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+}
+.inbox-filter-btn:hover { border-color: var(--border-light); color: var(--text-secondary); }
+.inbox-filter-btn.active { background: var(--accent-blue-dim); color: var(--accent-blue); border-color: var(--accent-blue); }
+.inbox-filter-btn .filter-count {
+  font-size: 9px;
+  font-weight: 700;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+.inbox-toolbar-spacer { flex: 1; }
+.inbox-search {
+  padding: 5px 10px;
+  font-size: 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  width: 180px;
+  font-family: var(--sans);
+}
+.inbox-search:focus { border-color: var(--border-focus); }
+.inbox-search::placeholder { color: var(--text-muted); }
+
+/* ─── MAIN LAYOUT ─── */
+.inbox-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─── CONVERSATION LIST (LEFT) ─── */
+.conv-list {
+  width: 340px;
+  min-width: 340px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--bg-panel);
+}
+.conv-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s;
+  position: relative;
+}
+.conv-item:hover { background: var(--bg-card); }
+.conv-item.active { background: var(--accent-blue-dim); border-left: 2px solid var(--accent-blue); }
+.conv-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+}
+.conv-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+.conv-body { flex: 1; min-width: 0; }
+.conv-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.conv-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conv-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.conv-preview {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.conv-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.conv-channel-badge {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.conv-channel-badge.imessage { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.conv-channel-badge.sms { background: var(--green-dim); color: var(--green); }
+.conv-channel-badge.email { background: var(--purple-dim); color: var(--purple); }
+.conv-channel-badge.call { background: var(--amber-dim); color: var(--amber); }
+.conv-channel-badge.web { background: var(--teal-dim); color: var(--teal); }
+.conv-intent-badge {
+  font-size: 8px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.conv-intent-badge.sales { background: var(--green-dim); color: var(--green); }
+.conv-intent-badge.support { background: var(--amber-dim); color: var(--amber); }
+.conv-intent-badge.legal { background: var(--purple-dim); color: var(--purple); }
+.conv-intent-badge.general { background: var(--cyan-dim); color: var(--cyan); }
+.conv-intent-badge.urgent { background: var(--red-dim); color: var(--red); }
+.conv-attachment-indicator {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ─── CONVERSATION DETAIL (CENTER) ─── */
+.conv-detail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.conv-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  min-height: 50px;
+}
+.conv-detail-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+.conv-detail-company {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.conv-detail-badges {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.conv-detail-actions {
+  display: flex;
+  gap: 4px;
+}
+.conv-detail-action {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.15s;
+}
+.conv-detail-action:hover { border-color: var(--border-light); color: var(--text-primary); }
+.conv-detail-action.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: white; }
+.conv-detail-action.primary:hover { opacity: 0.9; }
+
+/* Message thread */
+.message-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.msg-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  position: relative;
+}
+.msg-bubble.inbound {
+  align-self: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.msg-bubble.outbound {
+  align-self: flex-end;
+  background: var(--accent-blue);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+.msg-bubble.ai-response {
+  align-self: flex-start;
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0,188,212,0.25);
+  border-bottom-left-radius: 4px;
+}
+.msg-bubble.ai-response::before {
+  content: 'AI';
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  font-size: 7px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cyan);
+  background: var(--bg-page);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+.msg-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: var(--mono);
+}
+.msg-bubble.outbound .msg-time { color: rgba(255,255,255,0.6); }
+.msg-bubble.ai-response .msg-time { color: rgba(0,188,212,0.6); }
+.msg-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius-sm);
+  margin-top: 6px;
+  font-size: 11px;
+}
+.msg-attachment-icon {
+  font-size: 16px;
+  opacity: 0.7;
+}
+.msg-attachment-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.msg-attachment-size {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.msg-system {
+  align-self: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 4px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.msg-date-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 0;
+}
+.msg-date-divider::before, .msg-date-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Composer */
+.conv-composer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.composer-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: var(--sans);
+  resize: none;
+  max-height: 100px;
+  line-height: 1.4;
+}
+.composer-input:focus { border-color: var(--border-focus); }
+.composer-input::placeholder { color: var(--text-muted); }
+.composer-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.composer-btn.attach {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.composer-btn.attach:hover { color: var(--text-secondary); border-color: var(--border-light); }
+.composer-btn.send {
+  background: var(--accent-blue);
+  color: white;
+}
+.composer-btn.send:hover { opacity: 0.9; }
+.composer-channel-indicator {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 4px;
+  align-self: center;
+}
+.composer-channel-indicator .channel-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+.composer-channel-indicator .channel-dot.imessage { background: var(--accent-blue); }
+
+/* ─── CONTACT SIDEBAR (RIGHT) ─── */
+.contact-sidebar {
+  width: 280px;
+  min-width: 280px;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--bg-panel);
+}
+.contact-header {
+  padding: 14px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.contact-avatar-lg {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  margin: 0 auto 8px;
+}
+.contact-name-lg {
+  font-size: 14px;
+  font-weight: 700;
+}
+.contact-title-lg {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.contact-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.contact-section-title {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.contact-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11px;
+}
+.contact-field-label { color: var(--text-muted); }
+.contact-field-value { color: var(--text-primary); font-weight: 500; }
+.contact-field-value.link { color: var(--accent-blue); cursor: pointer; }
+.contact-field-value.link:hover { text-decoration: underline; }
+.contact-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin: 2px 2px 2px 0;
+}
+.contact-tag.green { background: var(--green-dim); color: var(--green); }
+.contact-tag.amber { background: var(--amber-dim); color: var(--amber); }
+.contact-tag.blue { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.contact-tag.red { background: var(--red-dim); color: var(--red); }
+.contact-activity-item {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+  align-items: flex-start;
+}
+.contact-activity-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.contact-activity-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.lead-score-bar {
+  height: 4px;
+  background: var(--bg-input);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.lead-score-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.lead-score-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-top: 4px;
+}
+.ai-summary-box {
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0,188,212,0.2);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.ai-summary-label {
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cyan);
+  margin-bottom: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="inbox-toolbar">
+  <div class="inbox-toolbar-title">CRM Inbox</div>
+  <div class="inbox-filter">
+    <button class="inbox-filter-btn active" data-filter="all">All <span class="filter-count">12</span></button>
+    <button class="inbox-filter-btn" data-filter="unread">Unread <span class="filter-count">5</span></button>
+    <button class="inbox-filter-btn" data-filter="imessage">iMessage <span class="filter-count">7</span></button>
+    <button class="inbox-filter-btn" data-filter="email">Email <span class="filter-count">3</span></button>
+    <button class="inbox-filter-btn" data-filter="urgent">Urgent <span class="filter-count">2</span></button>
+  </div>
+  <div class="inbox-toolbar-spacer"></div>
+  <input type="text" class="inbox-search" placeholder="Search conversations...">
+</div>
+
+<!-- MAIN 3-PANE LAYOUT -->
+<div class="inbox-main">
+
+  <!-- LEFT: CONVERSATION LIST -->
+  <div class="conv-list" id="convList">
+    <!-- Conversations rendered by JS -->
+  </div>
+
+  <!-- CENTER: MESSAGE THREAD -->
+  <div class="conv-detail" id="convDetail">
+    <div class="conv-detail-header" id="detailHeader">
+      <!-- Rendered by JS -->
+    </div>
+    <div class="message-thread" id="messageThread">
+      <!-- Rendered by JS -->
+    </div>
+    <div class="conv-composer">
+      <button class="composer-btn attach" title="Attach file">+</button>
+      <input type="text" class="composer-input" placeholder="Reply via iMessage..." id="composerInput">
+      <div class="composer-channel-indicator">
+        <span class="channel-dot imessage"></span>iMessage
+      </div>
+      <button class="composer-btn send" title="Send">&#10148;</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: CONTACT SIDEBAR -->
+  <div class="contact-sidebar" id="contactSidebar">
+    <!-- Rendered by JS -->
+  </div>
+
+</div>
+
+<script>
+// ─── DEMO DATA ───
+var conversations = [
+  {
+    id: 1,
+    name: 'Jack Chen',
+    company: 'Nova Entertainment',
+    avatar: 'JC',
+    avatarColor: '#7e57c2',
+    channel: 'imessage',
+    intent: 'sales',
+    unread: true,
+    time: '2m ago',
+    preview: 'Hey, want to discuss the renewal terms for our distribution agreement...',
+    hasAttachment: true,
+    phone: '+1 (310) 555-1842',
+    title: 'VP Business Development',
+    leadScore: 87,
+    source: 'Smart Line',
+    lifecycle: 'opportunity',
+    tags: ['Enterprise', 'Renewal'],
+    messages: [
+      { type: 'date', text: 'Today' },
+      { type: 'system', text: 'Conversation started via Smart Line (310) 555-0142' },
+      { type: 'inbound', text: 'Hey, want to discuss the renewal terms for our distribution agreement. We have some changes we need to make before the Q3 deadline.', time: '10:14 AM' },
+      { type: 'ai', text: 'Intent detected: Contract renewal discussion. Sentiment: Positive, business-focused. Routing to assigned rep (Sarah M.).', time: '10:14 AM' },
+      { type: 'outbound', text: 'Hi Jack! Of course. I pulled up your current agreement. What changes are you looking at?', time: '10:16 AM' },
+      { type: 'inbound', text: 'Two things: we need to expand the territory to include APAC, and we want to renegotiate the split percentages for streaming revenue.', time: '10:18 AM' },
+      { type: 'inbound', text: 'I\'m attaching the markup our legal team did on the current terms.', time: '10:18 AM', attachment: { name: 'nova-markup-q3-2026.pdf', size: '2.4 MB', icon: '&#128196;' } },
+      { type: 'outbound', text: 'Got it. Let me review the markup and loop in our legal team. Can we schedule a call Thursday to walk through the changes together?', time: '10:22 AM' },
+      { type: 'inbound', text: 'Thursday works. Afternoon is better for us - maybe 2pm PT?', time: '10:24 AM' }
+    ],
+    activity: [
+      { text: 'Contract markup uploaded', color: 'var(--accent-blue)', time: '10:18 AM' },
+      { text: 'AI classified: renewal + expansion', color: 'var(--cyan)', time: '10:14 AM' },
+      { text: 'Texted via Smart Line', color: 'var(--green)', time: '10:14 AM' },
+      { text: 'Pipeline: moved to Negotiation', color: 'var(--amber)', time: 'Yesterday' }
+    ],
+    aiSummary: 'Jack wants to expand Nova\'s distribution agreement to APAC and renegotiate streaming splits before Q3. Legal markup attached. Requesting Thursday 2pm call. Positive sentiment, high priority.'
+  },
+  {
+    id: 2,
+    name: 'Lisa Wong',
+    company: 'Summit Records',
+    avatar: 'LW',
+    avatarColor: '#26a69a',
+    channel: 'imessage',
+    intent: 'general',
+    unread: true,
+    time: '15m ago',
+    preview: 'Hi! I was on your site looking at the contract management features...',
+    hasAttachment: false,
+    phone: '+1 (415) 555-9021',
+    title: 'Director of Operations',
+    leadScore: 62,
+    source: 'Web Widget',
+    lifecycle: 'mql',
+    tags: ['New Lead', 'Mid-Market'],
+    messages: [
+      { type: 'date', text: 'Today' },
+      { type: 'system', text: 'New lead from Web Widget (/pricing page)' },
+      { type: 'inbound', text: 'Hi! I was on your site looking at the contract management features. We manage about 200 contracts per quarter and it\'s getting out of hand.', time: '9:47 AM' },
+      { type: 'ai', text: 'New lead qualified: Mid-market (200 contracts/quarter). Source: web widget on /pricing page. Lead score: 62. Routing to SDR pool.', time: '9:47 AM' },
+      { type: 'outbound', text: 'Hey Lisa! Thanks for reaching out. 200 contracts per quarter is right in our sweet spot. What\'s your biggest pain point right now - is it the review process, tracking, or something else?', time: '9:49 AM' },
+      { type: 'inbound', text: 'Honestly, all of it. We\'re using spreadsheets and shared drives. Things fall through the cracks constantly.', time: '9:52 AM' },
+      { type: 'outbound', text: 'I hear that a lot. Would you be open to a 15-minute demo this week? I can show you exactly how we handle that volume.', time: '9:54 AM' }
+    ],
+    activity: [
+      { text: 'Demo requested', color: 'var(--green)', time: '9:54 AM' },
+      { text: 'Lead scored: 62 (MQL)', color: 'var(--amber)', time: '9:47 AM' },
+      { text: 'Landed from web widget', color: 'var(--teal)', time: '9:47 AM' }
+    ],
+    aiSummary: 'New lead from web widget. Summit Records manages 200 contracts/quarter using spreadsheets. Pain: things falling through cracks. Interested in a demo. Mid-market fit.'
+  },
+  {
+    id: 3,
+    name: 'Marcus Rivera',
+    company: 'Tempo Music Group',
+    avatar: 'MR',
+    avatarColor: '#ff9800',
+    channel: 'imessage',
+    intent: 'urgent',
+    unread: true,
+    time: '32m ago',
+    preview: 'We have a problem with the Henderson MSA. The effective date is wrong...',
+    hasAttachment: false,
+    phone: '+1 (212) 555-7733',
+    title: 'General Counsel',
+    leadScore: 94,
+    source: 'Dedicated Line',
+    lifecycle: 'customer',
+    tags: ['Enterprise', 'Legal', 'Escalation'],
+    messages: [
+      { type: 'date', text: 'Today' },
+      { type: 'inbound', text: 'We have a problem with the Henderson MSA. The effective date is wrong in the signed copy - it says March 1 but the board approved March 15. This needs to be corrected before the distribution goes live.', time: '9:30 AM' },
+      { type: 'ai', text: 'URGENT: Contract data correction request for Henderson MSA. Involves effective date discrepancy. Legal escalation. SLA: 2 hours for acknowledgment.', time: '9:30 AM' },
+      { type: 'outbound', text: 'Marcus, thank you for flagging this immediately. I\'m pulling up the Henderson MSA now. Let me verify the board resolution date and get a corrected copy to you today.', time: '9:35 AM' },
+      { type: 'inbound', text: 'Appreciate the quick response. The board resolution is attached if you need it for verification.', time: '9:38 AM', attachment: { name: 'board-resolution-henderson.pdf', size: '890 KB', icon: '&#128196;' } },
+      { type: 'system', text: 'Patch created: Henderson MSA effective_date 2026-03-01 -> 2026-03-15 (submitted by Sarah M.)' },
+      { type: 'outbound', text: 'Got the resolution. I\'ve submitted a correction patch and it\'s going through our verification process now. I\'ll have the corrected PDF to you by 2pm PT.', time: '9:45 AM' }
+    ],
+    activity: [
+      { text: 'Patch submitted for Henderson MSA', color: 'var(--amber)', time: '9:42 AM' },
+      { text: 'Board resolution uploaded', color: 'var(--accent-blue)', time: '9:38 AM' },
+      { text: 'URGENT escalation detected', color: 'var(--red)', time: '9:30 AM' },
+      { text: 'Acknowledged within SLA', color: 'var(--green)', time: '9:35 AM' }
+    ],
+    aiSummary: 'URGENT: Henderson MSA has incorrect effective date (March 1 vs board-approved March 15). Board resolution attached as evidence. Patch submitted, pending verification. SLA met.'
+  },
+  {
+    id: 4,
+    name: 'Sarah Park',
+    company: 'Velocity Publishing',
+    avatar: 'SP',
+    avatarColor: '#4caf50',
+    channel: 'email',
+    intent: 'sales',
+    unread: false,
+    time: '1h ago',
+    preview: 'Following up on our conversation at SXSW. We\'d love to explore...',
+    hasAttachment: false,
+    phone: '+1 (512) 555-3344',
+    title: 'Head of Partnerships',
+    leadScore: 71,
+    source: 'QR Code (SXSW)',
+    lifecycle: 'sal',
+    tags: ['Referral', 'Event Lead'],
+    messages: [
+      { type: 'date', text: 'Today' },
+      { type: 'system', text: 'Lead source: QR code scan at SXSW booth' },
+      { type: 'inbound', text: 'Following up on our conversation at SXSW. We\'d love to explore how your contract management platform could work for our publishing catalog. We have about 3,000 active agreements.', time: '8:45 AM' },
+      { type: 'ai', text: 'Enterprise lead from SXSW event. 3,000 active agreements = enterprise tier. Intent: platform evaluation. Routing to AE directly.', time: '8:45 AM' },
+      { type: 'outbound', text: 'Sarah! Great to hear from you. 3,000 agreements is exactly the scale we\'re built for. I\'d love to set up a deeper dive. Are you available next Tuesday or Wednesday?', time: '9:02 AM' }
+    ],
+    activity: [
+      { text: 'Email follow-up sent', color: 'var(--accent-blue)', time: '9:02 AM' },
+      { text: 'Lead scored: 71 (SAL)', color: 'var(--amber)', time: '8:45 AM' },
+      { text: 'QR scan at SXSW', color: 'var(--teal)', time: '8:45 AM' }
+    ],
+    aiSummary: 'SXSW event lead. Velocity Publishing has 3,000 active agreements. Interested in platform evaluation. Enterprise tier. Awaiting meeting confirmation.'
+  },
+  {
+    id: 5,
+    name: 'David Kim',
+    company: 'Horizon Audio',
+    avatar: 'DK',
+    avatarColor: '#f44336',
+    channel: 'call',
+    intent: 'support',
+    unread: true,
+    time: '45m ago',
+    preview: 'Missed call (0:42) - Voicemail transcription: "Need to check on the...',
+    hasAttachment: false,
+    phone: '+1 (323) 555-8891',
+    title: 'Catalog Manager',
+    leadScore: 78,
+    source: 'Dedicated Line',
+    lifecycle: 'customer',
+    tags: ['Support', 'Active Customer'],
+    messages: [
+      { type: 'date', text: 'Today' },
+      { type: 'system', text: 'Missed call from +1 (323) 555-8891 (0:42)' },
+      { type: 'ai', text: 'Voicemail transcription: "Need to check on the status of our Q2 batch upload. We sent 47 contracts last week and I\'m not seeing them in the system yet. Can someone call me back? Thanks." Intent: Support - batch status inquiry.', time: '9:17 AM' },
+      { type: 'system', text: 'Task created: "Call back David Kim re: Q2 batch status" (assigned to Rep, due: 1h)' }
+    ],
+    activity: [
+      { text: 'Callback task created', color: 'var(--amber)', time: '9:17 AM' },
+      { text: 'Voicemail transcribed by AI', color: 'var(--cyan)', time: '9:17 AM' },
+      { text: 'Missed call (0:42)', color: 'var(--red)', time: '9:15 AM' }
+    ],
+    aiSummary: 'Missed call with voicemail. David needs status on 47-contract batch upload from last week. Support request. Callback task created with 1-hour SLA.'
+  },
+  {
+    id: 6,
+    name: 'Emma Thompson',
+    company: 'Apex Licensing',
+    avatar: 'ET',
+    avatarColor: '#29b6f6',
+    channel: 'web',
+    intent: 'general',
+    unread: true,
+    time: '1h ago',
+    preview: 'Just submitted a form on your site about licensing solutions...',
+    hasAttachment: false,
+    phone: '+1 (650) 555-2209',
+    title: 'Operations Lead',
+    leadScore: 45,
+    source: 'Web Widget',
+    lifecycle: 'new',
+    tags: ['New Lead'],
+    messages: [
+      { type: 'date', text: 'Today' },
+      { type: 'system', text: 'New lead from Web Widget (/features/licensing page)' },
+      { type: 'inbound', text: 'Hi! I\'m interested in your licensing management tools. We\'re a small team of 8 and manage about 30 licenses.', time: '8:50 AM' },
+      { type: 'ai', text: 'New lead. Small team (8 people, 30 licenses). Below enterprise threshold. Routing to self-serve resources + SDR pool.', time: '8:50 AM' },
+      { type: 'outbound', text: 'Hey Emma! Welcome. For a team your size, our starter plan is a great fit. Here\'s a quick overview: [link]. Want me to set up a 10-minute walkthrough?', time: '9:05 AM' }
+    ],
+    activity: [
+      { text: 'Resource link sent', color: 'var(--accent-blue)', time: '9:05 AM' },
+      { text: 'Lead scored: 45 (New)', color: 'var(--text-muted)', time: '8:50 AM' },
+      { text: 'Web widget submission', color: 'var(--teal)', time: '8:50 AM' }
+    ],
+    aiSummary: 'Small team lead (8 people, 30 licenses). Below enterprise threshold. Sent starter plan resources. Low urgency.'
+  }
+];
+
+var activeConvId = 1;
+
+// ─── RENDER FUNCTIONS ───
+
+function renderConvList(filter) {
+  var list = document.getElementById('convList');
+  var filtered = conversations;
+  if (filter === 'unread') filtered = conversations.filter(function(c) { return c.unread; });
+  else if (filter === 'imessage') filtered = conversations.filter(function(c) { return c.channel === 'imessage'; });
+  else if (filter === 'email') filtered = conversations.filter(function(c) { return c.channel === 'email'; });
+  else if (filter === 'urgent') filtered = conversations.filter(function(c) { return c.intent === 'urgent'; });
+
+  list.innerHTML = filtered.map(function(c) {
+    return '<div class="conv-item' + (c.id === activeConvId ? ' active' : '') + (c.unread ? ' unread' : '') + '" data-id="' + c.id + '">'
+      + '<div class="conv-avatar" style="background:' + c.avatarColor + '">' + c.avatar + '</div>'
+      + '<div class="conv-body">'
+      + '<div class="conv-header">'
+      + '<span class="conv-name">' + c.name + '</span>'
+      + '<span class="conv-time">' + c.time + '</span>'
+      + '</div>'
+      + '<div class="conv-preview">' + c.preview + '</div>'
+      + '<div class="conv-meta">'
+      + '<span class="conv-channel-badge ' + c.channel + '">' + c.channel + '</span>'
+      + '<span class="conv-intent-badge ' + c.intent + '">' + c.intent + '</span>'
+      + (c.hasAttachment ? '<span class="conv-attachment-indicator">&#128206;</span>' : '')
+      + '</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  list.querySelectorAll('.conv-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      activeConvId = parseInt(this.getAttribute('data-id'));
+      renderConvList(getCurrentFilter());
+      renderConvDetail();
+      renderContactSidebar();
+    });
+  });
+}
+
+function renderConvDetail() {
+  var conv = conversations.find(function(c) { return c.id === activeConvId; });
+  if (!conv) return;
+
+  var header = document.getElementById('detailHeader');
+  header.innerHTML = '<div class="conv-avatar" style="background:' + conv.avatarColor + ';width:32px;height:32px;min-width:32px;font-size:11px">' + conv.avatar + '</div>'
+    + '<div>'
+    + '<div class="conv-detail-name">' + conv.name + '</div>'
+    + '<div class="conv-detail-company">' + conv.company + ' &middot; ' + conv.title + '</div>'
+    + '</div>'
+    + '<div class="conv-detail-badges">'
+    + '<span class="conv-channel-badge ' + conv.channel + '">' + conv.channel + '</span>'
+    + '<span class="conv-intent-badge ' + conv.intent + '">' + conv.intent + '</span>'
+    + '</div>'
+    + '<div class="conv-detail-actions">'
+    + '<button class="conv-detail-action">Create Task</button>'
+    + '<button class="conv-detail-action">Add to Pipeline</button>'
+    + '<button class="conv-detail-action primary">Assign Rep</button>'
+    + '</div>';
+
+  var thread = document.getElementById('messageThread');
+  thread.innerHTML = conv.messages.map(function(m) {
+    if (m.type === 'date') return '<div class="msg-date-divider">' + m.text + '</div>';
+    if (m.type === 'system') return '<div class="msg-system">' + m.text + '</div>';
+
+    var cls = m.type === 'ai' ? 'ai-response' : m.type;
+    var html = '<div class="msg-bubble ' + cls + '">'
+      + '<div>' + m.text + '</div>';
+    if (m.attachment) {
+      html += '<div class="msg-attachment">'
+        + '<span class="msg-attachment-icon">' + m.attachment.icon + '</span>'
+        + '<span class="msg-attachment-name">' + m.attachment.name + '</span>'
+        + '<span class="msg-attachment-size">' + m.attachment.size + '</span>'
+        + '</div>';
+    }
+    html += '<div class="msg-time">' + m.time + '</div></div>';
+    return html;
+  }).join('');
+
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function renderContactSidebar() {
+  var conv = conversations.find(function(c) { return c.id === activeConvId; });
+  if (!conv) return;
+
+  var sidebar = document.getElementById('contactSidebar');
+  var scoreColor = conv.leadScore >= 80 ? 'var(--green)' : conv.leadScore >= 50 ? 'var(--amber)' : 'var(--red)';
+  var scoreLabel = conv.leadScore >= 80 ? 'Hot' : conv.leadScore >= 50 ? 'Warm' : 'Cold';
+
+  sidebar.innerHTML = ''
+    + '<div class="contact-header">'
+    + '<div class="contact-avatar-lg" style="background:' + conv.avatarColor + '">' + conv.avatar + '</div>'
+    + '<div class="contact-name-lg">' + conv.name + '</div>'
+    + '<div class="contact-title-lg">' + conv.title + ' at ' + conv.company + '</div>'
+    + '</div>'
+
+    // Lead Score
+    + '<div class="contact-section">'
+    + '<div class="contact-section-title">Lead Score</div>'
+    + '<div class="lead-score-bar"><div class="lead-score-fill" style="width:' + conv.leadScore + '%;background:' + scoreColor + '"></div></div>'
+    + '<div class="lead-score-label"><span style="color:' + scoreColor + '">' + conv.leadScore + '/100 &middot; ' + scoreLabel + '</span><span style="color:var(--text-muted)">' + conv.lifecycle.toUpperCase() + '</span></div>'
+    + '</div>'
+
+    // AI Summary
+    + '<div class="contact-section">'
+    + '<div class="contact-section-title">AI Summary</div>'
+    + '<div class="ai-summary-box"><div class="ai-summary-label">Otto Analysis</div>' + conv.aiSummary + '</div>'
+    + '</div>'
+
+    // Contact Info
+    + '<div class="contact-section">'
+    + '<div class="contact-section-title">Contact</div>'
+    + '<div class="contact-field"><span class="contact-field-label">Phone</span><span class="contact-field-value">' + conv.phone + '</span></div>'
+    + '<div class="contact-field"><span class="contact-field-label">Company</span><span class="contact-field-value link">' + conv.company + '</span></div>'
+    + '<div class="contact-field"><span class="contact-field-label">Source</span><span class="contact-field-value">' + conv.source + '</span></div>'
+    + '<div class="contact-field"><span class="contact-field-label">Channel</span><span class="contact-field-value">' + conv.channel + '</span></div>'
+    + '</div>'
+
+    // Tags
+    + '<div class="contact-section">'
+    + '<div class="contact-section-title">Tags</div>'
+    + conv.tags.map(function(t) {
+        var cls = t === 'Enterprise' ? 'blue' : t === 'Renewal' || t === 'Escalation' ? 'amber' : t === 'New Lead' ? 'green' : t.indexOf('Urgent') >= 0 || t === 'Legal' ? 'red' : 'blue';
+        return '<span class="contact-tag ' + cls + '">' + t + '</span>';
+      }).join('')
+    + '</div>'
+
+    // Activity
+    + '<div class="contact-section">'
+    + '<div class="contact-section-title">Recent Activity</div>'
+    + conv.activity.map(function(a) {
+        return '<div class="contact-activity-item">'
+          + '<span class="contact-activity-dot" style="background:' + a.color + '"></span>'
+          + '<span>' + a.text + '</span>'
+          + '<span class="contact-activity-time">' + a.time + '</span>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+}
+
+function getCurrentFilter() {
+  var active = document.querySelector('.inbox-filter-btn.active');
+  return active ? active.getAttribute('data-filter') : 'all';
+}
+
+// ─── EVENT HANDLERS ───
+
+document.querySelectorAll('.inbox-filter-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.inbox-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    this.classList.add('active');
+    renderConvList(this.getAttribute('data-filter'));
+  });
+});
+
+// Composer send
+document.getElementById('composerInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    var text = this.value.trim();
+    if (!text) return;
+    var conv = conversations.find(function(c) { return c.id === activeConvId; });
+    if (conv) {
+      var now = new Date();
+      var timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      conv.messages.push({ type: 'outbound', text: text, time: timeStr });
+      renderConvDetail();
+      this.value = '';
+    }
+  }
+});
+
+// ─── INIT ───
+renderConvList('all');
+renderConvDetail();
+renderContactSidebar();
+</script>
+</body>
+</html>

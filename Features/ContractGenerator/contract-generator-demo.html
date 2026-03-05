@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1">
+<title>OrchestrateOS — Contract Generator</title>
+<link rel="stylesheet" href="../../demo-shell/themes/theme.base.css">
+<style>
+/* RESET & BASE */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page); color: var(--text-primary); font-size: 13px; line-height: 1.5; user-select: none;
+}
+/* :root tokens loaded from ../../demo-shell/themes/theme.base.css */
+::selection { background: rgba(0,145,234,0.3); }
+
+/* VIEW SWITCHER */
+.view-switcher { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--bg-darkest); border-bottom: 1px solid var(--border); z-index: 100; position: relative; }
+.view-switcher .label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-right: 8px; }
+.view-btn { padding: 4px 14px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.view-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+.view-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+
+/* TOP BAR (44px) */
+.top-bar { display: flex; align-items: center; height: 44px; background: var(--bg-panel); border-bottom: 1px solid var(--border); padding: 0 16px; gap: 10px; }
+.logo-wrap { display: flex; align-items: center; gap: 8px; padding: 3px 12px 3px 6px; border-radius: 6px; white-space: nowrap; }
+.logo-icon { width: 26px; height: 26px; background: linear-gradient(135deg, #26a69a 0%, #4fc3f7 40%, #7c4dff 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.logo-icon::after { content: ''; width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.7); border-radius: 2px; transform: rotate(45deg); }
+.logo-text { font-weight: 700; font-size: 14px; color: var(--text-primary); letter-spacing: -0.3px; }
+.beta-badge { font-size: 9px; background: var(--teal); color: #fff; padding: 1px 6px; border-radius: 3px; font-weight: 700; letter-spacing: 0.5px; }
+.back-btn { color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.spacer { flex: 1; }
+.type-pills { display: flex; gap: 6px; }
+.type-pill { padding: 4px 14px; border-radius: 16px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.type-pill:hover { background: var(--bg-card); color: var(--text-primary); }
+.type-pill.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.status-chip { font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 4px; letter-spacing: 0.3px; }
+.status-chip.draft { background: var(--amber-dim); color: var(--amber); }
+.status-chip.complete { background: var(--green-dim); color: var(--green); }
+.header-btn { padding: 5px 14px; border-radius: 5px; border: 1px solid var(--border); background: transparent; color: var(--text-primary); font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 500; white-space: nowrap; }
+.header-btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+
+/* APP LAYOUT */
+.app-layout { display: flex; height: calc(100vh - 78px); }
+.sidebar { width: 200px; min-width: 200px; background: var(--bg-page); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 12px 0; overflow-y: auto; }
+.sb-section-label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; padding: 10px 16px 4px; }
+.sb-nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 16px; font-size: 12px; color: var(--text-secondary); cursor: pointer; border-left: 3px solid transparent; transition: background 0.1s; }
+.sb-nav-item:hover { background: var(--bg-card); }
+.sb-nav-item.active { color: var(--accent-blue); background: rgba(0,145,234,0.06); border-left-color: var(--accent-blue); font-weight: 600; }
+.sb-nav-icon { width: 18px; text-align: center; font-size: 14px; }
+.sb-divider { height: 1px; background: var(--border); margin: 8px 16px; }
+.sb-bottom { margin-top: auto; padding: 8px 16px; border-top: 1px solid var(--border); }
+.sb-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 11px; color: var(--text-secondary); }
+.toggle { width: 34px; height: 18px; border-radius: 9px; background: var(--border); position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+.toggle.on { background: var(--green); }
+.toggle::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left 0.2s; }
+.toggle.on::after { left: 18px; }
+.sb-user { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.sb-avatar { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; }
+.sandbox-badge { font-size: 9px; background: rgba(255,152,0,0.15); color: var(--amber); padding: 1px 6px; border-radius: 3px; font-weight: 700; margin-left: auto; }
+
+/* MAIN CONTENT */
+.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content-body { flex: 1; display: flex; overflow: hidden; }
+
+/* BUILDER PANEL */
+.builder-panel { width: 420px; min-width: 420px; background: var(--bg-page); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.builder-header { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.builder-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+.builder-count { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+.builder-scroll { flex: 1; overflow-y: auto; padding: 8px 12px; }
+.builder-scroll::-webkit-scrollbar { width: 6px; }
+.builder-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* SECTION CARDS */
+.section-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 8px; transition: border-color 0.15s; }
+.section-card:hover { border-color: var(--border-light); }
+.section-card.has-values { border-left: 3px solid var(--green); }
+.section-card.has-gaps { border-left: 3px solid var(--amber); }
+.section-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; transition: background 0.1s; border-radius: var(--radius-lg); }
+.section-header:hover { background: var(--bg-card); }
+.section-chevron { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; display: inline-block; }
+.section-card.open .section-chevron { transform: rotate(90deg); }
+.section-order { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--text-muted); background: var(--bg-card); padding: 2px 7px; border-radius: 3px; }
+.section-title { font-size: 12px; font-weight: 600; color: var(--text-primary); flex: 1; }
+.section-type-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; padding: 2px 7px; border-radius: 3px; }
+.section-type-badge.boilerplate { background: var(--teal-dim); color: var(--teal); }
+.section-type-badge.field-driven { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.section-type-badge.conditional { background: var(--purple-dim); color: #ce93d8; }
+.section-type-badge.composite { background: var(--amber-dim); color: var(--amber); }
+.section-field-count { font-size: 10px; color: var(--text-muted); }
+.section-body { display: none; padding: 0 14px 14px; }
+.section-card.open .section-body { display: block; }
+.section-divider { height: 1px; background: var(--border); margin: 0 -14px 12px; }
+
+/* FORM FIELDS */
+.field-group { margin-bottom: 12px; }
+.field-label { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.required { color: var(--red); font-weight: 700; }
+.field-key { font-family: var(--mono); font-size: 9px; color: var(--text-muted); font-weight: 400; margin-left: 4px; }
+.field-input { width: 100%; padding: 7px 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-primary); font-size: 12px; font-family: inherit; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+.field-input:focus { border-color: var(--border-focus); background: var(--bg-input-focus); box-shadow: 0 0 0 2px var(--accent-blue-dim); }
+.field-input.filled { border-color: var(--green); }
+.field-input::placeholder { color: var(--text-muted); }
+select.field-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%236b7280' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+.slider-row { display: flex; align-items: center; gap: 10px; }
+.slider-row input[type="range"] { flex: 1; accent-color: var(--accent-blue); height: 4px; }
+.slider-val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent-blue); min-width: 40px; text-align: right; }
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.checkbox-pill { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 16px; font-size: 11px; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; }
+.checkbox-pill.checked { background: var(--accent-blue-dim); border-color: var(--accent-blue); color: var(--accent-blue); }
+.check-icon { width: 14px; height: 14px; border: 1.5px solid var(--text-muted); border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1; }
+.checkbox-pill.checked .check-icon { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.clause-selector { background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; }
+.clause-name { font-size: 11px; font-weight: 600; color: var(--teal); font-family: var(--mono); }
+.clause-preview { font-size: 11px; color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; }
+.clause-meta { display: flex; gap: 8px; margin-top: 6px; font-size: 9px; color: var(--text-muted); }
+.clause-meta .version { background: var(--bg-card); padding: 1px 5px; border-radius: 2px; }
+
+/* PREVIEW PANEL */
+.preview-panel { flex: 1; background: var(--bg-darkest); display: flex; flex-direction: column; overflow: hidden; }
+.preview-header { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg-page); }
+.preview-header .title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+.preview-tabs { margin-left: auto; display: flex; gap: 2px; }
+.preview-tab { padding: 3px 12px; border-radius: var(--radius-sm); font-size: 11px; color: var(--text-secondary); cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+.preview-tab:hover { background: var(--bg-card); }
+.preview-tab.active { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); }
+.preview-scroll { flex: 1; overflow-y: auto; padding: 24px 32px; }
+.preview-scroll::-webkit-scrollbar { width: 6px; }
+.preview-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.preview-doc { max-width: 720px; margin: 0 auto; }
+
+/* DOCUMENT TYPOGRAPHY */
+.doc-title { font-size: 20px; font-weight: 700; color: var(--text-primary); text-align: center; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.doc-subtitle { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 24px; }
+.doc-section-title { font-size: 13px; font-weight: 700; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 10px; margin-top: 20px; }
+.doc-para { font-size: 13px; color: var(--text-secondary); line-height: 1.75; margin-bottom: 8px; }
+.doc-separator { height: 1px; background: var(--border); margin: 16px 0; }
+.doc-var { display: inline; padding: 1px 6px; border-radius: 3px; font-weight: 600; font-family: var(--mono); font-size: 12px; }
+.doc-var.filled { background: var(--green-dim); color: var(--green); }
+.doc-var.empty { background: var(--amber-dim); color: var(--amber); border: 1px dashed var(--amber); cursor: pointer; }
+.doc-var.empty:hover { background: rgba(255,152,0,0.2); }
+.doc-sig-block { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px; }
+.doc-sig-party { border-top: 2px solid var(--text-muted); padding-top: 8px; }
+.doc-sig-party .sig-label { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+.doc-sig-party .sig-line { height: 1px; background: var(--text-muted); margin: 16px 0 4px; }
+.doc-sig-party .sig-field { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* JSON VIEW */
+.json-view { display: none; font-family: var(--mono); font-size: 11px; line-height: 1.6; padding: 16px; color: var(--text-secondary); white-space: pre-wrap; max-width: 720px; margin: 0 auto; }
+.json-view .jk { color: #7ee787; } .json-view .js { color: #a5d6ff; } .json-view .jn { color: #f2cc60; }
+
+/* ANNOTATION MAP */
+.annotation-view { display: none; padding: 16px; max-width: 720px; margin: 0 auto; }
+.ann-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.ann-clause { font-family: var(--mono); font-size: 11px; color: var(--teal); min-width: 200px; }
+.ann-arrow { color: var(--text-muted); }
+.ann-fields { color: var(--text-secondary); }
+
+/* ACTION BAR */
+.action-bar { display: flex; align-items: center; height: 44px; background: var(--bg-panel); border-top: 1px solid var(--border); padding: 0 16px; gap: 8px; }
+.fields-summary { font-size: 12px; color: var(--text-secondary); }
+.filled-ct { color: var(--green); font-weight: 600; }
+.gap-ct { color: var(--amber); font-weight: 600; }
+.polish-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+.toggle-track { width: 28px; height: 16px; border-radius: 8px; background: var(--border); position: relative; transition: background 0.2s; }
+.toggle-track.on { background: var(--accent-blue); }
+.toggle-thumb { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left 0.2s; }
+.toggle-track.on .toggle-thumb { left: 14px; }
+.export-btn { padding: 5px 14px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 500; white-space: nowrap; transition: background 0.1s; }
+.export-btn:hover { background: var(--bg-card-hover); }
+.export-btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.export-btn.primary:hover { background: #0081d4; }
+
+/* SHIMMER */
+.shimmer-overlay { display: none; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(0,145,234,0.06) 50%, transparent 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; z-index: 5; }
+.shimmer-overlay.active { display: block; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<!-- VIEW SWITCHER -->
+<div class="view-switcher">
+  <span class="label">View:</span>
+  <button class="view-btn">Record Inspector</button>
+  <button class="view-btn active" data-testid="view-btn-generator">Contract Generator</button>
+  <button class="view-btn">Org Overview</button>
+  <button class="view-btn">Triage</button>
+</div>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="logo-wrap">
+    <div class="logo-icon"></div>
+    <span class="logo-text">OrchestrateOS</span>
+    <span class="beta-badge">BETA</span>
+  </div>
+  <div class="back-btn">&larr; Admin Panel</div>
+  <div class="spacer"></div>
+  <div class="type-pills">
+    <span class="type-pill active" data-testid="type-pill-distribution" data-type="distribution">Distribution</span>
+    <span class="type-pill" data-testid="type-pill-license" data-type="license">License</span>
+    <span class="type-pill" data-testid="type-pill-recording" data-type="recording">Recording</span>
+    <span class="type-pill" data-testid="type-pill-publishing" data-type="publishing">Publishing</span>
+    <span class="type-pill" data-testid="type-pill-amendment" data-type="amendment">Amendment</span>
+    <span class="type-pill" data-testid="type-pill-termination" data-type="termination">Termination</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="status-chip draft" id="statusChip">DRAFT</span>
+  <button class="header-btn">Seed from Preflight</button>
+  <button class="header-btn primary">Create New</button>
+</div>
+
+<!-- APP LAYOUT -->
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-section-label" style="padding-top:14px;">Pipeline</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#9776;</span> Triage Queue</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#9888;</span> Preflight</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#128269;</span> Record Inspector</div>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Tools</div>
+    <div class="sb-nav-item active"><span class="sb-nav-icon">&#9998;</span> Contract Generator</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#127760;</span> Org Overview</div>
+    <div class="sb-divider"></div>
+    <div class="sb-section-label">Admin</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#9881;</span> Settings</div>
+    <div class="sb-nav-item"><span class="sb-nav-icon">&#128295;</span> Extraction Config</div>
+    <div class="sb-bottom">
+      <div class="sb-toggle-row"><span>Dark Mode</span><div class="toggle on"></div></div>
+      <div class="sb-user">
+        <div class="sb-avatar">ZH</div>
+        <div><div style="font-size:12px;font-weight:600;color:var(--text-primary);">Zachary Holwerda</div><div style="font-size:10px;color:var(--text-muted);">Sandbox</div></div>
+        <span class="sandbox-badge">SANDBOX</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+    <div class="content-body">
+      <!-- BUILDER -->
+      <div class="builder-panel" data-testid="builder-panel">
+        <div class="builder-header">
+          <span class="builder-title">Builder</span>
+          <span class="builder-count" id="builderCount">9 sections &middot; 0 fields filled</span>
+        </div>
+        <div class="builder-scroll" id="builderScroll"></div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="preview-panel" data-testid="preview-panel" style="position:relative;">
+        <div class="shimmer-overlay" id="shimmer"></div>
+        <div class="preview-header">
+          <span class="title">Live Preview</span>
+          <div class="preview-tabs">
+            <div class="preview-tab active" data-tab="document">Document</div>
+            <div class="preview-tab" data-tab="json">JSON</div>
+            <div class="preview-tab" data-tab="annotation">Annotation Map</div>
+          </div>
+        </div>
+        <div class="preview-scroll">
+          <div class="preview-doc" id="previewDocument" data-testid="preview-document"></div>
+          <div class="json-view" id="jsonView"></div>
+          <div class="annotation-view" id="annotationView"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTION BAR -->
+    <div class="action-bar">
+      <div class="fields-summary">
+        Fields: <span class="filled-ct" data-testid="stat-filled-count" id="filledCt">0 filled</span> &middot;
+        Gaps: <span class="gap-ct" data-testid="stat-gap-count" id="gapCt">0 TO_BE_DEFINED</span>
+      </div>
+      <div class="spacer"></div>
+      <div class="polish-toggle" data-testid="toggle-ai-polish" id="polishToggle">
+        <span>AI Polish</span>
+        <div class="toggle-track" id="polishTrack"><div class="toggle-thumb"></div></div>
+      </div>
+      <button class="export-btn" data-testid="btn-export-md">Export .md</button>
+      <button class="export-btn" onclick="copyJSON()">Copy JSON</button>
+      <button class="export-btn primary" data-testid="btn-generate" onclick="generatePreview()">Generate Preview</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── DATA MODEL ── */
+var DISTRIBUTION_TEMPLATE = {
+  name: "Distribution Agreement",
+  sections: [
+    { id:"recitals",     title:"RECITALS",                order:1,  type:"boilerplate",  clause:"DIST-RECITALS-STANDARD" },
+    { id:"scope",        title:"1. SCOPE OF AGREEMENT",   order:2,  type:"conditional",  fields:["OPP_DISTRIBUTION_SCOPE","OPP_SYNC_RIGHTS"] },
+    { id:"territory",    title:"2. TERRITORY",            order:3,  type:"field_driven", fields:["OPP_TERRITORY"] },
+    { id:"term",         title:"3. TERM",                 order:4,  type:"field_driven", fields:["OPP_EFFECTIVE_DATE","OPP_TERM_LENGTH","OPP_AUTO_RENEW"] },
+    { id:"compensation", title:"4. COMPENSATION",         order:5,  type:"field_driven", fields:["OPP_ROYALTY_RATE","OPP_ADVANCE_AMOUNT","OPP_PAYMENT_TERMS"] },
+    { id:"rights",       title:"5. RIGHTS & OBLIGATIONS", order:6,  type:"conditional",  fields:["OPP_EXCLUSIVE","OPP_SUBLICENSE"] },
+    { id:"termination",  title:"6. TERMINATION",          order:7,  type:"boilerplate",  clause:"DIST-TERMINATION-STANDARD" },
+    { id:"governing",    title:"7. GOVERNING LAW",        order:8,  type:"field_driven", fields:["OPP_GOVERNING_LAW"] },
+    { id:"signatures",   title:"SIGNATURES",              order:99, type:"boilerplate",  clause:"GENERIC-SIGNATURE-BLOCK" }
+  ]
+};
+var LICENSE_TEMPLATE = {
+  name: "License Agreement",
+  sections: [
+    { id:"recitals",     title:"RECITALS",                order:1,  type:"boilerplate",  clause:"LIC-RECITALS-STANDARD" },
+    { id:"grant",        title:"1. GRANT OF LICENSE",     order:2,  type:"conditional",  fields:["OPP_LICENSE_TYPE"] },
+    { id:"territory",    title:"2. TERRITORY",            order:3,  type:"field_driven", fields:["OPP_TERRITORY"] },
+    { id:"term",         title:"3. TERM",                 order:4,  type:"field_driven", fields:["OPP_EFFECTIVE_DATE","OPP_TERM_LENGTH"] },
+    { id:"compensation", title:"4. COMPENSATION",         order:5,  type:"field_driven", fields:["OPP_LICENSE_FEE","OPP_PAYMENT_TERMS"] },
+    { id:"restrictions", title:"5. RESTRICTIONS",         order:6,  type:"boilerplate",  clause:"LIC-RESTRICTIONS-STANDARD" },
+    { id:"governing",    title:"6. GOVERNING LAW",        order:7,  type:"field_driven", fields:["OPP_GOVERNING_LAW"] },
+    { id:"signatures",   title:"SIGNATURES",              order:99, type:"boilerplate",  clause:"GENERIC-SIGNATURE-BLOCK" }
+  ]
+};
+var TEMPLATES = { distribution: DISTRIBUTION_TEMPLATE, license: LICENSE_TEMPLATE };
+
+var CLAUSE_LIBRARY = {
+  "DIST-RECITALS-STANDARD": { text:'This Distribution Agreement ("Agreement") is entered into as of {{OPP_EFFECTIVE_DATE}} by and between {{ACCT_LEGAL_ENTITY}} ("Label") and {{ACCT_COUNTERPARTY}} ("Artist"). WHEREAS, Artist owns certain master recordings and desires to engage Label for the distribution of such recordings.', version:1, tags:["distribution","standard risk"] },
+  "DIST-TERMINATION-STANDARD": { text:'Either party may terminate this Agreement upon thirty (30) days written notice to the other party. Upon termination, all rights granted herein shall revert to Artist, subject to any existing obligations for distributed inventory and outstanding payments.', version:1, tags:["distribution","standard risk"] },
+  "GENERIC-SIGNATURE-BLOCK": { text:'IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.', version:1, tags:["generic"] },
+  "LIC-RECITALS-STANDARD": { text:'This License Agreement ("Agreement") is entered into as of {{OPP_EFFECTIVE_DATE}} by and between {{ACCT_LEGAL_ENTITY}} ("Licensor") and {{ACCT_COUNTERPARTY}} ("Licensee").', version:1, tags:["license","standard risk"] },
+  "LIC-RESTRICTIONS-STANDARD": { text:'Licensee shall not sublicense, transfer, or assign any rights granted herein without the prior written consent of Licensor. Licensee shall not modify or create derivative works from the licensed materials.', version:1, tags:["license","standard risk"] }
+};
+
+var GENERATION_PAIRS = [
+  { field:"OPP_TERRITORY", section:"territory", expansions:[
+    { when:{equals:"Worldwide"}, template:"The rights granted herein shall extend worldwide, excluding territories listed in Exhibit A." },
+    { when:{equals:"North America"}, template:"The rights granted herein shall be limited to the United States of America and Canada." },
+    { when:{equals:"Europe"}, template:"The rights granted herein shall be limited to the European Economic Area member states." },
+    { default:true, template:"The rights granted herein shall be limited to {{value}}." }
+  ]},
+  { field:"OPP_TERM_LENGTH", section:"term", expansions:[
+    { when:{pattern:"\\d+.*year"}, template:"The initial term of this Agreement shall be {{value}}, commencing on the Effective Date." },
+    { default:true, template:"The initial term of this Agreement shall be {{value}} from the Effective Date." }
+  ]},
+  { field:"OPP_ROYALTY_RATE", section:"compensation", expansions:[
+    { default:true, template:"Label shall pay Artist a royalty rate of {{value}}% of Net Receipts for all distributed recordings." }
+  ]},
+  { field:"OPP_EXCLUSIVE", section:"rights", expansions:[
+    { when:{equals:"Yes"}, template:"The rights granted herein are exclusive. Artist shall not grant similar rights to any third party during the Term." },
+    { when:{equals:"No"}, template:"The rights granted herein are non-exclusive. Artist retains the right to engage other distributors." },
+    { default:true, template:"Exclusivity: {{value}}." }
+  ]},
+  { field:"OPP_GOVERNING_LAW", section:"governing", expansions:[
+    { when:{equals:"New York"}, template:"This Agreement shall be governed by and construed in accordance with the laws of the State of New York, without regard to conflict of law principles." },
+    { when:{equals:"California"}, template:"This Agreement shall be governed by and construed in accordance with the laws of the State of California." },
+    { default:true, template:"This Agreement shall be governed by and construed in accordance with the laws of {{value}}." }
+  ]},
+  { field:"OPP_DISTRIBUTION_SCOPE", section:"scope", expansions:[
+    { when:{contains:"Digital"}, template:"Label shall distribute the Recordings via digital streaming platforms, download stores, and other digital music services." },
+    { when:{contains:"Physical"}, template:"Label shall distribute the Recordings via physical retail channels including CD, vinyl, and other tangible media." },
+    { default:true, template:"Label shall distribute the Recordings via the following channels: {{value}}." }
+  ]}
+];
+
+var FIELD_DEFS = {
+  ACCT_LEGAL_ENTITY:     {label:"Legal Entity",       type:"text",     required:true,  placeholder:"Label / entity name"},
+  ACCT_COUNTERPARTY:     {label:"Counterparty",       type:"text",     required:true,  placeholder:"Artist or company name"},
+  OPP_EFFECTIVE_DATE:    {label:"Effective Date",      type:"text",     required:true,  placeholder:"YYYY-MM-DD"},
+  OPP_TERRITORY:         {label:"Territory",           type:"select",   required:true,  options:["","Worldwide","North America","Europe","Asia Pacific","Custom"]},
+  OPP_TERM_LENGTH:       {label:"Term Length",         type:"text",     required:true,  placeholder:"e.g. 3 years"},
+  OPP_AUTO_RENEW:        {label:"Auto-Renew",         type:"select",   required:false, options:["","Yes","No"]},
+  OPP_ROYALTY_RATE:      {label:"Royalty Rate",        type:"slider",   required:true,  min:0, max:100, value:70},
+  OPP_ADVANCE_AMOUNT:    {label:"Advance Amount",     type:"text",     required:false, placeholder:"$0.00"},
+  OPP_PAYMENT_TERMS:     {label:"Payment Terms",      type:"select",   required:false, options:["","Net 30","Net 60","Net 90","Quarterly"]},
+  OPP_EXCLUSIVE:         {label:"Exclusive",           type:"select",   required:true,  options:["","Yes","No"]},
+  OPP_SUBLICENSE:        {label:"Sublicense Allowed",  type:"select",   required:false, options:["","Yes","No"]},
+  OPP_GOVERNING_LAW:     {label:"Governing Law",      type:"select",   required:true,  options:["","New York","California","England & Wales","Custom"]},
+  OPP_DISTRIBUTION_SCOPE:{label:"Distribution Scope",  type:"checkbox", required:true,  options:["Digital","Physical","Sync"]},
+  OPP_SYNC_RIGHTS:       {label:"Sync Rights",        type:"select",   required:false, options:["","Included","Excluded"]},
+  OPP_LICENSE_TYPE:      {label:"License Type",        type:"select",   required:true,  options:["","Exclusive","Non-Exclusive","Co-Exclusive"]},
+  OPP_LICENSE_FEE:       {label:"License Fee",         type:"text",     required:true,  placeholder:"$0.00"}
+};
+
+/* ── STATE ── */
+var activeType = "distribution";
+var formValues = {
+  'ACCT_LEGAL_ENTITY': 'Ostereo Records',
+  'ACCT_COUNTERPARTY': 'Demo Artist',
+  'OPP_EFFECTIVE_DATE': '2026-01-15'
+};
+var polishOn = false;
+
+/* ── INIT ── */
+function init() { buildSections(); renderPreview(); wireTypePills(); wirePreviewTabs(); wirePolishToggle(); }
+
+/* ── BUILD SECTIONS ── */
+function buildSections() {
+  var tmpl = TEMPLATES[activeType] || DISTRIBUTION_TEMPLATE;
+  var el = document.getElementById('builderScroll');
+  el.innerHTML = '';
+  tmpl.sections.forEach(function(sec, i) {
+    var card = document.createElement('div');
+    card.className = 'section-card' + (i < 3 ? ' open' : '');
+    card.setAttribute('data-testid', 'section-card-' + sec.id);
+    card.setAttribute('data-section', sec.id);
+    var tc = sec.type === 'boilerplate' ? 'boilerplate' : sec.type === 'field_driven' ? 'field-driven' : sec.type === 'conditional' ? 'conditional' : 'composite';
+    var tl = sec.type.replace('_',' ');
+    var fc = (sec.fields||[]).length + (sec.id==='recitals'?3:0);
+    card.innerHTML =
+      '<div class="section-header" data-testid="section-header-'+sec.id+'">' +
+        '<span class="section-chevron">&#9654;</span>' +
+        '<span class="section-order">'+(sec.order<10?'0':'')+sec.order+'</span>' +
+        '<span class="section-title">'+sec.title+'</span>' +
+        '<span class="section-type-badge '+tc+'">'+tl+'</span>' +
+        (fc?'<span class="section-field-count">'+fc+' field'+(fc>1?'s':'')+'</span>':'') +
+      '</div>' +
+      '<div class="section-body"><div class="section-divider"></div>'+buildBody(sec)+'</div>';
+    card.querySelector('.section-header').addEventListener('click', function(){ card.classList.toggle('open'); });
+    el.appendChild(card);
+  });
+  wireFormInputs(); updateCardBorders();
+}
+
+function buildBody(sec) {
+  var h = '';
+  if (sec.clause && CLAUSE_LIBRARY[sec.clause]) {
+    var cl = CLAUSE_LIBRARY[sec.clause];
+    h += '<div class="clause-selector"><div class="clause-name">'+sec.clause+'</div>' +
+      '<div class="clause-preview">'+esc(cl.text)+'</div>' +
+      '<div class="clause-meta"><span class="version">v'+cl.version+'</span>'+(cl.tags||[]).map(function(t){return '<span>'+t+'</span>';}).join('')+'</div></div>';
+    if (sec.id==='recitals') h += buildField('ACCT_LEGAL_ENTITY')+buildField('ACCT_COUNTERPARTY')+buildField('OPP_EFFECTIVE_DATE');
+  }
+  if (sec.fields) sec.fields.forEach(function(fk){ h += buildField(fk); });
+  return h;
+}
+
+function buildField(key) {
+  var d = FIELD_DEFS[key]; if (!d) return '';
+  var tid = 'data-testid="field-'+key+'"';
+  var req = d.required ? ' <span class="required">*</span>' : '';
+  var h = '<div class="field-group"><div class="field-label">'+d.label+req+' <span class="field-key">'+key+'</span></div>';
+  if (d.type==='text') {
+    h += '<input class="field-input" type="text" '+tid+' data-field="'+key+'" placeholder="'+(d.placeholder||'')+'" value="'+(formValues[key]||'')+'">';
+  } else if (d.type==='select') {
+    h += '<select class="field-input" '+tid+' data-field="'+key+'">';
+    (d.options||[]).forEach(function(o){ h += '<option value="'+o+'"'+(formValues[key]===o?' selected':'')+'>'+(!o?'-- Select --':o)+'</option>'; });
+    h += '</select>';
+  } else if (d.type==='slider') {
+    var v = formValues[key]!==undefined ? formValues[key] : d.value;
+    h += '<div class="slider-row"><input type="range" '+tid+' data-field="'+key+'" min="'+d.min+'" max="'+d.max+'" value="'+v+'"><span class="slider-val">'+v+'%</span></div>';
+  } else if (d.type==='checkbox') {
+    var ck = (formValues[key]||'').split(',').filter(Boolean);
+    h += '<div class="checkbox-group" '+tid+' data-field="'+key+'">';
+    (d.options||[]).forEach(function(o){
+      var on = ck.indexOf(o)>=0;
+      h += '<div class="checkbox-pill'+(on?' checked':'')+'" data-value="'+o+'"><span class="check-icon">'+(on?'&#10003;':'')+'</span> '+o+'</div>';
+    });
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+
+function esc(s) { var e = document.createElement('div'); e.textContent = s; return e.innerHTML; }
+
+/* ── WIRE INPUTS ── */
+function wireFormInputs() {
+  document.querySelectorAll('.field-input').forEach(function(el) {
+    el.addEventListener(el.tagName==='SELECT'?'change':'input', function() {
+      formValues[el.dataset.field] = el.value;
+      el.classList.toggle('filled', !!el.value);
+      updateCardBorders(); renderPreview(); updateStats();
+    });
+    if (el.value) el.classList.add('filled');
+  });
+  document.querySelectorAll('input[type="range"]').forEach(function(el) {
+    el.addEventListener('input', function() {
+      formValues[el.dataset.field] = el.value;
+      el.parentElement.querySelector('.slider-val').textContent = el.value + '%';
+      renderPreview(); updateStats();
+    });
+    formValues[el.dataset.field] = el.value;
+  });
+  document.querySelectorAll('.checkbox-pill').forEach(function(el) {
+    el.addEventListener('click', function() {
+      el.classList.toggle('checked');
+      el.querySelector('.check-icon').innerHTML = el.classList.contains('checked') ? '&#10003;' : '';
+      var grp = el.closest('.checkbox-group'), vals = [];
+      grp.querySelectorAll('.checkbox-pill.checked').forEach(function(p){ vals.push(p.dataset.value); });
+      formValues[grp.dataset.field] = vals.join(',');
+      updateCardBorders(); renderPreview(); updateStats();
+    });
+  });
+  updateStats();
+}
+
+/* ── CARD BORDERS ── */
+function updateCardBorders() {
+  var tmpl = TEMPLATES[activeType] || DISTRIBUTION_TEMPLATE;
+  tmpl.sections.forEach(function(sec) {
+    var card = document.querySelector('[data-section="'+sec.id+'"]');
+    if (!card) return;
+    card.classList.remove('has-values','has-gaps');
+    var ff = sec.fields || [];
+    if (sec.id==='recitals') ff = ['ACCT_LEGAL_ENTITY','ACCT_COUNTERPARTY','OPP_EFFECTIVE_DATE'];
+    if (!ff.length) return;
+    var n = 0; ff.forEach(function(f){ if (formValues[f]) n++; });
+    if (n===ff.length) card.classList.add('has-values');
+    else if (n>0) card.classList.add('has-gaps');
+  });
+}
+
+/* ── STATS ── */
+function updateStats() {
+  var tmpl = TEMPLATES[activeType] || DISTRIBUTION_TEMPLATE, all = [];
+  tmpl.sections.forEach(function(sec) {
+    var ff = sec.fields||[]; if (sec.id==='recitals') ff = ['ACCT_LEGAL_ENTITY','ACCT_COUNTERPARTY','OPP_EFFECTIVE_DATE'];
+    all = all.concat(ff);
+  });
+  var f=0, g=0; all.forEach(function(k){ formValues[k] ? f++ : g++; });
+  document.getElementById('filledCt').textContent = f+' filled';
+  document.getElementById('gapCt').textContent = g+' TO_BE_DEFINED';
+  document.getElementById('builderCount').textContent = tmpl.sections.length+' sections \u00b7 '+f+' fields filled';
+  var ch = document.getElementById('statusChip');
+  if (g===0&&f>0) { ch.className='status-chip complete'; ch.textContent='COMPLETE'; }
+  else { ch.className='status-chip draft'; ch.textContent='DRAFT'; }
+}
+
+/* ── RENDER PREVIEW ── */
+function renderPreview() {
+  var tmpl = TEMPLATES[activeType] || DISTRIBUTION_TEMPLATE;
+  var html = '<div class="doc-title">'+tmpl.name+'</div><div class="doc-subtitle">Draft &middot; Generated by OrchestrateOS</div>';
+  tmpl.sections.forEach(function(sec) {
+    html += '<div data-testid="doc-section-'+sec.id+'">';
+    if (sec.id!=='signatures') html += '<div class="doc-section-title">'+sec.title+'</div>';
+    if (sec.clause && CLAUSE_LIBRARY[sec.clause]) html += '<div class="doc-para">'+interp(CLAUSE_LIBRARY[sec.clause].text)+'</div>';
+    if (sec.fields) sec.fields.forEach(function(fk) { var x = expand(fk); if (x) html += '<div class="doc-para">'+x+'</div>'; });
+    if (sec.id==='signatures') html += sigBlock();
+    html += '</div>';
+    if (sec.id!=='signatures') html += '<div class="doc-separator"></div>';
+  });
+  document.getElementById('previewDocument').innerHTML = html;
+  wireGapClicks(); renderJSON(); renderAnnotation();
+}
+
+function interp(text) {
+  return text.replace(/\{\{(\w+)\}\}/g, function(m, k) {
+    var v = formValues[k];
+    if (v) return '<span class="doc-var filled" data-testid="doc-var-filled-'+k+'">'+esc(v)+'</span>';
+    return '<span class="doc-var empty" data-testid="doc-var-empty-'+k+'" data-field="'+k+'">TO_BE_DEFINED</span>';
+  });
+}
+
+function expand(fk) {
+  var val = formValues[fk], pair = null;
+  for (var i=0;i<GENERATION_PAIRS.length;i++) if (GENERATION_PAIRS[i].field===fk) { pair=GENERATION_PAIRS[i]; break; }
+  if (!pair) {
+    if (val) return '<span class="doc-var filled" data-testid="doc-var-filled-'+fk+'">'+esc(val)+'</span>';
+    return '<span class="doc-var empty" data-testid="doc-var-empty-'+fk+'" data-field="'+fk+'">TO_BE_DEFINED</span>';
+  }
+  var t = null;
+  for (var j=0;j<pair.expansions.length;j++) {
+    var e = pair.expansions[j];
+    if (e.default) t = e.template;
+    if (val && e.when) {
+      if (e.when.equals && val===e.when.equals) { t=e.template; break; }
+      if (e.when.pattern && new RegExp(e.when.pattern,'i').test(val)) { t=e.template; break; }
+      if (e.when.contains && val.indexOf(e.when.contains)>=0) { t=e.template; break; }
+    }
+  }
+  if (!t) return '';
+  var r = function(m,k){ var v2=formValues[k]; if(v2) return '<span class="doc-var filled" data-testid="doc-var-filled-'+k+'">'+esc(v2)+'</span>'; return '<span class="doc-var empty" data-testid="doc-var-empty-'+k+'" data-field="'+k+'">TO_BE_DEFINED</span>'; };
+  if (!val) return t.replace(/\{\{value\}\}/g,'<span class="doc-var empty" data-testid="doc-var-empty-'+fk+'" data-field="'+fk+'">TO_BE_DEFINED</span>').replace(/\{\{(\w+)\}\}/g,r);
+  return t.replace(/\{\{value\}\}/g,'<span class="doc-var filled" data-testid="doc-var-filled-'+fk+'">'+esc(val)+'</span>').replace(/\{\{(\w+)\}\}/g,r);
+}
+
+function sigBlock() {
+  var le = formValues['ACCT_LEGAL_ENTITY']||'TO_BE_DEFINED', cp = formValues['ACCT_COUNTERPARTY']||'TO_BE_DEFINED';
+  return '<div class="doc-sig-block">'+
+    '<div class="doc-sig-party"><div class="sig-label">'+esc(le)+' ("Label")</div><div class="sig-line"></div><div class="sig-field">Name:</div><div class="sig-field">Title:</div><div class="sig-field">Date:</div></div>'+
+    '<div class="doc-sig-party"><div class="sig-label">'+esc(cp)+' ("Artist")</div><div class="sig-line"></div><div class="sig-field">Name:</div><div class="sig-field">Title:</div><div class="sig-field">Date:</div></div>'+
+  '</div>';
+}
+
+/* ── GAP CLICKS ── */
+function wireGapClicks() {
+  document.querySelectorAll('.doc-var.empty').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var fk = el.dataset.field; if (!fk) return;
+      var tmpl = TEMPLATES[activeType]||DISTRIBUTION_TEMPLATE, sid = null;
+      tmpl.sections.forEach(function(sec) {
+        var ff = sec.fields||[]; if (sec.id==='recitals') ff=['ACCT_LEGAL_ENTITY','ACCT_COUNTERPARTY','OPP_EFFECTIVE_DATE'];
+        if (ff.indexOf(fk)>=0) sid = sec.id;
+      });
+      if (!sid) return;
+      var card = document.querySelector('[data-section="'+sid+'"]');
+      if (card && !card.classList.contains('open')) card.classList.add('open');
+      var inp = document.querySelector('[data-field="'+fk+'"]');
+      if (inp) { inp.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(function(){ inp.focus(); },300); }
+    });
+  });
+}
+
+/* ── JSON VIEW ── */
+function renderJSON() {
+  var obj = {}, tmpl = TEMPLATES[activeType]||DISTRIBUTION_TEMPLATE;
+  tmpl.sections.forEach(function(sec) {
+    var ff = sec.fields||[]; if (sec.id==='recitals') ff=['ACCT_LEGAL_ENTITY','ACCT_COUNTERPARTY','OPP_EFFECTIVE_DATE'];
+    ff.forEach(function(fk){ obj[fk]=formValues[fk]||null; });
+  });
+  var raw = JSON.stringify(obj,null,2)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"([^"]+)":/g,'<span class="jk">"$1"</span>:')
+    .replace(/: "([^"]*)"/g,': <span class="js">"$1"</span>')
+    .replace(/: (\d+)/g,': <span class="jn">$1</span>');
+  document.getElementById('jsonView').innerHTML = raw;
+}
+
+/* ── ANNOTATION MAP ── */
+function renderAnnotation() {
+  var h = '<div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:16px;">Clause-to-Field Mapping</div>';
+  GENERATION_PAIRS.forEach(function(p) {
+    h += '<div class="ann-row"><span class="ann-clause">'+p.field+'</span><span class="ann-arrow">&rarr;</span><span class="ann-fields">Section: '+p.section+' ('+p.expansions.length+' rules)</span></div>';
+  });
+  Object.keys(CLAUSE_LIBRARY).forEach(function(k) {
+    var vars = CLAUSE_LIBRARY[k].text.match(/\{\{(\w+)\}\}/g)||[];
+    if (vars.length) h += '<div class="ann-row"><span class="ann-clause">'+k+'</span><span class="ann-arrow">&rarr;</span><span class="ann-fields">'+vars.map(function(v){return v.replace(/[{}]/g,'');}).join(', ')+'</span></div>';
+  });
+  document.getElementById('annotationView').innerHTML = h;
+}
+
+/* ── TYPE PILLS ── */
+function wireTypePills() {
+  document.querySelectorAll('.type-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      document.querySelectorAll('.type-pill').forEach(function(p){ p.classList.remove('active'); });
+      pill.classList.add('active');
+      if (TEMPLATES[pill.dataset.type]) { activeType=pill.dataset.type; formValues={}; buildSections(); renderPreview(); updateStats(); }
+    });
+  });
+}
+
+/* ── PREVIEW TABS ── */
+function wirePreviewTabs() {
+  document.querySelectorAll('.preview-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.preview-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      var w = tab.dataset.tab;
+      document.getElementById('previewDocument').style.display = w==='document'?'block':'none';
+      document.getElementById('jsonView').style.display = w==='json'?'block':'none';
+      document.getElementById('annotationView').style.display = w==='annotation'?'block':'none';
+    });
+  });
+}
+
+/* ── AI POLISH ── */
+function wirePolishToggle() {
+  document.getElementById('polishToggle').addEventListener('click', function() {
+    polishOn = !polishOn;
+    document.getElementById('polishTrack').classList.toggle('on', polishOn);
+  });
+}
+
+function generatePreview() {
+  if (polishOn) {
+    var s = document.getElementById('shimmer'); s.classList.add('active');
+    setTimeout(function(){ s.classList.remove('active'); renderPreview(); }, 3000);
+  } else { renderPreview(); }
+}
+
+function copyJSON() {
+  var obj={}, tmpl=TEMPLATES[activeType]||DISTRIBUTION_TEMPLATE;
+  tmpl.sections.forEach(function(sec){ var ff=sec.fields||[]; if(sec.id==='recitals') ff=['ACCT_LEGAL_ENTITY','ACCT_COUNTERPARTY','OPP_EFFECTIVE_DATE']; ff.forEach(function(fk){obj[fk]=formValues[fk]||null;}); });
+  navigator.clipboard.writeText(JSON.stringify(obj,null,2)).catch(function(){});
+}
+
+init();
+</script>
+</body>
+</html>

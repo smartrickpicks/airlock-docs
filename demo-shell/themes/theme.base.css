@@ -1,0 +1,132 @@
+/*
+ * Airlock — Base Theme
+ * Shared CSS tokens extracted from all OrcestrateOS demos.
+ * Every demo links to this file instead of defining tokens inline.
+ *
+ * Usage: <link rel="stylesheet" href="../demo-shell/themes/theme.base.css">
+ * Override with theme.airlock.css for the darker OLED palette.
+ */
+
+:root {
+  /* ===== Background Layers (dark → light) ===== */
+  --bg-darkest:     #0d1017;
+  --bg-page:        #12161f;
+  --bg-input:       #161b28;
+  --bg-panel:       #1a1f2e;
+  --bg-card:        #1e2436;
+  --bg-card-hover:  #242b3d;
+  --bg-input-focus: #1c2235;
+
+  /* ===== Text Hierarchy ===== */
+  --text-primary:   #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted:     #6b7280;
+
+  /* ===== Accent & Status Colors ===== */
+  --accent-blue:     #0091ea;
+  --accent-blue-dim: rgba(0, 145, 234, 0.15);
+
+  --green:           #4caf50;
+  --green-dim:       rgba(76, 175, 80, 0.15);
+
+  --amber:           #ff9800;
+  --amber-dim:       rgba(255, 152, 0, 0.12);
+
+  --red:             #f44336;
+  --red-dim:         rgba(244, 67, 54, 0.12);
+
+  --teal:            #26a69a;
+  --teal-dim:        rgba(38, 166, 154, 0.12);
+
+  --purple:          #7b1fa2;
+  --purple-dim:      rgba(123, 31, 162, 0.12);
+  --purple-light:    #ce93d8;
+
+  /* ===== Borders ===== */
+  --border:          #2a3040;
+  --border-light:    #333b4f;
+  --border-focus:    #0091ea;
+
+  /* ===== Typography ===== */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+  --mono:      var(--font-mono);
+
+  /* ===== Border Radius ===== */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  /* ===== Sidebar (fallback values from admin demo) ===== */
+  --sidebar-bg:      #0F1A2E;
+  --sidebar-border:  #233A5B;
+  --sidebar-text:    #8EA2C8;
+  --sidebar-hover:   #1A2E4B;
+  --sidebar-active:  #EAF2FF;
+
+  /* ===== Semantic Aliases (for component use) ===== */
+  --color-pass:    var(--green);
+  --color-review:  var(--amber);
+  --color-fail:    var(--red);
+  --color-ai:      var(--accent-blue);
+  --color-info:    var(--teal);
+
+  /* ===== Org-overview compatibility aliases ===== */
+  --ov-bg-page:      var(--bg-page);
+  --ov-bg-sidebar:   var(--bg-panel);
+  --ov-bg-card:      var(--bg-card);
+  --ov-bg-card-hover:var(--bg-card-hover);
+  --ov-bg-topbar:    var(--bg-panel);
+  --ov-text-primary: var(--text-primary);
+  --ov-text-secondary:var(--text-secondary);
+  --ov-text-muted:   var(--text-muted);
+  --ov-accent:       var(--accent-blue);
+  --ov-accent-dim:   var(--accent-blue-dim);
+  --ov-border:       var(--border);
+  --ov-border-light: var(--border-light);
+  --ov-red:          var(--red);
+  --ov-amber:        var(--amber);
+  --ov-green:        var(--green);
+  --ov-blue:         #42a5f5;
+  --ov-teal:         var(--teal);
+  --ov-purple:       var(--purple);
+  --ov-radius-sm:    var(--radius-sm);
+  --ov-radius-md:    var(--radius-md);
+  --ov-radius-lg:    var(--radius-lg);
+  --ov-font:         var(--font-sans);
+  --ov-mono:         var(--font-mono);
+}
+
+/* ===== Base Reset ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Scrollbar Styling ===== */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}

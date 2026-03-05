@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notification Center — Airlock</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-page, #12161f); color: var(--text-primary, #e8eaed); font-size: 13px; line-height: 1.5;
+}
+::selection { background: rgba(0,145,234,0.3); }
+
+:root {
+  --bg-page: #12161f; --bg-panel: #1a1f2e; --bg-card: #1e2436; --bg-card-hover: #242b3d;
+  --bg-input: #161b28; --bg-darkest: #0d1017;
+  --text-primary: #e8eaed; --text-secondary: #9aa0a6; --text-muted: #6b7280;
+  --border: #2a3040; --border-light: #333b4f;
+  --accent-blue: #0091ea; --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50; --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800; --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336; --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a; --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2; --purple-dim: rgba(123,31,162,0.12);
+  --cyan: #00D1FF; --cyan-dim: rgba(0,209,255,0.12);
+  --mono: 'SF Mono', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+}
+
+/* ── LAYOUT ──────────────────────────────────────────── */
+.nc-layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── LEFT: FEED ──────────────────────────────────────── */
+.nc-left { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+.nc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); flex-shrink: 0;
+}
+.nc-header-left { display: flex; align-items: center; gap: 10px; }
+.nc-header-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--amber), var(--red));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #fff;
+}
+.nc-header h1 { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; }
+.nc-header-badges { display: flex; gap: 6px; }
+.nc-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+}
+.nc-badge.urgent { background: var(--red-dim); color: var(--red); }
+.nc-badge.action { background: var(--amber-dim); color: var(--amber); }
+.nc-badge.info { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.nc-badge.ai { background: var(--cyan-dim); color: var(--cyan); }
+
+/* METRICS STRIP */
+.nc-metrics {
+  display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-darkest); flex-shrink: 0; overflow-x: auto;
+}
+.nc-metric {
+  min-width: 120px; padding: 8px 12px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border); text-align: center;
+}
+.nc-metric-val { font-size: 20px; font-weight: 800; font-family: var(--mono); }
+.nc-metric-val.red { color: var(--red); }
+.nc-metric-val.amber { color: var(--amber); }
+.nc-metric-val.blue { color: var(--accent-blue); }
+.nc-metric-val.cyan { color: var(--cyan); }
+.nc-metric-val.green { color: var(--green); }
+.nc-metric-lbl { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+/* FILTER BAR */
+.nc-filters {
+  display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.nc-filter-group { display: flex; gap: 3px; }
+.nc-filter {
+  font-size: 10px; padding: 3px 8px; border-radius: 10px; cursor: pointer;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.nc-filter:hover { border-color: var(--border-light); }
+.nc-filter.active { background: var(--accent-blue-dim); border-color: var(--accent-blue); color: var(--accent-blue); }
+.nc-filter-divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+.nc-filter.urgent.active { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+.nc-filter.action.active { background: var(--amber-dim); border-color: var(--amber); color: var(--amber); }
+.nc-filter.ai.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+
+/* FEED */
+.nc-feed { flex: 1; overflow-y: auto; padding: 8px 12px; }
+.nc-feed::-webkit-scrollbar { width: 4px; }
+.nc-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.nc-date-header {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); padding: 12px 4px 6px; display: flex; align-items: center; gap: 8px;
+}
+.nc-date-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.nc-item {
+  display: flex; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md);
+  border: 1px solid transparent; cursor: pointer; transition: all 0.15s;
+  margin-bottom: 2px;
+}
+.nc-item:hover { background: var(--bg-card); border-color: var(--border); }
+.nc-item.unread { background: var(--bg-card); border-color: var(--border); }
+.nc-item.unread .nc-item-title { font-weight: 600; color: var(--text-primary); }
+
+/* Priority left border */
+.nc-item.urgent { border-left: 3px solid var(--red); }
+.nc-item.action { border-left: 3px solid var(--amber); }
+.nc-item.info-notif { border-left: 3px solid var(--accent-blue); }
+.nc-item.ai-notif { border-left: 3px solid var(--cyan); }
+
+.nc-item-icon {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.nc-item-icon.urgent-icon { background: var(--red-dim); color: var(--red); }
+.nc-item-icon.action-icon { background: var(--amber-dim); color: var(--amber); }
+.nc-item-icon.info-icon { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.nc-item-icon.ai-icon { background: var(--cyan-dim); color: var(--cyan); }
+.nc-item-icon.green-icon { background: var(--green-dim); color: var(--green); }
+
+.nc-item-body { flex: 1; min-width: 0; }
+.nc-item-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+.nc-item-title { font-size: 12px; color: var(--text-secondary); }
+.nc-item-time { font-size: 10px; font-family: var(--mono); color: var(--text-muted); flex-shrink: 0; }
+.nc-item-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+.nc-item-source {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 1px 6px;
+  border-radius: 3px; background: var(--bg-darkest); color: var(--text-muted); margin-top: 4px;
+}
+.nc-item-actions { display: flex; gap: 4px; margin-top: 6px; }
+.nc-action-btn {
+  font-size: 10px; padding: 3px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg-input); color: var(--text-secondary);
+  cursor: pointer; transition: all 0.15s;
+}
+.nc-action-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.nc-action-btn.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+.nc-action-btn.primary:hover { filter: brightness(1.15); }
+
+/* PULSE for urgent */
+.nc-item.urgent .nc-item-icon { animation: icon-pulse 2s infinite; }
+@keyframes icon-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ── RIGHT: PREFERENCES ──────────────────────────────── */
+.nc-right { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; }
+.nc-right-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); flex-shrink: 0;
+}
+.nc-right-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+.nc-right-content { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.nc-right-content::-webkit-scrollbar { width: 4px; }
+.nc-right-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* SECTION */
+.pref-section { margin-bottom: 20px; }
+.pref-section-header {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-muted); margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.pref-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0;
+}
+.pref-row-left { display: flex; align-items: center; gap: 8px; }
+.pref-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pref-label { font-size: 12px; color: var(--text-primary); }
+.pref-desc { font-size: 10px; color: var(--text-muted); }
+
+/* TOGGLE */
+.pref-toggle { position: relative; width: 34px; height: 18px; flex-shrink: 0; cursor: pointer; }
+.pref-toggle input { display: none; }
+.pref-toggle-track { width: 34px; height: 18px; border-radius: 9px; background: #3a3a3a; transition: background 0.2s; display: block; }
+.pref-toggle input:checked + .pref-toggle-track { background: var(--green); }
+.pref-toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 12px; height: 12px;
+  border-radius: 50%; background: #fff; transition: transform 0.2s; pointer-events: none;
+}
+.pref-toggle input:checked ~ .pref-toggle-knob { transform: translateX(16px); }
+
+/* CHANNEL CARD */
+.channel-card {
+  padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--bg-card); border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.channel-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.channel-card-name { font-size: 12px; font-weight: 600; }
+.channel-card-status {
+  font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+.channel-card-status.active { background: var(--green-dim); color: var(--green); }
+.channel-card-status.future { background: rgba(100,100,100,0.2); color: var(--text-muted); }
+.channel-card-desc { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+.channel-card-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+.channel-card-label { font-size: 10px; color: var(--text-muted); }
+
+/* MUTED VAULTS */
+.muted-vault {
+  display: flex; align-items: center; justify-content: space-between; padding: 5px 0;
+}
+.muted-vault-name { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.muted-vault-name span { font-size: 10px; color: var(--text-muted); }
+.unmute-btn {
+  font-size: 9px; padding: 2px 6px; border-radius: 3px; cursor: pointer;
+  background: var(--bg-input); border: 1px solid var(--border); color: var(--text-muted);
+  transition: all 0.15s;
+}
+.unmute-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+/* BATCHING PREVIEW */
+.batch-preview {
+  padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--bg-darkest); border: 1px solid var(--border);
+  margin-top: 8px;
+}
+.batch-preview-title { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.batch-preview-item {
+  font-size: 11px; color: var(--text-secondary); padding: 3px 0;
+  display: flex; align-items: center; gap: 6px;
+}
+.batch-preview-item .dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  padding: 8px 16px; border-radius: var(--radius-md); font-size: 12px; font-weight: 500;
+  background: var(--green); color: #fff; z-index: 200; opacity: 0; pointer-events: none;
+  transition: opacity 0.3s;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="nc-layout">
+
+  <!-- LEFT: NOTIFICATION FEED -->
+  <div class="nc-left">
+    <div class="nc-header">
+      <div class="nc-header-left">
+        <div class="nc-header-icon">&#128276;</div>
+        <h1>Notification Center</h1>
+      </div>
+      <div class="nc-header-badges">
+        <span class="nc-badge urgent">3 Urgent</span>
+        <span class="nc-badge action">5 Action</span>
+        <span class="nc-badge info">8 Info</span>
+        <span class="nc-badge ai">2 AI</span>
+      </div>
+    </div>
+
+    <!-- METRICS STRIP -->
+    <div class="nc-metrics">
+      <div class="nc-metric"><div class="nc-metric-val red">3</div><div class="nc-metric-lbl">Urgent</div></div>
+      <div class="nc-metric"><div class="nc-metric-val amber">5</div><div class="nc-metric-lbl">Action Required</div></div>
+      <div class="nc-metric"><div class="nc-metric-val blue">8</div><div class="nc-metric-lbl">Informational</div></div>
+      <div class="nc-metric"><div class="nc-metric-val cyan">2</div><div class="nc-metric-lbl">AI Suggestions</div></div>
+      <div class="nc-metric"><div class="nc-metric-val green">12</div><div class="nc-metric-lbl">Resolved Today</div></div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="nc-filters">
+      <div class="nc-filter-group">
+        <button class="nc-filter active" data-filter="all">All (18)</button>
+        <button class="nc-filter" data-filter="unread">Unread (11)</button>
+      </div>
+      <div class="nc-filter-divider"></div>
+      <div class="nc-filter-group">
+        <button class="nc-filter urgent" data-filter="urgent">Urgent</button>
+        <button class="nc-filter action" data-filter="action">Action</button>
+        <button class="nc-filter" data-filter="info">Info</button>
+        <button class="nc-filter ai" data-filter="ai">AI</button>
+      </div>
+      <div class="nc-filter-divider"></div>
+      <div class="nc-filter-group">
+        <button class="nc-filter" data-filter="contracts">Contracts</button>
+        <button class="nc-filter" data-filter="tasks">Tasks</button>
+        <button class="nc-filter" data-filter="admin">Admin</button>
+      </div>
+    </div>
+
+    <!-- NOTIFICATION FEED -->
+    <div class="nc-feed" id="notifFeed"></div>
+  </div>
+
+  <!-- RIGHT: PREFERENCES -->
+  <div class="nc-right">
+    <div class="nc-right-header">
+      <div class="nc-right-title">Notification Preferences</div>
+    </div>
+    <div class="nc-right-content" id="prefContent"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── NOTIFICATION DATA ───────────────────────────────── */
+var NOTIFICATIONS = [
+  // TODAY
+  { date: 'Today', items: [
+    { id: 1, priority: 'urgent', icon: '&#9888;', iconClass: 'urgent-icon', title: 'SLA Overdue: PATCH-2024-0847 verifier review', desc: 'Ana Chen has not completed review. SLA expired 23 minutes ago. Escalation triggered.', source: 'Contracts / henderson-msa', time: '2 min ago', unread: true,
+      actions: [{ label: 'Reassign', primary: false }, { label: 'Extend SLA', primary: true }] },
+    { id: 2, priority: 'urgent', icon: '&#10060;', iconClass: 'urgent-icon', title: 'Patch Rejected: PATCH-2024-0845 by admin@acme.co', desc: 'Reason: "Royalty rate evidence insufficient - need page reference for 15% figure"', source: 'Contracts / sony-dist-2024', time: '18 min ago', unread: true,
+      actions: [{ label: 'View Patch', primary: false }, { label: 'Create New Patch', primary: true }] },
+    { id: 3, priority: 'urgent', icon: '&#128680;', iconClass: 'urgent-icon', title: 'Contract Failed 3x: CTR-2024-0891 extraction timeout', desc: 'Batch B-2024-0156. Last error: TimeoutError after 60s. Document may require manual processing.', source: 'Contracts / Batch B-2024-0156', time: '34 min ago', unread: true,
+      actions: [{ label: 'View Error', primary: false }, { label: 'Retry', primary: true }] },
+    { id: 4, priority: 'action', icon: '&#128203;', iconClass: 'action-icon', title: 'Patch needs your review: PATCH-2024-0848', desc: 'Submitted by builder@acme.co. 3 field corrections on henderson-msa. Evidence pack attached.', source: 'Contracts / henderson-msa', time: '1 hr ago', unread: true,
+      actions: [{ label: 'Review Patch', primary: true }] },
+    { id: 5, priority: 'action', icon: '&#128100;', iconClass: 'action-icon', title: 'Entity needs disambiguation: "Henderson Music LLC"', desc: '3 candidates found. Top match: Henderson Music Group (72% confidence). Manual selection required.', source: 'Contracts / henderson-msa', time: '1 hr ago', unread: true,
+      actions: [{ label: 'Resolve Entity', primary: true }] },
+    { id: 6, priority: 'action', icon: '&#9200;', iconClass: 'action-icon', title: 'SLA approaching: PATCH-2024-0846 admin review (47 min remaining)', desc: 'Final approval gate. Admin review required before SLA expires at 15:30 UTC.', source: 'Contracts / slowhands-pub', time: '1 hr ago', unread: true,
+      actions: [{ label: 'Review Now', primary: true }] },
+    { id: 7, priority: 'action', icon: '&#128221;', iconClass: 'action-icon', title: 'Triage item assigned: Missing territory field on sony-dist-2024', desc: 'Assigned by system auto-triage. Severity: warning. Source: preflight gate.', source: 'Contracts / sony-dist-2024', time: '2 hr ago', unread: false,
+      actions: [{ label: 'Open Triage Item', primary: true }] },
+    { id: 8, priority: 'action', icon: '&#128221;', iconClass: 'action-icon', title: 'Triage item assigned: Counterparty name mismatch on warner-lic-2024', desc: 'Legal entity extracted as "Warner Bros" but contract references "Warner Music Group". Needs verification.', source: 'Contracts / warner-lic-2024', time: '2 hr ago', unread: false,
+      actions: [{ label: 'Open Triage Item', primary: true }] },
+    { id: 9, priority: 'ai', icon: '&#9733;', iconClass: 'ai-icon', title: 'AI Suggestion: Auto-correct 4 fields on henderson-msa', desc: 'Otto detected missing values for royalty_rate, auto_renew, termination_notice, and payment_threshold. Confidence: 74-92%.', source: 'Contracts / henderson-msa', time: '2 hr ago', unread: true,
+      actions: [{ label: 'View Suggestions', primary: false }, { label: 'Create Batch Patch', primary: true }] },
+    { id: 10, priority: 'info', icon: '&#9989;', iconClass: 'green-icon', title: 'Extraction completed: CTR-2024-0893 (slowhands-pub)', desc: '142 fields extracted. 128 pass, 8 review, 6 fail. Health score: 84%.', source: 'Contracts / slowhands-pub', time: '3 hr ago', unread: false, actions: [] },
+    { id: 11, priority: 'info', icon: '&#128260;', iconClass: 'info-icon', title: 'Lifecycle state changed: sony-dist-2024 needs_review \u2192 system_pass', desc: 'All gates passed. Contract auto-advanced to system_pass. Ready for export.', source: 'Contracts / sony-dist-2024', time: '3 hr ago', unread: false, actions: [] },
+    { id: 12, priority: 'info', icon: '&#128200;', iconClass: 'info-icon', title: 'Health score changed: warner-lic-2024 dropped 12% (78% \u2192 66%)', desc: 'Contributing factors: entity resolution confidence decreased, 2 new triage items opened.', source: 'Contracts / warner-lic-2024', time: '4 hr ago', unread: false, actions: [] },
+    { id: 13, priority: 'ai', icon: '&#9733;', iconClass: 'ai-icon', title: 'AI Suggestion: Contract type classification for CTR-2024-0893', desc: 'Otto classified as "Publishing Agreement" with 89% confidence. Suggested subtypes: mechanical, sync, print.', source: 'Contracts / slowhands-pub', time: '4 hr ago', unread: true,
+      actions: [{ label: 'Accept Classification', primary: true }] },
+  ]},
+  // YESTERDAY
+  { date: 'Yesterday', items: [
+    { id: 14, priority: 'info', icon: '&#128230;', iconClass: 'info-icon', title: 'Batch processing completed: B-2024-0155', desc: '8 contracts processed. 7 succeeded, 1 failed. Total duration: 4m 23s.', source: 'Contracts / Batch B-2024-0155', time: 'Yesterday 16:45', unread: false, actions: [] },
+    { id: 15, priority: 'info', icon: '&#9989;', iconClass: 'green-icon', title: 'Patch applied: PATCH-2024-0844 on warner-lic-2024', desc: 'Admin approved. 2 field corrections applied. Health score updated: 72% \u2192 78%.', source: 'Contracts / warner-lic-2024', time: 'Yesterday 15:20', unread: false, actions: [] },
+    { id: 16, priority: 'info', icon: '&#128260;', iconClass: 'info-icon', title: 'Lifecycle state changed: henderson-msa extracting \u2192 preflight_ready', desc: 'Extraction complete. Preflight gate: YELLOW. 3 items need review.', source: 'Contracts / henderson-msa', time: 'Yesterday 14:10', unread: false, actions: [] },
+    { id: 17, priority: 'action', icon: '&#128100;', iconClass: 'action-icon', title: 'Entity resolved: "Sony Music Entertainment" matched (96% confidence)', desc: 'Auto-resolved via exact match in account_aliases table. No manual action needed.', source: 'Contracts / sony-dist-2024', time: 'Yesterday 11:30', unread: false, actions: [] },
+    { id: 18, priority: 'info', icon: '&#9881;', iconClass: 'info-icon', title: 'Feature flag changed: export.docx.enabled rollout 30% \u2192 50%', desc: 'Changed by admin@acme.co. Gradual rollout in progress.', source: 'Admin / Feature Control Plane', time: 'Yesterday 10:15', unread: false, actions: [] },
+  ]}
+];
+
+/* ── RENDER FEED ─────────────────────────────────────── */
+var activeFilter = 'all';
+function renderFeed(filter) {
+  var el = document.getElementById('notifFeed');
+  var html = '';
+  NOTIFICATIONS.forEach(function(group) {
+    var items = group.items;
+    if (filter && filter !== 'all') {
+      if (filter === 'unread') items = items.filter(function(n) { return n.unread; });
+      else if (filter === 'urgent') items = items.filter(function(n) { return n.priority === 'urgent'; });
+      else if (filter === 'action') items = items.filter(function(n) { return n.priority === 'action'; });
+      else if (filter === 'info') items = items.filter(function(n) { return n.priority === 'info'; });
+      else if (filter === 'ai') items = items.filter(function(n) { return n.priority === 'ai'; });
+      else if (filter === 'contracts') items = items.filter(function(n) { return n.source.indexOf('Contracts') === 0; });
+      else if (filter === 'tasks') items = items.filter(function(n) { return n.source.indexOf('Tasks') === 0; });
+      else if (filter === 'admin') items = items.filter(function(n) { return n.source.indexOf('Admin') === 0; });
+    }
+    if (items.length === 0) return;
+    html += '<div class="nc-date-header">' + group.date + '</div>';
+    items.forEach(function(n) {
+      var pClass = n.priority === 'urgent' ? 'urgent' : n.priority === 'action' ? 'action' : n.priority === 'ai' ? 'ai-notif' : 'info-notif';
+      html += '<div class="nc-item ' + pClass + (n.unread ? ' unread' : '') + '" onclick="markRead(' + n.id + ', this)">'
+        + '<div class="nc-item-icon ' + n.iconClass + '">' + n.icon + '</div>'
+        + '<div class="nc-item-body">'
+        + '<div class="nc-item-top"><span class="nc-item-title">' + n.title + '</span><span class="nc-item-time">' + n.time + '</span></div>'
+        + '<div class="nc-item-desc">' + n.desc + '</div>'
+        + '<div class="nc-item-source">' + n.source + '</div>'
+        + (n.actions && n.actions.length ? '<div class="nc-item-actions">' + n.actions.map(function(a) {
+            return '<button class="nc-action-btn ' + (a.primary ? 'primary' : '') + '" onclick="event.stopPropagation(); handleAction(\'' + a.label + '\')">' + a.label + '</button>';
+          }).join('') + '</div>' : '')
+        + '</div>'
+        + '</div>';
+    });
+  });
+  if (!html) html = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No notifications match this filter.</div>';
+  el.innerHTML = html;
+}
+
+function markRead(id, el) {
+  el.classList.remove('unread');
+  NOTIFICATIONS.forEach(function(g) { g.items.forEach(function(n) { if (n.id === id) n.unread = false; }); });
+}
+
+function handleAction(label) {
+  showToast('Action: ' + label);
+}
+
+/* ── RENDER PREFERENCES ──────────────────────────────── */
+function renderPreferences() {
+  var el = document.getElementById('prefContent');
+  el.innerHTML =
+    // Priority Filters
+    '<div class="pref-section">'
+    + '<div class="pref-section-header">Priority Filters</div>'
+    + makePrefToggle('var(--red)', 'Urgent Notifications', 'SLA overdue, patch rejected, failures', true)
+    + makePrefToggle('var(--amber)', 'Action Notifications', 'Reviews, assignments, SLA warnings', true)
+    + makePrefToggle('var(--accent-blue)', 'Info Notifications', 'Extractions, state changes, health', true)
+    + makePrefToggle('var(--cyan)', 'AI Suggestions', 'Otto suggestions and classifications', true)
+    + '</div>'
+
+    // Module Toggles
+    + '<div class="pref-section">'
+    + '<div class="pref-section-header">Per-Module Notifications</div>'
+    + makePrefToggle('var(--accent-blue)', 'Contracts', '14 vaults, 3 active batches', true)
+    + makePrefToggle('var(--teal)', 'CRM', '8 accounts, 24 contacts', true)
+    + makePrefToggle('var(--amber)', 'Tasks', '12 open tasks, 3 overdue', true)
+    + makePrefToggle('var(--green)', 'Calendar', '6 upcoming deadlines', true)
+    + makePrefToggle('var(--purple)', 'Documents', '42 documents indexed', false)
+    + '</div>'
+
+    // Delivery Channels
+    + '<div class="pref-section">'
+    + '<div class="pref-section-header">Delivery Channels</div>'
+    + makeChannelCard('In-App', 'active', 'Real-time notifications in the Notification Center and module badges.', true, 'Always on')
+    + makeChannelCard('Email Digest', 'future', 'Daily summary of unresolved urgent and action items. Sent at your configured time.', false, 'V2 Feature')
+    + makeChannelCard('Browser Push', 'future', 'Desktop push notifications for URGENT priority events only. Requires browser permission.', false, 'V3 Feature')
+    + '</div>'
+
+    // Muted Vaults
+    + '<div class="pref-section">'
+    + '<div class="pref-section-header">Muted Vaults</div>'
+    + '<div class="muted-vault"><span class="muted-vault-name"># warner-lic-2024 <span>Contracts</span></span><button class="unmute-btn" onclick="showToast(\'Unmuted warner-lic-2024\')">Unmute</button></div>'
+    + '<div class="muted-vault"><span class="muted-vault-name"># old-batch-0142 <span>Contracts</span></span><button class="unmute-btn" onclick="showToast(\'Unmuted old-batch-0142\')">Unmute</button></div>'
+    + '</div>'
+
+    // Batching Preview
+    + '<div class="pref-section">'
+    + '<div class="pref-section-header">Notification Batching (Preview)</div>'
+    + '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Similar notifications are grouped to reduce noise. This is how batching would look:</div>'
+    + '<div class="batch-preview">'
+    + '<div class="batch-preview-title">Batched Notification Example</div>'
+    + '<div class="batch-preview-item"><span class="dot" style="background:var(--accent-blue)"></span> 5 contracts completed extraction in B-2024-0155</div>'
+    + '<div class="batch-preview-item"><span class="dot" style="background:var(--green)"></span> 3 contracts auto-advanced to system_pass</div>'
+    + '<div class="batch-preview-item"><span class="dot" style="background:var(--amber)"></span> 2 new triage items assigned to you</div>'
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Batching will be configurable in a future release. Currently all notifications are delivered individually.</div>'
+    + '</div>'
+
+    // Quiet Hours
+    + '<div class="pref-section">'
+    + '<div class="pref-section-header">Quiet Hours (Future)</div>'
+    + '<div style="font-size:11px;color:var(--text-muted);">Suppress non-URGENT notifications during specified time ranges. Not yet available.</div>'
+    + '<div style="display:flex;gap:8px;margin-top:8px;opacity:0.4;pointer-events:none;">'
+    + '<div style="padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-card);border:1px solid var(--border);font-size:11px;">Start: 22:00</div>'
+    + '<div style="padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg-card);border:1px solid var(--border);font-size:11px;">End: 07:00</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function makePrefToggle(color, label, desc, on) {
+  return '<div class="pref-row">'
+    + '<div class="pref-row-left"><div class="pref-dot" style="background:' + color + '"></div><div><div class="pref-label">' + label + '</div><div class="pref-desc">' + desc + '</div></div></div>'
+    + '<label class="pref-toggle"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="showToast((this.checked ? \'Enabled\' : \'Disabled\') + \': ' + label + '\')"><span class="pref-toggle-track"></span><span class="pref-toggle-knob"></span></label>'
+    + '</div>';
+}
+
+function makeChannelCard(name, status, desc, on, statusLabel) {
+  return '<div class="channel-card">'
+    + '<div class="channel-card-top"><span class="channel-card-name">' + name + '</span><span class="channel-card-status ' + status + '">' + statusLabel + '</span></div>'
+    + '<div class="channel-card-desc">' + desc + '</div>'
+    + '<div class="channel-card-row"><span class="channel-card-label">Enabled</span>'
+    + '<label class="pref-toggle"><input type="checkbox" ' + (on ? 'checked' : '') + (status === 'future' ? ' disabled' : '') + '><span class="pref-toggle-track"></span><span class="pref-toggle-knob"></span></label>'
+    + '</div>'
+    + '</div>';
+}
+
+/* ── FILTER CLICKS ───────────────────────────────────── */
+document.querySelectorAll('.nc-filter').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    // Handle priority filters as toggleable within their group
+    var filter = btn.dataset.filter;
+    if (filter === 'all' || filter === 'unread') {
+      // Radio behavior for all/unread
+      document.querySelectorAll('.nc-filter').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    } else {
+      // Toggle off 'all' and 'unread', toggle this filter
+      document.querySelector('.nc-filter[data-filter="all"]').classList.remove('active');
+      document.querySelector('.nc-filter[data-filter="unread"]').classList.remove('active');
+      btn.classList.toggle('active');
+      // If no priority/module filter is active, revert to 'all'
+      var anyActive = document.querySelectorAll('.nc-filter-group .nc-filter.active');
+      var hasActive = false;
+      anyActive.forEach(function(a) { if (a.dataset.filter !== 'all' && a.dataset.filter !== 'unread') hasActive = true; });
+      if (!hasActive) {
+        document.querySelector('.nc-filter[data-filter="all"]').classList.add('active');
+        filter = 'all';
+      }
+    }
+    activeFilter = filter;
+    renderFeed(filter);
+  });
+});
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 2000);
+}
+
+/* ── INIT ────────────────────────────────────────────── */
+renderFeed('all');
+renderPreferences();
+</script>
+</body>
+</html>

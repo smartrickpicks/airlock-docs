@@ -1,0 +1,7 @@
+# Track large binary assets with Git LFS
+NotebookLM/*.pdf filter=lfs diff=lfs merge=lfs -text
+NotebookLM/*.png filter=lfs diff=lfs merge=lfs -text
+demo-shell/themes/*.svg filter=lfs diff=lfs merge=lfs -text
+Pub[[:space:]]Specs/*.png filter=lfs diff=lfs merge=lfs -text
+Pub[[:space:]]Specs/*.jpg filter=lfs diff=lfs merge=lfs -text
+NotebookLM/** !text !filter !merge !diff

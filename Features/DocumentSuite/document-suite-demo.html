@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — Document Suite</title>
+  <style>
+    /* ===== Design Tokens (shared with all demos) ===== */
+    :root {
+      --bg-darkest:    #0d1017;
+      --bg-page:       #12161f;
+      --bg-input:      #161b28;
+      --bg-panel:      #1a1f2e;
+      --bg-card:       #1e2436;
+      --bg-card-hover: #242b3d;
+      --bg-input-focus:#1c2235;
+      --text-primary:   #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted:     #6b7280;
+      --accent-blue:    #0091ea;
+      --accent-blue-dim:rgba(0,145,234,0.15);
+      --green:          #4caf50;
+      --green-dim:      rgba(76,175,80,0.15);
+      --amber:          #ff9800;
+      --amber-dim:      rgba(255,152,0,0.12);
+      --red:            #f44336;
+      --red-dim:        rgba(244,67,54,0.12);
+      --teal:           #26a69a;
+      --teal-dim:       rgba(38,166,154,0.12);
+      --purple:         #7b1fa2;
+      --purple-dim:     rgba(123,31,162,0.12);
+      --cyan:           #00d1ff;
+      --cyan-dim:       rgba(0,209,255,0.10);
+      --border:         #2a3040;
+      --border-light:   #333b4f;
+      --border-focus:   #0091ea;
+      --mono: 'SF Mono','Cascadia Code','Consolas','Monaco', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* ===== File Browser (Left Panel) ===== */
+    .file-browser {
+      width: 280px;
+      min-width: 280px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .fb-header {
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .fb-header h2 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .fb-search {
+      width: 100%;
+      padding: 6px 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: var(--sans);
+      outline: none;
+    }
+    .fb-search:focus { border-color: var(--border-focus); }
+    .fb-search::placeholder { color: var(--text-muted); }
+
+    /* Connected Sources */
+    .connected-sources {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cs-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .cs-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .cs-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .cs-dot.connected { background: var(--green); }
+    .cs-dot.syncing { background: var(--amber); animation: pulse 1.5s ease infinite; }
+    .cs-dot.disconnected { background: var(--text-muted); opacity: 0.5; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .cs-sync { font-size: 9px; color: var(--text-muted); margin-left: auto; }
+
+    /* File Tree */
+    .file-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .file-tree::-webkit-scrollbar { width: 4px; }
+    .file-tree::-webkit-scrollbar-track { background: transparent; }
+    .file-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .tree-group {
+      margin-bottom: 2px;
+    }
+    .tree-vault {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+    .tree-vault:hover { background: var(--bg-card); color: var(--text-primary); }
+    .tree-vault .chevron {
+      font-size: 8px;
+      color: var(--text-muted);
+      transition: transform 0.15s ease;
+      width: 10px;
+      text-align: center;
+    }
+    .tree-vault.collapsed .chevron { transform: rotate(-90deg); }
+    .tree-vault .vault-icon { font-size: 13px; }
+
+    .tree-folder {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px 4px 30px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .tree-folder:hover { color: var(--text-secondary); }
+    .tree-folder .chevron {
+      font-size: 8px;
+      color: var(--text-muted);
+      transition: transform 0.15s ease;
+      width: 10px;
+      text-align: center;
+    }
+    .tree-folder.collapsed .chevron { transform: rotate(-90deg); }
+
+    .tree-file {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px 4px 48px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+    .tree-file:hover { background: var(--bg-card); color: var(--text-primary); }
+    .tree-file.active { background: var(--accent-blue-dim); color: var(--accent-blue); }
+    .tree-file .file-icon {
+      font-size: 12px;
+      width: 14px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .tree-file .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tree-file .source-badge {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .source-badge.drive { background: rgba(66,133,244,0.15); color: #4285f4; }
+    .source-badge.s3 { background: rgba(255,153,0,0.15); color: #ff9900; }
+    .source-badge.local { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .source-badge.internal { background: rgba(0,209,255,0.10); color: var(--cyan); }
+
+    .tree-children { overflow: hidden; transition: max-height 0.2s ease; }
+    .tree-children.collapsed { max-height: 0 !important; }
+
+    /* New Document button */
+    .fb-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .btn-new-doc {
+      width: 100%;
+      padding: 7px 12px;
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+      border: 1px solid rgba(0,145,234,0.25);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--sans);
+      transition: background 0.15s;
+    }
+    .btn-new-doc:hover { background: rgba(0,145,234,0.25); }
+
+    /* ===== Editor / Viewer (Center Panel) ===== */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg-page);
+    }
+
+    /* Tab bar */
+    .editor-tabs {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      height: 36px;
+      flex-shrink: 0;
+    }
+    .editor-tab {
+      padding: 8px 16px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .editor-tab:hover { color: var(--text-secondary); }
+    .editor-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+    .editor-tabs-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .editor-tabs-right .tab-action {
+      font-size: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .editor-tabs-right .tab-action:hover { background: var(--bg-card); color: var(--text-secondary); }
+
+    /* Toolbar */
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .toolbar-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      background: none;
+      border: none;
+      font-family: var(--sans);
+      transition: all 0.1s;
+    }
+    .toolbar-btn:hover { background: var(--bg-card); color: var(--text-primary); }
+    .toolbar-btn.active { background: var(--accent-blue-dim); color: var(--accent-blue); }
+    .toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+    .toolbar-dropdown {
+      padding: 4px 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-family: var(--sans);
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Editor Content */
+    .editor-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 48px;
+    }
+    .editor-content::-webkit-scrollbar { width: 6px; }
+    .editor-content::-webkit-scrollbar-track { background: transparent; }
+    .editor-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* TipTap-style document */
+    .doc-body {
+      max-width: 720px;
+      margin: 0 auto;
+      line-height: 1.65;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    .doc-body h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+    .doc-body h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 28px 0 10px;
+      color: var(--text-primary);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .doc-body h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: var(--text-secondary);
+    }
+    .doc-body p { margin-bottom: 12px; }
+    .doc-body ul, .doc-body ol { margin: 8px 0 12px 24px; }
+    .doc-body li { margin-bottom: 4px; }
+
+    /* Template Variable Chip */
+    .tpl-var {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 8px;
+      background: var(--cyan-dim);
+      border: 1px solid rgba(0,209,255,0.2);
+      border-radius: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--cyan);
+      cursor: default;
+      vertical-align: baseline;
+    }
+    .tpl-var .var-icon { font-size: 9px; opacity: 0.7; }
+
+    /* Clause Block */
+    .clause-block {
+      margin: 16px 0;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent-blue);
+      border-radius: var(--radius-md);
+    }
+    .clause-block.risk-low { border-left-color: var(--green); }
+    .clause-block.risk-medium { border-left-color: var(--amber); }
+    .clause-block.risk-high { border-left-color: var(--red); }
+    .clause-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .clause-id {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      background: var(--bg-input);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .clause-risk {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .clause-risk.low { background: var(--green-dim); color: var(--green); }
+    .clause-risk.medium { background: var(--amber-dim); color: var(--amber); }
+    .clause-risk.high { background: var(--red-dim); color: var(--red); }
+    .clause-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .clause-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    /* Financial Table */
+    .fin-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 12px;
+    }
+    .fin-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .fin-table td {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    .fin-table td.amount {
+      font-family: var(--mono);
+      color: var(--text-primary);
+      text-align: right;
+    }
+
+    /* Signature Block */
+    .sig-block {
+      margin: 32px 0 16px;
+      padding: 20px;
+      border: 1px dashed var(--border-light);
+      border-radius: var(--radius-md);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .sig-party h4 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .sig-line {
+      border-bottom: 1px solid var(--text-muted);
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      min-height: 20px;
+    }
+    .sig-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* PDF Viewer Mode */
+    .pdf-viewer { display: none; flex-direction: column; height: 100%; }
+    .pdf-viewer.active { display: flex; }
+    .pdf-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .pdf-toolbar .page-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .pdf-toolbar .page-nav button {
+      width: 24px;
+      height: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pdf-toolbar .page-nav button:hover { background: var(--bg-card-hover); }
+    .pdf-toolbar .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .pdf-toolbar .annotation-toggle {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: none;
+      font-family: var(--sans);
+    }
+    .pdf-toolbar .annotation-toggle.active { background: var(--cyan-dim); color: var(--cyan); border-color: rgba(0,209,255,0.3); }
+
+    .pdf-canvas {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+      background: var(--bg-darkest);
+    }
+    .pdf-page {
+      width: 595px;
+      min-height: 842px;
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+      position: relative;
+      padding: 60px 50px;
+      color: #1a1a1a;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .pdf-page h1 { font-size: 18px; color: #111; margin-bottom: 4px; }
+    .pdf-page h2 { font-size: 14px; color: #333; margin: 16px 0 6px; border: none; padding: 0; }
+    .pdf-page p { margin-bottom: 8px; font-size: 11px; color: #333; }
+
+    /* Annotation overlays on PDF */
+    .pdf-annotation {
+      position: absolute;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .pdf-annotation.pass { background: rgba(76,175,80,0.18); border: 1px solid rgba(76,175,80,0.35); }
+    .pdf-annotation.review { background: rgba(255,152,0,0.18); border: 1px solid rgba(255,152,0,0.35); }
+    .pdf-annotation.fail { background: rgba(244,67,54,0.18); border: 1px solid rgba(244,67,54,0.35); }
+    .pdf-annotation.ai { background: rgba(0,209,255,0.12); border: 1px solid rgba(0,209,255,0.3); }
+    .pdf-annotation:hover { opacity: 0.7; }
+    .pdf-annotation .ann-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 0;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .pdf-annotation:hover .ann-tooltip { display: block; }
+
+    /* ===== Document Inspector (Right Panel) ===== */
+    .doc-inspector {
+      width: 300px;
+      min-width: 300px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .di-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .di-header h3 {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .di-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .di-body::-webkit-scrollbar { width: 4px; }
+    .di-body::-webkit-scrollbar-track { background: transparent; }
+    .di-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Inspector Sections */
+    .di-section {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .di-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* Metadata rows */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 11px;
+    }
+    .meta-label { color: var(--text-muted); }
+    .meta-value { color: var(--text-secondary); font-weight: 500; }
+    .meta-value.mono { font-family: var(--mono); font-size: 10px; }
+
+    /* Source indicator */
+    .source-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .source-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .source-icon.drive { background: rgba(66,133,244,0.15); }
+    .source-icon.s3 { background: rgba(255,153,0,0.15); }
+    .source-icon.local { background: var(--green-dim); }
+    .source-icon.internal { background: var(--cyan-dim); }
+    .source-info { flex: 1; min-width: 0; }
+    .source-name { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .source-path {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sync-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .sync-badge.synced { background: var(--green-dim); color: var(--green); }
+    .sync-badge.modified { background: var(--amber-dim); color: var(--amber); }
+    .sync-badge.new { background: var(--cyan-dim); color: var(--cyan); }
+
+    /* Adapter Pipeline */
+    .adapter-pipeline {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .adapter-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+    }
+    .adapter-step .step-num {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .adapter-step .step-label { color: var(--text-secondary); }
+    .adapter-step .step-format {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-left: auto;
+    }
+    .adapter-arrow {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    /* Version History */
+    .version-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      position: relative;
+    }
+    .version-item:not(:last-child)::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 24px;
+      bottom: -8px;
+      width: 1px;
+      background: var(--border);
+    }
+    .version-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      margin-top: 2px;
+    }
+    .version-dot.current { background: var(--accent-blue); color: #fff; }
+    .version-dot.past { background: var(--border); color: var(--text-muted); }
+    .version-info { flex: 1; min-width: 0; }
+    .version-label { font-size: 11px; font-weight: 500; color: var(--text-primary); }
+    .version-meta { font-size: 10px; color: var(--text-muted); }
+
+    /* Template Variables List */
+    .tpl-list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+    }
+    .tpl-list-item .tpl-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--cyan);
+    }
+    .tpl-list-item .tpl-val {
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+    .tpl-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Empty / placeholder states */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 48px;
+    }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+    .empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
+    .empty-state p { font-size: 12px; max-width: 280px; line-height: 1.5; }
+
+    /* Hidden */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ===== File Browser (Left) ===== -->
+  <div class="file-browser">
+    <div class="fb-header">
+      <h2>Documents</h2>
+      <input class="fb-search" type="text" placeholder="Search files..." id="fileSearch">
+    </div>
+
+    <div class="connected-sources">
+      <div class="cs-title">Connected Sources</div>
+      <div class="cs-item">
+        <span class="cs-dot connected"></span>
+        <span style="color:#4285f4">&#9679;</span> Google Drive
+        <span class="cs-sync">2m ago</span>
+      </div>
+      <div class="cs-item">
+        <span class="cs-dot connected"></span>
+        <span style="color:#ff9900">&#9679;</span> Amazon S3
+        <span class="cs-sync">15m ago</span>
+      </div>
+      <div class="cs-item">
+        <span class="cs-dot disconnected"></span>
+        <span style="color:var(--text-muted)">&#9679;</span> OneDrive
+        <span class="cs-sync" style="color:var(--red)">not connected</span>
+      </div>
+      <div class="cs-item">
+        <span class="cs-dot connected"></span>
+        <span style="color:#4caf50">&#9679;</span> Local Files
+        <span class="cs-sync">active</span>
+      </div>
+    </div>
+
+    <div class="file-tree" id="fileTree">
+      <!-- Acme Inc -->
+      <div class="tree-group" data-vault="acme">
+        <div class="tree-vault" onclick="toggleTree(this)">
+          <span class="chevron">&#9660;</span>
+          <span class="vault-icon">&#128188;</span>
+          Acme Inc
+        </div>
+        <div class="tree-children">
+          <div class="tree-folder" onclick="toggleTree(this)">
+            <span class="chevron">&#9660;</span>
+            &#128193; Contracts
+          </div>
+          <div class="tree-children">
+            <div class="tree-file" data-file="acme-msa" data-type="pdf" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#e74c3c">&#128196;</span>
+              <span class="file-name">MSA-2024-Final.pdf</span>
+              <span class="source-badge drive">Drive</span>
+            </div>
+            <div class="tree-file" data-file="acme-amendment" data-type="doc" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#3498db">&#128196;</span>
+              <span class="file-name">Amendment-v3.docx</span>
+              <span class="source-badge drive">Drive</span>
+            </div>
+            <div class="tree-file" data-file="acme-nda" data-type="md" onclick="selectFile(this)">
+              <span class="file-icon" style="color:var(--cyan)">&#128196;</span>
+              <span class="file-name">NDA-Standard.md</span>
+              <span class="source-badge internal">Int</span>
+            </div>
+          </div>
+          <div class="tree-folder" onclick="toggleTree(this)">
+            <span class="chevron">&#9660;</span>
+            &#128193; Legal
+          </div>
+          <div class="tree-children">
+            <div class="tree-file" data-file="acme-tos" data-type="pdf" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#e74c3c">&#128196;</span>
+              <span class="file-name">Terms-of-Service.pdf</span>
+              <span class="source-badge s3">S3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ostereo Music Group -->
+      <div class="tree-group" data-vault="ostereo">
+        <div class="tree-vault" onclick="toggleTree(this)">
+          <span class="chevron">&#9660;</span>
+          <span class="vault-icon">&#127925;</span>
+          Ostereo Music Group
+        </div>
+        <div class="tree-children">
+          <div class="tree-folder" onclick="toggleTree(this)">
+            <span class="chevron">&#9660;</span>
+            &#128193; Contracts
+          </div>
+          <div class="tree-children">
+            <div class="tree-file" data-file="ost-dist" data-type="pdf" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#e74c3c">&#128196;</span>
+              <span class="file-name">Distribution-2024.pdf</span>
+              <span class="source-badge drive">Drive</span>
+            </div>
+            <div class="tree-file" data-file="ost-license" data-type="pdf" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#e74c3c">&#128196;</span>
+              <span class="file-name">License-Renewal.pdf</span>
+              <span class="source-badge drive">Drive</span>
+            </div>
+          </div>
+          <div class="tree-folder" onclick="toggleTree(this)">
+            <span class="chevron">&#9660;</span>
+            &#128193; Financials
+          </div>
+          <div class="tree-children">
+            <div class="tree-file" data-file="ost-rates" data-type="doc" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#27ae60">&#128196;</span>
+              <span class="file-name">Rate-Sheet-Q1.xlsx</span>
+              <span class="source-badge drive">Drive</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nova Entertainment -->
+      <div class="tree-group" data-vault="nova">
+        <div class="tree-vault" onclick="toggleTree(this)">
+          <span class="chevron">&#9660;</span>
+          <span class="vault-icon">&#127902;</span>
+          Nova Entertainment
+        </div>
+        <div class="tree-children">
+          <div class="tree-folder" onclick="toggleTree(this)">
+            <span class="chevron">&#9660;</span>
+            &#128193; Contracts
+          </div>
+          <div class="tree-children">
+            <div class="tree-file" data-file="nova-recording" data-type="pdf" onclick="selectFile(this)">
+              <span class="file-icon" style="color:#e74c3c">&#128196;</span>
+              <span class="file-name">Recording-Agreement.pdf</span>
+              <span class="source-badge local">Local</span>
+            </div>
+          </div>
+          <div class="tree-folder" onclick="toggleTree(this)">
+            <span class="chevron">&#9660;</span>
+            &#128193; Correspondence
+          </div>
+          <div class="tree-children">
+            <div class="tree-file" data-file="nova-cover" data-type="md" onclick="selectFile(this)">
+              <span class="file-icon" style="color:var(--cyan)">&#128196;</span>
+              <span class="file-name">Cover-Letter.md</span>
+              <span class="source-badge internal">Int</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Templates -->
+      <div class="tree-group" data-vault="templates">
+        <div class="tree-vault" onclick="toggleTree(this)">
+          <span class="chevron">&#9660;</span>
+          <span class="vault-icon">&#128203;</span>
+          Templates (System)
+        </div>
+        <div class="tree-children">
+          <div class="tree-file active" data-file="tpl-distribution" data-type="template" onclick="selectFile(this)">
+            <span class="file-icon" style="color:var(--cyan)">&#128203;</span>
+            <span class="file-name">Distribution-Agreement.md</span>
+            <span class="source-badge internal">Int</span>
+          </div>
+          <div class="tree-file" data-file="tpl-license" data-type="template" onclick="selectFile(this)">
+            <span class="file-icon" style="color:var(--cyan)">&#128203;</span>
+            <span class="file-name">License-Agreement.md</span>
+            <span class="source-badge internal">Int</span>
+          </div>
+          <div class="tree-file" data-file="tpl-recording" data-type="template" onclick="selectFile(this)">
+            <span class="file-icon" style="color:var(--cyan)">&#128203;</span>
+            <span class="file-name">Recording-Contract.md</span>
+            <span class="source-badge internal">Int</span>
+          </div>
+          <div class="tree-file" data-file="tpl-amendment" data-type="template" onclick="selectFile(this)">
+            <span class="file-icon" style="color:var(--cyan)">&#128203;</span>
+            <span class="file-name">Amendment-Template.md</span>
+            <span class="source-badge internal">Int</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fb-footer">
+      <button class="btn-new-doc">+ New Document</button>
+    </div>
+  </div>
+
+  <!-- ===== Editor / Viewer (Center) ===== -->
+  <div class="editor-area">
+
+    <!-- Editor Mode (TipTap-style) -->
+    <div id="editorMode">
+      <div class="editor-tabs">
+        <div class="editor-tab active" data-tab="edit" onclick="switchEditorTab(this)">Edit</div>
+        <div class="editor-tab" data-tab="preview" onclick="switchEditorTab(this)">Preview</div>
+        <div class="editor-tab" data-tab="diff" onclick="switchEditorTab(this)">Diff</div>
+        <div class="editor-tabs-right">
+          <span class="tab-action">&#128203; Insert Block</span>
+          <span class="tab-action">&#128279; Template Vars</span>
+          <span class="tab-action">&#128190; Save</span>
+        </div>
+      </div>
+
+      <div class="editor-toolbar">
+        <select class="toolbar-dropdown">
+          <option>Paragraph</option>
+          <option>Heading 1</option>
+          <option>Heading 2</option>
+          <option>Heading 3</option>
+          <option>Code Block</option>
+        </select>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" title="Bold"><b>B</b></button>
+        <button class="toolbar-btn" title="Italic"><i>I</i></button>
+        <button class="toolbar-btn" title="Underline" style="text-decoration:underline">U</button>
+        <button class="toolbar-btn" title="Strikethrough" style="text-decoration:line-through">S</button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" title="Bullet List">&#8226;</button>
+        <button class="toolbar-btn" title="Numbered List">1.</button>
+        <button class="toolbar-btn" title="Blockquote">&#10077;</button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" title="Table">&#9638;</button>
+        <button class="toolbar-btn" title="Link">&#128279;</button>
+        <button class="toolbar-btn" title="Image">&#128247;</button>
+        <div class="toolbar-sep"></div>
+        <button class="toolbar-btn" title="Insert Clause" style="font-size:10px;width:auto;padding:0 8px;color:var(--cyan)">+ Clause</button>
+        <button class="toolbar-btn" title="Insert Variable" style="font-size:10px;width:auto;padding:0 8px;color:var(--amber)">&#123;&#123; Var &#125;&#125;</button>
+        <button class="toolbar-btn" title="Financial Table" style="font-size:10px;width:auto;padding:0 8px;color:var(--green)">$ Table</button>
+      </div>
+
+      <div class="editor-content" id="editorContent">
+        <!-- Default: Distribution Agreement Template -->
+        <div class="doc-body" id="docBody">
+          <h1>Distribution Agreement</h1>
+          <p style="color:var(--text-muted);font-size:12px;margin-bottom:24px;">
+            Template ID: <span style="font-family:var(--mono);color:var(--cyan)">DIST-STD-001</span>
+            &nbsp;&middot;&nbsp; Last modified: Mar 1, 2026
+            &nbsp;&middot;&nbsp; Version 4.2
+          </p>
+
+          <p>This Distribution Agreement (the <strong>"Agreement"</strong>) is entered into as of
+            <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> EFFECTIVE_DATE</span>,
+            by and between
+            <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> ENTITY_LEGAL_NAME</span>
+            (the <strong>"Distributor"</strong>) and
+            <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> COUNTERPARTY_NAME</span>
+            (the <strong>"Licensor"</strong>).
+          </p>
+
+          <h2>1. Grant of Rights</h2>
+
+          <div class="clause-block risk-low">
+            <div class="clause-header">
+              <span class="clause-id">CL-DIST-001</span>
+              <span class="clause-risk low">Low Risk</span>
+              <span class="clause-title">Exclusive Distribution License</span>
+            </div>
+            <div class="clause-text">
+              Licensor hereby grants to Distributor the exclusive right to distribute, market, and sell
+              the Works (as defined in Schedule A) throughout the Territory of
+              <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> OPP_TERRITORY</span>
+              for a period of
+              <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> OPP_TERM_LENGTH</span>
+              commencing on the Effective Date.
+            </div>
+          </div>
+
+          <p>The rights granted herein shall include, without limitation, the right to:</p>
+          <ul>
+            <li>Manufacture, distribute, and sell physical and digital copies of the Works</li>
+            <li>Sub-license to approved retail and streaming platforms</li>
+            <li>Use the Licensor's name, likeness, and trademarks in connection with distribution</li>
+          </ul>
+
+          <h2>2. Financial Terms</h2>
+
+          <div class="clause-block risk-medium">
+            <div class="clause-header">
+              <span class="clause-id">CL-FIN-003</span>
+              <span class="clause-risk medium">Medium Risk</span>
+              <span class="clause-title">Advance and Royalty Schedule</span>
+            </div>
+            <div class="clause-text">
+              Distributor shall pay Licensor an advance of
+              <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> ADVANCE_AMOUNT</span>
+              upon execution of this Agreement. Ongoing royalties shall be calculated per the schedule below.
+            </div>
+          </div>
+
+          <table class="fin-table">
+            <thead>
+              <tr>
+                <th>Revenue Source</th>
+                <th>Licensor Share</th>
+                <th>Distributor Share</th>
+                <th>Min. Guarantee</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Physical Sales</td>
+                <td class="amount"><span class="tpl-var" style="font-size:10px"><span class="var-icon">&#123;&#123;</span> PHYSICAL_RATE</span></td>
+                <td class="amount">25%</td>
+                <td class="amount">$50,000</td>
+              </tr>
+              <tr>
+                <td>Digital Downloads</td>
+                <td class="amount"><span class="tpl-var" style="font-size:10px"><span class="var-icon">&#123;&#123;</span> DIGITAL_RATE</span></td>
+                <td class="amount">20%</td>
+                <td class="amount">$25,000</td>
+              </tr>
+              <tr>
+                <td>Streaming</td>
+                <td class="amount"><span class="tpl-var" style="font-size:10px"><span class="var-icon">&#123;&#123;</span> STREAMING_RATE</span></td>
+                <td class="amount">30%</td>
+                <td class="amount">$10,000</td>
+              </tr>
+              <tr>
+                <td>Sync Licensing</td>
+                <td class="amount">50%</td>
+                <td class="amount">50%</td>
+                <td class="amount">N/A</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2>3. Term and Termination</h2>
+
+          <div class="clause-block risk-high">
+            <div class="clause-header">
+              <span class="clause-id">CL-TERM-002</span>
+              <span class="clause-risk high">High Risk</span>
+              <span class="clause-title">Automatic Renewal with 90-Day Notice</span>
+            </div>
+            <div class="clause-text">
+              This Agreement shall remain in effect for the Initial Term and shall automatically renew for
+              successive periods of
+              <span class="tpl-var"><span class="var-icon">&#123;&#123;</span> RENEWAL_PERIOD</span>
+              unless either party provides written notice of termination at least ninety (90) days prior
+              to the end of the then-current term. Upon termination, all rights to unsold inventory and
+              active distribution channels shall revert to Licensor within thirty (30) days.
+            </div>
+          </div>
+
+          <h2>4. Representations and Warranties</h2>
+
+          <p>Each party represents and warrants that:</p>
+          <ol>
+            <li>It has the full right, power, and authority to enter into this Agreement;</li>
+            <li>The execution of this Agreement does not conflict with any existing obligations;</li>
+            <li>All Works delivered are original and do not infringe upon the rights of any third party;</li>
+            <li>It shall comply with all applicable laws in the Territory.</li>
+          </ol>
+
+          <h2>5. Signatures</h2>
+
+          <div class="sig-block">
+            <div class="sig-party">
+              <h4>Distributor</h4>
+              <div class="sig-line"><span class="tpl-var" style="font-size:10px"><span class="var-icon">&#123;&#123;</span> ENTITY_LEGAL_NAME</span></div>
+              <div class="sig-label">Company Name</div>
+              <div class="sig-line"></div>
+              <div class="sig-label">Authorized Signature</div>
+              <div class="sig-line"></div>
+              <div class="sig-label">Name and Title</div>
+              <div class="sig-line"><span class="tpl-var" style="font-size:10px"><span class="var-icon">&#123;&#123;</span> TODAY</span></div>
+              <div class="sig-label">Date</div>
+            </div>
+            <div class="sig-party">
+              <h4>Licensor</h4>
+              <div class="sig-line"><span class="tpl-var" style="font-size:10px"><span class="var-icon">&#123;&#123;</span> COUNTERPARTY_NAME</span></div>
+              <div class="sig-label">Company Name</div>
+              <div class="sig-line"></div>
+              <div class="sig-label">Authorized Signature</div>
+              <div class="sig-line"></div>
+              <div class="sig-label">Name and Title</div>
+              <div class="sig-line"></div>
+              <div class="sig-label">Date</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF Viewer Mode -->
+    <div id="pdfMode" class="pdf-viewer">
+      <div class="editor-tabs">
+        <div class="editor-tab active">View</div>
+        <div class="editor-tab">Annotations</div>
+        <div class="editor-tab">Extract</div>
+        <div class="editor-tabs-right">
+          <span class="tab-action">&#128269; Find</span>
+          <span class="tab-action">&#128190; Download</span>
+        </div>
+      </div>
+      <div class="pdf-toolbar">
+        <div class="page-nav">
+          <button>&larr;</button>
+          <span>Page <strong>1</strong> of 4</span>
+          <button>&rarr;</button>
+        </div>
+        <button class="annotation-toggle active" id="annotationToggle" onclick="this.classList.toggle('active')">
+          <span style="font-size:12px">&#9673;</span> Annotations On
+        </button>
+        <div class="zoom-controls">
+          <button class="toolbar-btn" style="width:24px;height:24px;font-size:14px">-</button>
+          <span style="font-family:var(--mono);font-size:10px">100%</span>
+          <button class="toolbar-btn" style="width:24px;height:24px;font-size:14px">+</button>
+          <span style="font-size:10px;color:var(--text-muted)">&middot; Fit Width</span>
+        </div>
+      </div>
+      <div class="pdf-canvas">
+        <div class="pdf-page" id="pdfPage">
+          <h1>MASTER SERVICE AGREEMENT</h1>
+          <p style="font-size:10px;color:#666;margin-bottom:20px;">Contract ID: MSA-2024-ACME-001 &middot; Effective Date: January 15, 2024</p>
+
+          <p>This Master Service Agreement ("Agreement") is entered into as of January 15, 2024 ("Effective Date"), by and between <strong>Acme Inc.</strong>, a Delaware corporation with its principal place of business at 100 Market Street, San Francisco, CA 94105 ("Client"), and <strong>Henderson Music Group</strong>, a California limited liability company ("Provider").</p>
+
+          <h2>1. SCOPE OF SERVICES</h2>
+          <p>Provider shall provide Client with music distribution, licensing, and rights management services as described in Schedule A attached hereto ("Services"). Provider shall perform the Services in a professional and workmanlike manner consistent with industry standards.</p>
+
+          <h2>2. TERM</h2>
+          <p>This Agreement shall commence on the Effective Date and continue for a period of three (3) years ("Initial Term"), unless earlier terminated in accordance with Section 8. Following the Initial Term, this Agreement shall automatically renew for successive one-year periods.</p>
+
+          <h2>3. COMPENSATION</h2>
+          <p>In consideration of the Services, Client shall pay Provider the fees set forth in Schedule B. Payment shall be due within thirty (30) days of receipt of Provider's invoice. Late payments shall bear interest at the rate of 1.5% per month.</p>
+
+          <h2>4. INTELLECTUAL PROPERTY</h2>
+          <p>All intellectual property rights in the Works shall remain with the Licensor. Client is granted a non-exclusive license to distribute the Works within the Territory as specified in Schedule A.</p>
+
+          <!-- Annotation overlays -->
+          <div class="pdf-annotation pass" style="top:85px;left:265px;width:180px;height:16px">
+            <div class="ann-tooltip">&#9679; Effective Date: Jan 15, 2024 <span style="color:var(--green)">&mdash; PASS (0.95)</span></div>
+          </div>
+          <div class="pdf-annotation pass" style="top:115px;left:420px;width:60px;height:16px">
+            <div class="ann-tooltip">&#9679; Entity: Acme Inc. <span style="color:var(--green)">&mdash; PASS (0.98)</span></div>
+          </div>
+          <div class="pdf-annotation review" style="top:130px;left:50px;width:170px;height:16px">
+            <div class="ann-tooltip">&#9679; Counterparty: Henderson Music Group <span style="color:var(--amber)">&mdash; REVIEW (0.72)</span></div>
+          </div>
+          <div class="pdf-annotation pass" style="top:204px;left:395px;width:105px;height:16px">
+            <div class="ann-tooltip">&#9679; Term: 3 years <span style="color:var(--green)">&mdash; PASS (0.91)</span></div>
+          </div>
+          <div class="pdf-annotation ai" style="top:272px;left:285px;width:100px;height:16px">
+            <div class="ann-tooltip">&#9679; AI: Late payment rate 1.5%/mo exceeds market standard <span style="color:var(--cyan)">&mdash; FLAG (0.87)</span></div>
+          </div>
+          <div class="pdf-annotation fail" style="top:310px;left:50px;width:200px;height:16px">
+            <div class="ann-tooltip">&#9679; Territory: Not specified in body <span style="color:var(--red)">&mdash; FAIL (missing)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="emptyState" class="empty-state hidden">
+      <div class="empty-icon">&#128196;</div>
+      <h3>Select a document</h3>
+      <p>Choose a file from the tree on the left to view or edit it. Templates open in the editor; PDFs open in the viewer.</p>
+    </div>
+  </div>
+
+  <!-- ===== Document Inspector (Right) ===== -->
+  <div class="doc-inspector">
+    <div class="di-header">
+      <h3>Document Inspector</h3>
+    </div>
+    <div class="di-body" id="inspectorBody">
+
+      <!-- Source Section -->
+      <div class="di-section">
+        <div class="di-section-title">Storage Source</div>
+        <div class="source-indicator" id="sourceIndicator">
+          <div class="source-icon internal">&#9729;</div>
+          <div class="source-info">
+            <div class="source-name" id="sourceName">Internal Storage</div>
+            <div class="source-path" id="sourcePath">/templates/dist-agreement.md</div>
+          </div>
+          <span class="sync-badge synced" id="syncBadge">Synced</span>
+        </div>
+      </div>
+
+      <!-- Adapter Pipeline -->
+      <div class="di-section">
+        <div class="di-section-title">Adapter Pipeline</div>
+        <div class="adapter-pipeline" id="adapterPipeline">
+          <div class="adapter-step">
+            <span class="step-num">1</span>
+            <span class="step-label">Source</span>
+            <span class="step-format" id="pipelineSource">internal</span>
+          </div>
+          <div class="adapter-arrow">&#8595;</div>
+          <div class="adapter-step">
+            <span class="step-num">2</span>
+            <span class="step-label">Canonical</span>
+            <span class="step-format">ProseMirror JSON</span>
+          </div>
+          <div class="adapter-arrow">&#8595;</div>
+          <div class="adapter-step">
+            <span class="step-num">3</span>
+            <span class="step-label">Render</span>
+            <span class="step-format" id="pipelineRender">TipTap Editor</span>
+          </div>
+          <div class="adapter-arrow">&#8595;</div>
+          <div class="adapter-step">
+            <span class="step-num">4</span>
+            <span class="step-label">Save back</span>
+            <span class="step-format" id="pipelineSave">InternalDbAdapter</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata -->
+      <div class="di-section">
+        <div class="di-section-title">Metadata</div>
+        <div class="meta-row">
+          <span class="meta-label">Type</span>
+          <span class="meta-value" id="metaType">Template</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">MIME</span>
+          <span class="meta-value mono" id="metaMime">text/markdown</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Size</span>
+          <span class="meta-value mono" id="metaSize">4.2 KB</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Modified</span>
+          <span class="meta-value" id="metaModified">Mar 1, 2026</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Version</span>
+          <span class="meta-value mono" id="metaVersion">v4.2</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Vault</span>
+          <span class="meta-value" id="metaVault">Templates (System)</span>
+        </div>
+      </div>
+
+      <!-- Template Variables -->
+      <div class="di-section" id="tplVarsSection">
+        <div class="di-section-title">Template Variables (8)</div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--green)"></span>
+          <span class="tpl-name">EFFECTIVE_DATE</span>
+          <span class="tpl-val">bound</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--green)"></span>
+          <span class="tpl-name">ENTITY_LEGAL_NAME</span>
+          <span class="tpl-val">bound</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--green)"></span>
+          <span class="tpl-name">COUNTERPARTY_NAME</span>
+          <span class="tpl-val">bound</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--amber)"></span>
+          <span class="tpl-name">OPP_TERRITORY</span>
+          <span class="tpl-val">unset</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--amber)"></span>
+          <span class="tpl-name">OPP_TERM_LENGTH</span>
+          <span class="tpl-val">unset</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--amber)"></span>
+          <span class="tpl-name">ADVANCE_AMOUNT</span>
+          <span class="tpl-val">unset</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--red)"></span>
+          <span class="tpl-name">RENEWAL_PERIOD</span>
+          <span class="tpl-val">missing</span>
+        </div>
+        <div class="tpl-list-item">
+          <span class="tpl-status-dot" style="background:var(--green)"></span>
+          <span class="tpl-name">TODAY</span>
+          <span class="tpl-val">system</span>
+        </div>
+      </div>
+
+      <!-- Version History -->
+      <div class="di-section">
+        <div class="di-section-title">Version History</div>
+        <div class="version-item">
+          <span class="version-dot current">&#9679;</span>
+          <div class="version-info">
+            <div class="version-label">v4.2 &mdash; Current</div>
+            <div class="version-meta">Mar 1, 2026 &middot; Ana Chen</div>
+          </div>
+        </div>
+        <div class="version-item">
+          <span class="version-dot past"></span>
+          <div class="version-info">
+            <div class="version-label">v4.1 &mdash; Added renewal clause</div>
+            <div class="version-meta">Feb 20, 2026 &middot; Marcus Webb</div>
+          </div>
+        </div>
+        <div class="version-item">
+          <span class="version-dot past"></span>
+          <div class="version-info">
+            <div class="version-label">v4.0 &mdash; Financial table rewrite</div>
+            <div class="version-meta">Feb 8, 2026 &middot; Ana Chen</div>
+          </div>
+        </div>
+        <div class="version-item">
+          <span class="version-dot past"></span>
+          <div class="version-info">
+            <div class="version-label">v3.0 &mdash; Initial template</div>
+            <div class="version-meta">Jan 12, 2026 &middot; System</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ===== File data =====
+    var FILES = {
+      'tpl-distribution': {
+        title: 'Distribution-Agreement.md',
+        type: 'template',
+        source: 'internal',
+        sourceName: 'Internal Storage',
+        sourcePath: '/templates/dist-agreement.md',
+        sourceIcon: 'internal',
+        sync: 'synced',
+        mime: 'text/markdown',
+        size: '4.2 KB',
+        modified: 'Mar 1, 2026',
+        version: 'v4.2',
+        vault: 'Templates (System)',
+        pipelineSource: 'internal',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'InternalDbAdapter',
+        mode: 'editor',
+        showTplVars: true
+      },
+      'tpl-license': {
+        title: 'License-Agreement.md',
+        type: 'template',
+        source: 'internal',
+        sourceName: 'Internal Storage',
+        sourcePath: '/templates/license-agreement.md',
+        sourceIcon: 'internal',
+        sync: 'synced',
+        mime: 'text/markdown',
+        size: '3.8 KB',
+        modified: 'Feb 25, 2026',
+        version: 'v2.1',
+        vault: 'Templates (System)',
+        pipelineSource: 'internal',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'InternalDbAdapter',
+        mode: 'editor',
+        showTplVars: true
+      },
+      'tpl-recording': {
+        title: 'Recording-Contract.md',
+        type: 'template',
+        source: 'internal',
+        sourceName: 'Internal Storage',
+        sourcePath: '/templates/recording-contract.md',
+        sourceIcon: 'internal',
+        sync: 'synced',
+        mime: 'text/markdown',
+        size: '5.1 KB',
+        modified: 'Feb 18, 2026',
+        version: 'v3.0',
+        vault: 'Templates (System)',
+        pipelineSource: 'internal',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'InternalDbAdapter',
+        mode: 'editor',
+        showTplVars: true
+      },
+      'tpl-amendment': {
+        title: 'Amendment-Template.md',
+        type: 'template',
+        source: 'internal',
+        sourceName: 'Internal Storage',
+        sourcePath: '/templates/amendment.md',
+        sourceIcon: 'internal',
+        sync: 'synced',
+        mime: 'text/markdown',
+        size: '2.9 KB',
+        modified: 'Jan 30, 2026',
+        version: 'v1.3',
+        vault: 'Templates (System)',
+        pipelineSource: 'internal',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'InternalDbAdapter',
+        mode: 'editor',
+        showTplVars: true
+      },
+      'acme-msa': {
+        title: 'MSA-2024-Final.pdf',
+        type: 'contract',
+        source: 'google-drive',
+        sourceName: 'Google Drive',
+        sourcePath: 'Acme Inc/Contracts/MSA-2024-Final.pdf',
+        sourceIcon: 'drive',
+        sync: 'synced',
+        mime: 'application/pdf',
+        size: '1.2 MB',
+        modified: 'Feb 28, 2026',
+        version: 'v1.0',
+        vault: 'Acme Inc',
+        pipelineSource: 'GoogleDriveAdapter',
+        pipelineRender: 'PDF.js Viewer',
+        pipelineSave: 'GoogleDriveAdapter',
+        mode: 'pdf',
+        showTplVars: false
+      },
+      'acme-amendment': {
+        title: 'Amendment-v3.docx',
+        type: 'document',
+        source: 'google-drive',
+        sourceName: 'Google Drive',
+        sourcePath: 'Acme Inc/Contracts/Amendment-v3.docx',
+        sourceIcon: 'drive',
+        sync: 'modified',
+        mime: 'application/vnd.openxml',
+        size: '890 KB',
+        modified: 'Mar 2, 2026',
+        version: 'v3.0',
+        vault: 'Acme Inc',
+        pipelineSource: 'GoogleDriveAdapter',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'GoogleDriveAdapter',
+        mode: 'editor',
+        showTplVars: false
+      },
+      'acme-nda': {
+        title: 'NDA-Standard.md',
+        type: 'document',
+        source: 'internal',
+        sourceName: 'Internal Storage',
+        sourcePath: '/acme/contracts/nda-standard.md',
+        sourceIcon: 'internal',
+        sync: 'synced',
+        mime: 'text/markdown',
+        size: '2.1 KB',
+        modified: 'Feb 15, 2026',
+        version: 'v1.2',
+        vault: 'Acme Inc',
+        pipelineSource: 'internal',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'InternalDbAdapter',
+        mode: 'editor',
+        showTplVars: false
+      },
+      'acme-tos': {
+        title: 'Terms-of-Service.pdf',
+        type: 'legal',
+        source: 's3',
+        sourceName: 'Amazon S3',
+        sourcePath: 's3://airlock-docs/acme/legal/tos.pdf',
+        sourceIcon: 's3',
+        sync: 'synced',
+        mime: 'application/pdf',
+        size: '2.4 MB',
+        modified: 'Jan 10, 2026',
+        version: 'v1.0',
+        vault: 'Acme Inc',
+        pipelineSource: 'S3Adapter',
+        pipelineRender: 'PDF.js Viewer',
+        pipelineSave: 'S3Adapter',
+        mode: 'pdf',
+        showTplVars: false
+      },
+      'ost-dist': {
+        title: 'Distribution-2024.pdf',
+        type: 'contract',
+        source: 'google-drive',
+        sourceName: 'Google Drive',
+        sourcePath: 'Ostereo/Contracts/Distribution-2024.pdf',
+        sourceIcon: 'drive',
+        sync: 'synced',
+        mime: 'application/pdf',
+        size: '980 KB',
+        modified: 'Feb 22, 2026',
+        version: 'v1.0',
+        vault: 'Ostereo Music Group',
+        pipelineSource: 'GoogleDriveAdapter',
+        pipelineRender: 'PDF.js Viewer',
+        pipelineSave: 'GoogleDriveAdapter',
+        mode: 'pdf',
+        showTplVars: false
+      },
+      'ost-license': {
+        title: 'License-Renewal.pdf',
+        type: 'contract',
+        source: 'google-drive',
+        sourceName: 'Google Drive',
+        sourcePath: 'Ostereo/Contracts/License-Renewal.pdf',
+        sourceIcon: 'drive',
+        sync: 'synced',
+        mime: 'application/pdf',
+        size: '1.1 MB',
+        modified: 'Feb 19, 2026',
+        version: 'v1.0',
+        vault: 'Ostereo Music Group',
+        pipelineSource: 'GoogleDriveAdapter',
+        pipelineRender: 'PDF.js Viewer',
+        pipelineSave: 'GoogleDriveAdapter',
+        mode: 'pdf',
+        showTplVars: false
+      },
+      'ost-rates': {
+        title: 'Rate-Sheet-Q1.xlsx',
+        type: 'spreadsheet',
+        source: 'google-drive',
+        sourceName: 'Google Drive',
+        sourcePath: 'Ostereo/Financials/Rate-Sheet-Q1.xlsx',
+        sourceIcon: 'drive',
+        sync: 'synced',
+        mime: 'application/vnd.openxml',
+        size: '340 KB',
+        modified: 'Jan 5, 2026',
+        version: 'v1.0',
+        vault: 'Ostereo Music Group',
+        pipelineSource: 'GoogleDriveAdapter',
+        pipelineRender: 'Table Viewer',
+        pipelineSave: 'GoogleDriveAdapter',
+        mode: 'editor',
+        showTplVars: false
+      },
+      'nova-recording': {
+        title: 'Recording-Agreement.pdf',
+        type: 'contract',
+        source: 'local',
+        sourceName: 'Local File',
+        sourcePath: '~/Documents/Nova/Recording-Agreement.pdf',
+        sourceIcon: 'local',
+        sync: 'synced',
+        mime: 'application/pdf',
+        size: '750 KB',
+        modified: 'Mar 1, 2026',
+        version: 'v1.0',
+        vault: 'Nova Entertainment',
+        pipelineSource: 'LocalFileAdapter',
+        pipelineRender: 'PDF.js Viewer',
+        pipelineSave: 'LocalFileAdapter',
+        mode: 'pdf',
+        showTplVars: false
+      },
+      'nova-cover': {
+        title: 'Cover-Letter.md',
+        type: 'document',
+        source: 'internal',
+        sourceName: 'Internal Storage',
+        sourcePath: '/nova/correspondence/cover-letter.md',
+        sourceIcon: 'internal',
+        sync: 'new',
+        mime: 'text/markdown',
+        size: '1.3 KB',
+        modified: 'Mar 3, 2026',
+        version: 'v1.0',
+        vault: 'Nova Entertainment',
+        pipelineSource: 'internal',
+        pipelineRender: 'TipTap Editor',
+        pipelineSave: 'InternalDbAdapter',
+        mode: 'editor',
+        showTplVars: false
+      }
+    };
+
+    var currentFile = 'tpl-distribution';
+
+    // ===== Tree toggle =====
+    function toggleTree(el) {
+      el.classList.toggle('collapsed');
+      var children = el.nextElementSibling;
+      if (children && children.classList.contains('tree-children')) {
+        children.classList.toggle('collapsed');
+      }
+    }
+
+    // ===== Select file =====
+    function selectFile(el) {
+      // Update active state
+      document.querySelectorAll('.tree-file').forEach(function(f) { f.classList.remove('active'); });
+      el.classList.add('active');
+
+      var fileId = el.getAttribute('data-file');
+      var file = FILES[fileId];
+      if (!file) return;
+      currentFile = fileId;
+
+      // Switch editor/pdf mode
+      var editorMode = document.getElementById('editorMode');
+      var pdfMode = document.getElementById('pdfMode');
+      var emptyState = document.getElementById('emptyState');
+
+      emptyState.classList.add('hidden');
+
+      if (file.mode === 'pdf') {
+        editorMode.style.display = 'none';
+        pdfMode.classList.add('active');
+      } else {
+        pdfMode.classList.remove('active');
+        editorMode.style.display = '';
+      }
+
+      // Update inspector
+      updateInspector(file);
+    }
+
+    // ===== Update inspector =====
+    function updateInspector(file) {
+      document.getElementById('sourceName').textContent = file.sourceName;
+      document.getElementById('sourcePath').textContent = file.sourcePath;
+
+      var sourceIcon = document.querySelector('.source-icon');
+      sourceIcon.className = 'source-icon ' + file.sourceIcon;
+      var iconMap = { drive: '&#9729;', s3: '&#9729;', local: '&#128190;', internal: '&#9729;' };
+      sourceIcon.innerHTML = iconMap[file.sourceIcon] || '&#9729;';
+
+      var syncBadge = document.getElementById('syncBadge');
+      syncBadge.textContent = file.sync === 'synced' ? 'Synced' : file.sync === 'modified' ? 'Modified' : 'New';
+      syncBadge.className = 'sync-badge ' + file.sync;
+
+      document.getElementById('pipelineSource').textContent = file.pipelineSource;
+      document.getElementById('pipelineRender').textContent = file.pipelineRender;
+      document.getElementById('pipelineSave').textContent = file.pipelineSave;
+
+      document.getElementById('metaType').textContent = file.type;
+      document.getElementById('metaMime').textContent = file.mime;
+      document.getElementById('metaSize').textContent = file.size;
+      document.getElementById('metaModified').textContent = file.modified;
+      document.getElementById('metaVersion').textContent = file.version;
+      document.getElementById('metaVault').textContent = file.vault;
+
+      document.getElementById('tplVarsSection').style.display = file.showTplVars ? '' : 'none';
+    }
+
+    // ===== Editor tab switching =====
+    function switchEditorTab(el) {
+      el.parentElement.querySelectorAll('.editor-tab').forEach(function(t) { t.classList.remove('active'); });
+      el.classList.add('active');
+    }
+
+    // ===== Search filter =====
+    document.getElementById('fileSearch').addEventListener('input', function() {
+      var q = this.value.toLowerCase();
+      document.querySelectorAll('.tree-file').forEach(function(f) {
+        var name = f.querySelector('.file-name').textContent.toLowerCase();
+        f.style.display = (q === '' || name.indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>

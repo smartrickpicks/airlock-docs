@@ -1,0 +1,71 @@
+/*
+ * Airlock — OLED Dark Theme Override
+ * Darker palette evolved from the OrcestrateOS base theme.
+ * Load AFTER theme.base.css to override tokens.
+ *
+ * Usage: <link rel="stylesheet" href="../demo-shell/themes/theme.airlock.css">
+ */
+
+:root {
+  /* ===== Darker Background Layers ===== */
+  --bg-darkest:     #060810;
+  --bg-page:        #0B0E14;
+  --bg-input:       #0E1118;
+  --bg-panel:       #0F1219;
+  --bg-card:        #151923;
+  --bg-card-hover:  #1A1F2B;
+  --bg-input-focus: #141820;
+
+  /* ===== Text (slightly adjusted) ===== */
+  --text-primary:   #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-muted:     #64748B;
+
+  /* ===== Accent: Brighter Cyan ===== */
+  --accent-blue:     #00D1FF;
+  --accent-blue-dim: rgba(0, 209, 255, 0.12);
+
+  /* ===== Status Colors (brighter for OLED contrast) ===== */
+  --green:           #22C55E;
+  --green-dim:       rgba(34, 197, 94, 0.12);
+
+  --amber:           #F59E0B;
+  --amber-dim:       rgba(245, 158, 11, 0.10);
+
+  --red:             #EF4444;
+  --red-dim:         rgba(239, 68, 68, 0.10);
+
+  --teal:            #14B8A6;
+  --teal-dim:        rgba(20, 184, 166, 0.10);
+
+  --purple:          #A855F7;
+  --purple-dim:      rgba(168, 85, 247, 0.10);
+
+  /* ===== Borders (tighter) ===== */
+  --border:          #1E2330;
+  --border-light:    #2A3040;
+  --border-focus:    #00D1FF;
+
+  /* ===== Typography (Fira family) ===== */
+  --font-sans: 'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+               Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Fira Code', 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  --mono:      var(--font-mono);
+
+  /* ===== Sidebar (darker) ===== */
+  --sidebar-bg:      #0A0D14;
+  --sidebar-border:  #1A2030;
+  --sidebar-text:    #64748B;
+  --sidebar-hover:   #111620;
+  --sidebar-active:  #E2E8F0;
+
+  /* ===== Gate Colors (Airlock specific) ===== */
+  --gate-discovery:  var(--red);
+  --gate-standardize:var(--amber);
+  --gate-verify:     var(--purple);
+  --gate-release:    var(--green);
+
+  /* ===== AI Glow Effect ===== */
+  --ai-glow:         0 0 10px rgba(0, 209, 255, 0.4);
+  --ai-glow-subtle:  0 0 6px rgba(0, 209, 255, 0.2);
+}

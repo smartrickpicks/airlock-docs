@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — Calendar</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .cal-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Toolbar */
+    .cal-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .cal-nav-btn {
+      padding: 4px 10px;
+      font-size: 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    .cal-nav-btn:hover { background: var(--bg-card-hover); }
+
+    .cal-month-title {
+      font-size: 16px;
+      font-weight: 700;
+      min-width: 180px;
+    }
+
+    .cal-today-btn {
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-blue-dim);
+      border: 1px solid var(--accent-blue);
+      border-radius: var(--radius-sm);
+      color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    .cal-toolbar-spacer { flex: 1; }
+
+    .view-toggle {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .view-toggle-btn {
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-right: 1px solid var(--border);
+    }
+
+    .view-toggle-btn:last-child { border-right: none; }
+
+    .view-toggle-btn.active {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .view-toggle-btn:hover:not(.active) {
+      background: var(--bg-card);
+    }
+
+    /* ===== Month Grid ===== */
+    .month-grid-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .month-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .month-header-cell {
+      padding: 6px;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .month-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+    }
+
+    .day-cell {
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 6px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: background 0.1s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .day-cell:nth-child(7n) { border-right: none; }
+    .day-cell:hover { background: var(--bg-card); }
+
+    .day-cell.other-month {
+      opacity: 0.3;
+    }
+
+    .day-cell.today {
+      background: var(--accent-blue-dim);
+    }
+
+    .day-cell.today .day-num {
+      color: var(--accent-blue);
+      font-weight: 800;
+    }
+
+    .day-num {
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      color: var(--text-secondary);
+    }
+
+    .day-events {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .day-event {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+
+    .day-event.contracts { background: var(--accent-blue-dim); color: var(--accent-blue); border-left: 2px solid var(--accent-blue); }
+    .day-event.crm { background: var(--teal-dim); color: var(--teal); border-left: 2px solid var(--teal); }
+    .day-event.tasks { background: var(--purple-dim); color: var(--purple); border-left: 2px solid var(--purple); }
+    .day-event.deadline { background: var(--red-dim); color: var(--red); border-left: 2px solid var(--red); }
+    .day-event.renewal { background: var(--amber-dim); color: var(--amber); border-left: 2px solid var(--amber); }
+    .day-event.start { background: var(--green-dim); color: var(--green); border-left: 2px solid var(--green); }
+
+    .day-more {
+      font-size: 8px;
+      color: var(--text-muted);
+      padding: 0 4px;
+    }
+
+    /* ===== Agenda View ===== */
+    .agenda-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: none;
+    }
+
+    .agenda-wrap.visible {
+      display: block;
+    }
+
+    .agenda-day-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 12px 0 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .agenda-day-header.today {
+      color: var(--accent-blue);
+    }
+
+    .agenda-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background 0.1s;
+      gap: 10px;
+    }
+
+    .agenda-item:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .agenda-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .agenda-content { flex: 1; }
+
+    .agenda-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .agenda-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+    }
+
+    .agenda-module-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 0 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+
+    .agenda-module-badge.contracts { background: var(--accent-blue-dim); color: var(--accent-blue); }
+    .agenda-module-badge.crm { background: var(--teal-dim); color: var(--teal); }
+    .agenda-module-badge.tasks { background: var(--purple-dim); color: var(--purple); }
+
+    .agenda-time {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .agenda-time.overdue { color: var(--red); }
+    .agenda-time.soon { color: var(--amber); }
+  </style>
+</head>
+<body>
+  <div class="cal-layout">
+    <!-- Toolbar -->
+    <div class="cal-toolbar">
+      <button class="cal-nav-btn" onclick="changeMonth(-1)">&#9664;</button>
+      <span class="cal-month-title" id="monthTitle"></span>
+      <button class="cal-nav-btn" onclick="changeMonth(1)">&#9654;</button>
+      <button class="cal-today-btn" onclick="goToday()">Today</button>
+      <span class="cal-toolbar-spacer"></span>
+      <div class="view-toggle">
+        <button class="view-toggle-btn active" id="btnMonth" onclick="setView('month')">Month</button>
+        <button class="view-toggle-btn" id="btnAgenda" onclick="setView('agenda')">Agenda</button>
+      </div>
+    </div>
+
+    <!-- Month View -->
+    <div class="month-grid-wrap" id="monthView">
+      <div class="month-header">
+        <div class="month-header-cell">Sun</div>
+        <div class="month-header-cell">Mon</div>
+        <div class="month-header-cell">Tue</div>
+        <div class="month-header-cell">Wed</div>
+        <div class="month-header-cell">Thu</div>
+        <div class="month-header-cell">Fri</div>
+        <div class="month-header-cell">Sat</div>
+      </div>
+      <div class="month-body" id="monthBody"></div>
+    </div>
+
+    <!-- Agenda View -->
+    <div class="agenda-wrap" id="agendaView"></div>
+  </div>
+
+  <script>
+    // ===== Calendar Events =====
+    // Events are computed from vault dates + task due dates
+    var EVENTS = [
+      // March 2026
+      { date: '2026-03-03', title: 'henderson-msa', type: 'deadline', label: 'Renewal Deadline', module: 'contracts', vault: 'henderson-msa', severity: 'urgent' },
+      { date: '2026-03-03', title: 'Enrich Acme Inc', type: 'tasks', label: 'Task Due', module: 'crm', vault: 'Acme Inc', severity: 'normal' },
+      { date: '2026-03-04', title: 'sony-dist-2024', type: 'start', label: 'Effective Date', module: 'contracts', vault: 'sony-dist-2024', severity: 'normal' },
+      { date: '2026-03-04', title: 'Review Q1 reports', type: 'tasks', label: 'Task Due', module: 'tasks', vault: null, severity: 'normal' },
+      { date: '2026-03-06', title: 'warner-amendment', type: 'renewal', label: 'Renewal Warning (-30d)', module: 'contracts', vault: 'warner-amendment', severity: 'warning' },
+      { date: '2026-03-07', title: 'Onboard Henderson', type: 'tasks', label: 'Task Due', module: 'tasks', vault: null, severity: 'soon' },
+      { date: '2026-03-10', title: 'the-theorist', type: 'start', label: 'Effective Date', module: 'contracts', vault: 'the-theorist', severity: 'normal' },
+      { date: '2026-03-10', title: 'BMI Recording Master', type: 'contracts', label: 'SLA Review Due', module: 'contracts', vault: 'bmi-recording', severity: 'normal' },
+      { date: '2026-03-12', title: 'Atlantic dist 2026', type: 'deadline', label: 'Gate Review Deadline', module: 'contracts', vault: 'atlantic-dist', severity: 'warning' },
+      { date: '2026-03-14', title: 'Drift Audio qualification', type: 'tasks', label: 'Task Due', module: 'crm', vault: 'Drift Audio', severity: 'normal' },
+      { date: '2026-03-15', title: 'sony-license-2025', type: 'renewal', label: 'Termination Warning (-90d)', module: 'contracts', vault: 'sony-license-2025', severity: 'normal' },
+      { date: '2026-03-17', title: 'Broke Records health', type: 'tasks', label: 'Task Due', module: 'crm', vault: 'Broke Records', severity: 'normal' },
+      { date: '2026-03-19', title: 'universal-lic-01', type: 'start', label: 'Effective Date', module: 'contracts', vault: 'universal-lic-01', severity: 'normal' },
+      { date: '2026-03-21', title: 'henderson-dist', type: 'contracts', label: 'Extraction Recheck', module: 'contracts', vault: 'henderson-dist', severity: 'normal' },
+      { date: '2026-03-24', title: 'Summit Media review', type: 'tasks', label: 'Account Review Due', module: 'crm', vault: 'Summit Media', severity: 'normal' },
+      { date: '2026-03-26', title: 'warner-dist', type: 'deadline', label: 'Termination Date', module: 'contracts', vault: 'warner-dist', severity: 'urgent' },
+      { date: '2026-03-28', title: 'Q2 planning', type: 'tasks', label: 'Task Due', module: 'tasks', vault: null, severity: 'normal' },
+      { date: '2026-03-31', title: 'spotify-service', type: 'start', label: 'Trial Start', module: 'contracts', vault: 'spotify-service', severity: 'normal' },
+      // Some in Feb/Apr for overflow
+      { date: '2026-02-27', title: 'slowhands approval', type: 'contracts', label: 'Admin Approval', module: 'contracts', vault: 'slowhands', severity: 'normal' },
+      { date: '2026-04-02', title: 'sony-amend-01', type: 'renewal', label: 'Renewal Reminder', module: 'contracts', vault: 'sony-amend-01', severity: 'normal' },
+    ];
+
+    // ===== State =====
+    var currentYear = 2026;
+    var currentMonth = 2; // 0-indexed: 2 = March
+    var currentView = 'month';
+
+    var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    // ===== Month View =====
+    function renderMonth() {
+      document.getElementById('monthTitle').textContent = MONTHS[currentMonth] + ' ' + currentYear;
+
+      var firstDay = new Date(currentYear, currentMonth, 1);
+      var lastDay = new Date(currentYear, currentMonth + 1, 0);
+      var startOffset = firstDay.getDay(); // 0=Sun
+      var daysInMonth = lastDay.getDate();
+
+      // Previous month days
+      var prevLast = new Date(currentYear, currentMonth, 0).getDate();
+
+      var today = new Date();
+      var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+      var html = '';
+      var totalCells = 42; // 6 rows x 7 cols
+
+      for (var i = 0; i < totalCells; i++) {
+        var dayNum, dateStr, isOtherMonth = false;
+
+        if (i < startOffset) {
+          // Previous month
+          dayNum = prevLast - startOffset + 1 + i;
+          var pm = currentMonth === 0 ? 11 : currentMonth - 1;
+          var py = currentMonth === 0 ? currentYear - 1 : currentYear;
+          dateStr = py + '-' + String(pm + 1).padStart(2, '0') + '-' + String(dayNum).padStart(2, '0');
+          isOtherMonth = true;
+        } else if (i - startOffset >= daysInMonth) {
+          // Next month
+          dayNum = i - startOffset - daysInMonth + 1;
+          var nm = currentMonth === 11 ? 0 : currentMonth + 1;
+          var ny = currentMonth === 11 ? currentYear + 1 : currentYear;
+          dateStr = ny + '-' + String(nm + 1).padStart(2, '0') + '-' + String(dayNum).padStart(2, '0');
+          isOtherMonth = true;
+        } else {
+          dayNum = i - startOffset + 1;
+          dateStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(dayNum).padStart(2, '0');
+        }
+
+        var isToday = dateStr === todayStr;
+        var dayEvents = EVENTS.filter(function(e) { return e.date === dateStr; });
+
+        var cellClass = 'day-cell';
+        if (isOtherMonth) cellClass += ' other-month';
+        if (isToday) cellClass += ' today';
+
+        html += '<div class="' + cellClass + '">';
+        html += '<div class="day-num">' + dayNum + '</div>';
+        html += '<div class="day-events">';
+
+        var maxShow = 3;
+        dayEvents.slice(0, maxShow).forEach(function(ev) {
+          html += '<div class="day-event ' + ev.type + '" title="' + ev.title + ' — ' + ev.label + '">' + ev.title + '</div>';
+        });
+        if (dayEvents.length > maxShow) {
+          html += '<div class="day-more">+' + (dayEvents.length - maxShow) + ' more</div>';
+        }
+
+        html += '</div></div>';
+      }
+
+      document.getElementById('monthBody').innerHTML = html;
+    }
+
+    // ===== Agenda View =====
+    function renderAgenda() {
+      // Get events for current month (and a bit beyond)
+      var startStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-01';
+      var endMonth = currentMonth + 1;
+      var endYear = currentYear;
+      if (endMonth > 11) { endMonth = 0; endYear++; }
+      var endStr = endYear + '-' + String(endMonth + 1).padStart(2, '0') + '-01';
+
+      var monthEvents = EVENTS.filter(function(e) {
+        return e.date >= startStr && e.date < endStr;
+      }).sort(function(a, b) {
+        return a.date.localeCompare(b.date);
+      });
+
+      var today = new Date();
+      var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+      // Group by date
+      var groups = {};
+      monthEvents.forEach(function(e) {
+        if (!groups[e.date]) groups[e.date] = [];
+        groups[e.date].push(e);
+      });
+
+      var dotColors = {
+        deadline: 'var(--red)',
+        renewal: 'var(--amber)',
+        start: 'var(--green)',
+        contracts: 'var(--accent-blue)',
+        crm: 'var(--teal)',
+        tasks: 'var(--purple)'
+      };
+
+      var html = '';
+      var dates = Object.keys(groups).sort();
+      dates.forEach(function(dateStr) {
+        var d = new Date(dateStr + 'T12:00:00');
+        var dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        var isToday = dateStr === todayStr;
+
+        html += '<div class="agenda-day-header' + (isToday ? ' today' : '') + '">';
+        html += isToday ? 'TODAY — ' + dayLabel : dayLabel;
+        html += '</div>';
+
+        groups[dateStr].forEach(function(ev) {
+          html += '<div class="agenda-item">';
+          html += '<div class="agenda-dot" style="background:' + (dotColors[ev.type] || 'var(--text-muted)') + '"></div>';
+          html += '<div class="agenda-content">';
+          html += '<div class="agenda-title">' + ev.title + ' — ' + ev.label + '</div>';
+          html += '<div class="agenda-meta">';
+          html += '<span class="agenda-module-badge ' + ev.module + '">' + ev.module + '</span>';
+          if (ev.vault) html += '<span>' + ev.vault + '</span>';
+          html += '</div>';
+          html += '</div>';
+          var timeClass = ev.severity === 'urgent' ? 'overdue' : ev.severity === 'soon' ? 'soon' : '';
+          if (isToday) {
+            html += '<span class="agenda-time ' + timeClass + '">' + (ev.severity === 'urgent' ? 'Due!' : 'Today') + '</span>';
+          }
+          html += '</div>';
+        });
+      });
+
+      if (dates.length === 0) {
+        html = '<div style="text-align:center;padding:40px;color:var(--text-muted)">No events this month</div>';
+      }
+
+      document.getElementById('agendaView').innerHTML = html;
+    }
+
+    // ===== Controls =====
+    function changeMonth(delta) {
+      currentMonth += delta;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderMonth();
+      renderAgenda();
+    }
+
+    function goToday() {
+      var today = new Date();
+      currentYear = today.getFullYear();
+      currentMonth = today.getMonth();
+      renderMonth();
+      renderAgenda();
+    }
+
+    function setView(view) {
+      currentView = view;
+      document.getElementById('monthView').style.display = view === 'month' ? 'flex' : 'none';
+      document.getElementById('agendaView').className = view === 'agenda' ? 'agenda-wrap visible' : 'agenda-wrap';
+      document.getElementById('btnMonth').className = view === 'month' ? 'view-toggle-btn active' : 'view-toggle-btn';
+      document.getElementById('btnAgenda').className = view === 'agenda' ? 'view-toggle-btn active' : 'view-toggle-btn';
+    }
+
+    // ===== Theme =====
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') {
+      document.documentElement.setAttribute('data-theme', 'airlock');
+    }
+
+    // ===== Init =====
+    renderMonth();
+    renderAgenda();
+  </script>
+</body>
+</html>
