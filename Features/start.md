@@ -35,6 +35,7 @@
 | **Template Compiler** | `/Admin/` | (none yet) | BRAINSTORM | Admin tool: S3/Drive corpus + local LLM auto-generates extraction configs (anchors, synonyms, field mappings) |
 | **Google Meet Integration** | `/CRM/` | (none yet) | BRAINSTORM | Google Meet SDK embedded in CRM — call transcription, AI meeting summaries, auto-generated action items |
 | **Custom Roles** | `/Roles/` | (none yet) | BRAINSTORM | Discord-style custom role creation with granular permission catalog, drag-to-reorder hierarchy, multi-role per user |
+| **Security & Architecture** | `/Security/` | (none) | SPECCED | Cipher-first middleware, 70-question inventory (MVP+enterprise), 13-doc TOC, 6 agent-governance artifacts |
 
 ## Status Legend
 

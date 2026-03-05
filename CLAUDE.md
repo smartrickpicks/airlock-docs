@@ -43,6 +43,7 @@ All of these docs will be loaded into **NotebookLM** as the knowledge base for i
     /Onboarding/               <- Workspace + user onboarding wizard
     /WorkflowEngine/           <- Visual automation builder (React Flow)
     /Messenger/                <- Internal messaging (prototype only)
+    /Security/                 <- Cipher model, threat model, KMS, LLM safety, compliance
   /demo-shell/                 <- Master demo hub (serves all demo HTMLs)
 ```
 
@@ -84,6 +85,43 @@ See `/Features/Shell/naming-and-hierarchy.md` for the full spec. These terms are
 - Event Bus: BullMQ + Trigger.dev
 - Editor: TipTap
 - PDF: PDF.js
+
+## Security Architecture (LOCKED Principles)
+
+See `/Features/Security/overview.md` for the full 70-question inventory and documentation plan.
+
+### Security Vocabulary
+
+| Term | Definition |
+|------|------------|
+| **Trust boundary** | The point where encryption/decryption occurs -- only the application layer is trusted |
+| **Ciphertext at rest** | All sensitive data in PostgreSQL, Redis, and file storage is encrypted |
+| **DEK** | Data Encryption Key -- encrypts actual data |
+| **KEK** | Key Encryption Key -- encrypts the DEK (envelope encryption) |
+| **OGC chunk** | Ontology-Guided Corpus chunk -- the atomic unit of verified knowledge |
+| **Crypto-shredding** | Destroying a key to render all data it encrypted permanently unrecoverable |
+| **RLS** | Row-Level Security -- PostgreSQL-enforced tenant isolation via `workspace_id` |
+| **HKDF** | HMAC-based Key Derivation Function -- derives child keys from a master |
+
+### Security Principles (Non-Negotiable)
+
+1. **Ciphered at rest, encrypted in transit** -- no plaintext on any storage medium
+2. **Middleware-only trust** -- storage backends (PostgreSQL, Redis, S3) are untrusted
+3. **No autonomous AI actions** -- Otto is read-only or draft-only; humans approve all changes
+4. **Self-approval prevention is unforgeable** -- no API path can bypass SoD
+5. **Append-only audit** -- security events cannot be modified or deleted
+6. **Workspace isolation** -- no data crosses workspace boundaries without explicit federation
+7. **Key custody transparency** -- admins always know who holds their encryption keys
+8. **Rehydratable from cold** -- full rebuild from encrypted backups + key material
+9. **PII never reaches LLM providers unredacted** -- redaction before the network call
+10. **Fail closed** -- when security controls fail, access is denied
+
+### Agent Safety Rules for Security Specs
+
+- Never include real PII in spec examples -- use synthetic data only (e.g., "Acme Corp", "Jane Builder")
+- Always specify encrypt/decrypt points when describing data flows
+- Use canonical vocabulary -- never "channel", "server", "workspace" (see table above)
+- Cross-reference `/Features/Security/overview.md` when making security-relevant decisions
 
 ## Source (OrcestrateOS)
 
