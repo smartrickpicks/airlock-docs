@@ -1,0 +1,59 @@
+Feature Category,Salesforce,HubSpot,Jira,Asana,Trello,ClickUp,Slack,Motion,Aligned,Google Docs,NotebookLM,Airlock (Current),Airlock (Planned)
+DOCUMENT INTELLIGENCE,,,,,,,,,,,,,
+Reasoning-based RAG,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅,✅,✅
+Contract extraction/analysis,⚠️ (Apps),⚠️ (Apps),❌,❌,❌,❌,❌,❌,⚠️,❌,⚠️,✅,✅
+Document hierarchy preservation,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅,✅,✅
+OCR with context,⚠️ (Apps),⚠️ (Apps),❌,❌,❌,❌,❌,❌,❌,❌,✅,✅,✅
+Source-grounded AI (no hallucinations),❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅,✅,✅
+CRM & SALES PIPELINE,,,,,,,,,,,,,
+Lead/Contact management,✅,✅,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,🚧
+Opportunity/Deal pipeline,✅,✅,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,🚧
+Sales forecasting,✅,✅,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,🚧
+Email tracking/sequences,✅,✅,❌,❌,❌,❌,⚠️,❌,⚠️,❌,❌,❌,🚧
+Lead scoring,✅,✅,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌
+PROJECT & TASK MANAGEMENT,,,,,,,,,,,,,
+Visual task boards (Kanban),❌,❌,✅,✅,✅,✅,❌,⚠️,❌,❌,❌,❌,🚧
+Task dependencies,❌,❌,✅,✅,❌,✅,❌,⚠️,❌,❌,❌,❌,🚧
+Sprint/Agile management,❌,❌,✅,❌,❌,✅,❌,❌,❌,❌,❌,❌,❌
+Gantt charts/Timeline,❌,⚠️,✅,✅,⚠️,✅,❌,❌,❌,❌,❌,❌,🚧
+Workload/Resource management,⚠️,❌,⚠️,✅,❌,✅,❌,✅,❌,❌,❌,❌,🚧
+Time tracking,⚠️,⚠️,✅,⚠️,⚠️,✅,❌,⚠️,❌,❌,❌,❌,❌
+Automated task assignment,✅,✅,❌,❌,⚠️,✅,❌,✅,✅,❌,❌,❌,🚧
+COMMUNICATION & COLLABORATION,,,,,,,,,,,,,
+Real-time messaging/channels,❌,❌,❌,❌,❌,⚠️,✅,❌,⚠️,❌,❌,❌,🚧
+Threaded conversations,❌,❌,✅,✅,✅,✅,✅,❌,⚠️,⚠️,❌,❌,🚧
+@mentions & notifications,✅,✅,✅,✅,✅,✅,✅,❌,✅,❌,✅,❌,🚧
+Video conferencing,❌,⚠️,❌,❌,❌,⚠️,✅,❌,❌,✅,✅,❌,🚧
+Screen sharing,❌,❌,❌,❌,❌,❌,✅,❌,❌,✅,✅,❌,🚧
+Document collaboration,❌,❌,⚠️,⚠️,⚠️,✅,✅,❌,✅,✅,❌,❌,🚧
+CALENDAR & SCHEDULING,,,,,,,,,,,,,
+Calendar integration,✅,✅,⚠️,✅,✅,✅,⚠️,✅,⚠️,✅,✅,❌,🚧
+Meeting scheduling,⚠️,✅,❌,❌,❌,❌,❌,✅,⚠️,❌,✅,❌,🚧
+AI auto-scheduling,❌,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,❌,❌
+Time blocking,❌,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,❌,🚧
+AI & AUTOMATION,,,,,,,,,,,,,
+AI assistant/copilot,✅,✅,⚠️,✅,⚠️,✅,✅,✅,✅,❌,✅,✅,✅
+Workflow automation,✅,✅,✅,✅,✅,✅,✅,❌,⚠️,❌,❌,❌,🚧
+Predictive analytics,✅,✅,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,🚧
+AI content generation,✅,✅,❌,❌,❌,✅,⚠️,✅,✅,⚠️,✅,❌,🚧
+AI meeting notes/summaries,❌,❌,❌,❌,❌,❌,✅,✅,⚠️,❌,❌,❌,🚧
+Standards enforcement (AI),❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅,✅
+PERMISSIONS & ACCESS CONTROL,,,,,,,,,,,,,
+Granular role-based access,✅,✅,✅,✅,⚠️,✅,⚠️,❌,✅,✅,❌,❌,🚧
+Channel-based permissions,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,❌,❌,✅
+External user access,⚠️,✅,⚠️,⚠️,⚠️,⚠️,✅,❌,✅,✅,❌,❌,🚧
+INTEGRATIONS & EXTENSIBILITY,,,,,,,,,,,,,
+API access,✅,✅,✅,✅,✅,✅,✅,❌,✅,✅,❌,❌,🚧
+Integration marketplace,✅,✅,✅,✅,✅,✅,✅,⚠️,⚠️,✅,❌,❌,❌
+Webhook support,✅,✅,✅,✅,✅,✅,✅,❌,⚠️,⚠️,❌,❌,🚧
+DATA & REPORTING,,,,,,,,,,,,,
+Custom dashboards,✅,✅,✅,✅,❌,✅,❌,⚠️,✅,❌,❌,❌,🚧
+Export capabilities (CSV/Excel),✅,✅,✅,✅,✅,✅,⚠️,⚠️,✅,❌,✅,❌,🚧
+Custom reports,✅,✅,✅,⚠️,❌,✅,❌,❌,✅,❌,❌,❌,🚧
+Audit logs,✅,✅,✅,⚠️,⚠️,✅,✅,❌,⚠️,✅,✅,❌,🚧
+UNIQUE AIRLOCK FEATURES,,,,,,,,,,,,,
+Slash commands for universal recall,❌,❌,❌,❌,❌,❌,⚠️,❌,❌,❌,❌,❌,✅
+AI gate checking/quality control,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅,✅
+Omni-channel routing (internal+external),❌,❌,❌,❌,❌,❌,❌,❌,⚠️,❌,❌,❌,✅
+E-signature annotation layer,⚠️,⚠️,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅
+ERP integration for contract execution,⚠️,⚠️,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,✅
