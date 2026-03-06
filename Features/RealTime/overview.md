@@ -284,3 +284,4 @@ The UI always works — real-time just makes it faster.
 - **[Cross-Module Event Bus](../EventBus/overview.md)** — Server-side event routing (BullMQ). WebSocket delivers events to clients; the event bus routes events between modules.
 - **[Notifications](../Notifications/overview.md)** — Notification events delivered via WebSocket to in-app notification center.
 - **[Universal Task System](../TaskSystem/overview.md)** — Task events drive Home widget updates.
+- **[Edge Cases & Resilience](./edge-cases.md)** — Auth refresh, subscription limits, rate limiting, replay, ordering, compression, and chaos testing.

@@ -213,4 +213,5 @@ Airlock is designed for desktop viewports (1280px+). v1 does not include respons
 - [Roles](../Roles/overview.md) -- Multi-tier permission model (role determines chamber view)
 - [Messenger](../Messenger/overview.md) -- Chat dock tool spec
 - [Toolbar Actions](./toolbar-actions.md) -- Contextual quick actions, universal Create button, expanded slash commands
+- [Component Library](./component-library.md) -- M14 shared component extraction checklist
 - [Search](../Search/overview.md) -- Cmd+K command palette

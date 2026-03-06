@@ -268,6 +268,7 @@ Trigger.dev provides:
 
 ## Related Specs
 
+- **[Worker Deployment & Operations](./worker-deployment.md)** — Worker process model, Docker Compose config, idempotency, scaling, monitoring.
 - **[Real-Time Events](../RealTime/overview.md)** — Client-side event delivery (WebSocket). The event bus routes events server-side; WebSocket delivers them to browsers.
 - **[Notifications](../Notifications/overview.md)** — Novu workflows triggered by event bus handlers.
 - **[Feature Control Plane](../FeatureControlPlane/overview.md)** — Circuit breaker events flow through the bus.

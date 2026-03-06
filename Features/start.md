@@ -39,6 +39,7 @@
 | **Auth & Authorization** | `/Auth/` | (none yet) | SPECCED | JWT refresh tokens, `require_permission()` middleware, rate limiting, API key scopes, Discord-style permission computation, auth audit events |
 | **Security & Architecture** | `/Security/` | (none yet) | SPECCED | Cipher-first middleware, 70-question inventory (MVP+enterprise), 13-doc TOC, 6 agent-governance artifacts |
 | **Meeting Intelligence** | `/MeetingIntelligence/` | (none yet) | SPECCED | Cross-cutting meeting capability: **Jitsi Meet embedded video (primary, in-app)** + Google Meet links (secondary, external participants). Dual-source transcription (Gemini notes + Vexa bot), Otto AI summaries, action item extraction to task system, contact-level conversation memory, topic threading, pre-meeting prep briefs. 7 feature flags, 5 implementation phases. |
+| **Finance** | `/Finance/` | (none yet) | BRAINSTORM | Intelligence layer for financial obligations: clause-to-obligation pipeline, royalty waterfall engine, recoupment tracking, statement/invoice generation, ERP integration (Hiperweb/QuickBooks/NetSuite/Xero). 8 feature flags, 6 implementation phases. |
 
 ## Status Legend
 
@@ -48,7 +49,7 @@
 - **BUILDING** -- HTML prototype in progress
 - **APPROVED** -- Spec + prototype approved, ready for implementation
 
-> **All 30+ features are now SPECCED.** No remaining BRAINSTORM items as of 2026-03-05.
+> **30+ features are SPECCED.** Finance module is in BRAINSTORM as of 2026-03-05.
 
 ## Architecture Decisions (Cross-Cutting)
 
