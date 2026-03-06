@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — Completed Tasks</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .done-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .done-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+
+    .toolbar-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toolbar-filter {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-pill {
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .filter-pill:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    .filter-pill.active {
+      background: var(--accent-blue-dim);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-badge {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 3px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    /* ===== Stats Strip ===== */
+    .stats-strip {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      gap: 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg-panel);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-secondary);
+    }
+
+    .stat-value.highlight {
+      color: var(--green);
+    }
+
+    .stat-sep {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--border-light);
+    }
+
+    /* ===== Table ===== */
+    .done-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .done-table-wrap::-webkit-scrollbar {
+      width: 6px;
+    }
+    .done-table-wrap::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .done-table-wrap::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .done-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .done-table thead th {
+      padding: 10px 16px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-page);
+      z-index: 2;
+    }
+
+    .done-table thead th:first-child {
+      width: 40px;
+      text-align: center;
+    }
+
+    .done-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+      cursor: default;
+    }
+
+    .done-table tbody tr:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .done-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .done-table tbody td {
+      padding: 12px 16px;
+      font-size: 12px;
+      vertical-align: middle;
+      border-left: none;
+    }
+
+    /* Green left accent on each row */
+    .done-table tbody tr td:first-child {
+      border-left: 3px solid rgba(76,175,80,0.3);
+    }
+
+    /* Checkmark column */
+    .td-check {
+      width: 40px;
+      text-align: center;
+    }
+
+    .check-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Title */
+    .td-title {
+      font-weight: 600;
+      color: var(--text-secondary);
+      max-width: 380px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Module badge */
+    .done-module-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      display: inline-block;
+    }
+
+    .done-module-badge.contracts {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+    .done-module-badge.crm {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    /* Vault */
+    .td-vault {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Completed by */
+    .completed-by {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .done-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 8px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .done-name {
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* Resolved date */
+    .td-resolved {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* Duration */
+    .td-duration {
+      font-size: 11px;
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    /* ===== Footer ===== */
+    .done-footer {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .footer-text {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .footer-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      opacity: 0.6;
+    }
+
+    /* ===== Empty state ===== */
+    .done-empty {
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .done-empty-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="done-layout">
+    <!-- Toolbar -->
+    <div class="done-toolbar">
+      <span class="toolbar-title">Done</span>
+      <span class="toolbar-sep"></span>
+      <span class="toolbar-label">Show:</span>
+      <div class="toolbar-filter">
+        <button class="filter-pill" data-period="week">This Week</button>
+        <button class="filter-pill active" data-period="month">This Month</button>
+        <button class="filter-pill" data-period="all">All</button>
+      </div>
+      <span class="toolbar-spacer"></span>
+      <span class="toolbar-badge" id="completedCount">4 completed</span>
+    </div>
+
+    <!-- Stats Strip -->
+    <div class="stats-strip" id="statsStrip">
+      <div class="stat-item">
+        <span class="stat-value highlight" id="statCompleted">4</span>
+        <span>completed</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <span>Avg resolution:</span>
+        <span class="stat-value" id="statAvg">2.3 days</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <span>Fastest:</span>
+        <span class="stat-value" id="statFastest">4h</span>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="done-table-wrap">
+      <table class="done-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Title</th>
+            <th>Module</th>
+            <th>Vault</th>
+            <th>Completed By</th>
+            <th>Resolved</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody id="doneTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="done-footer">
+      <div class="footer-text">
+        <span class="footer-dot"></span>
+        <span id="footerText">Showing 4 completed tasks</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== People =====
+    var PEOPLE = {
+      ana:     { name: 'Ana Chen',      color: '#0091ea' },
+      daniele: { name: 'Daniele Leoni', color: '#e91e63' },
+      marcus:  { name: 'Marcus Webb',   color: '#26a69a' },
+      sarah:   { name: 'Sarah Chen',    color: '#7b1fa2' },
+      james:   { name: 'James Liu',     color: '#ff9800' }
+    };
+
+    function getInitials(name) {
+      return name.split(' ').map(function(w) { return w[0]; }).join('');
+    }
+
+    // ===== Completed Tasks =====
+    // "daysAgo" drives period filtering; "resolved" is display text
+    var DONE_TASKS = [
+      {
+        id: 't15',
+        title: 'Sony Amendment #1 shipped successfully',
+        module: 'contracts',
+        vault: 'sony-amend-01',
+        completedBy: 'ana',
+        resolved: '2h ago',
+        duration: '4h',
+        daysAgo: 0
+      },
+      {
+        id: 't16',
+        title: 'Get Dough License agreement extraction complete',
+        module: 'contracts',
+        vault: 'getdough-license',
+        completedBy: 'marcus',
+        resolved: '1d ago',
+        duration: '1d 6h',
+        daysAgo: 1
+      },
+      {
+        id: 't17',
+        title: 'Atlantic Management Master approved',
+        module: 'contracts',
+        vault: 'atlantic-mgmt',
+        completedBy: 'james',
+        resolved: '3d ago',
+        duration: '2d 3h',
+        daysAgo: 3
+      },
+      {
+        id: 't18',
+        title: 'Get Dough Publishing Master shipped',
+        module: 'contracts',
+        vault: 'getdough-pub',
+        completedBy: 'marcus',
+        resolved: '5d ago',
+        duration: '3d 12h',
+        daysAgo: 5
+      }
+    ];
+
+    var currentPeriod = 'month';
+
+    // ===== Filtering =====
+    function filterByPeriod(tasks, period) {
+      if (period === 'all') return tasks;
+      if (period === 'week') {
+        return tasks.filter(function(t) { return t.daysAgo <= 7; });
+      }
+      if (period === 'month') {
+        return tasks.filter(function(t) { return t.daysAgo <= 30; });
+      }
+      return tasks;
+    }
+
+    // ===== Rendering =====
+    function renderTable() {
+      var tbody = document.getElementById('doneTableBody');
+      var filtered = filterByPeriod(DONE_TASKS, currentPeriod);
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="done-empty"><div class="done-empty-text">No completed tasks in this period</div></div></td></tr>';
+        updateCounts(0);
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(task) {
+        var p = PEOPLE[task.completedBy];
+        var initials = getInitials(p.name);
+
+        html += '<tr>';
+
+        // Checkmark
+        html += '<td class="td-check"><span class="check-icon">&#10003;</span></td>';
+
+        // Title
+        html += '<td class="td-title">' + task.title + '</td>';
+
+        // Module
+        html += '<td><span class="done-module-badge ' + task.module + '">' + task.module + '</span></td>';
+
+        // Vault
+        html += '<td class="td-vault">' + task.vault + '</td>';
+
+        // Completed By
+        html += '<td>';
+        html += '<div class="completed-by">';
+        html += '<div class="done-avatar" style="background:' + p.color + '">' + initials + '</div>';
+        html += '<span class="done-name">' + p.name + '</span>';
+        html += '</div>';
+        html += '</td>';
+
+        // Resolved
+        html += '<td class="td-resolved">' + task.resolved + '</td>';
+
+        // Duration
+        html += '<td class="td-duration">' + task.duration + '</td>';
+
+        html += '</tr>';
+      });
+
+      tbody.innerHTML = html;
+      updateCounts(filtered.length);
+      updateStats(filtered);
+    }
+
+    function updateCounts(count) {
+      document.getElementById('completedCount').textContent = count + ' completed';
+      document.getElementById('footerText').textContent = 'Showing ' + count + ' completed task' + (count !== 1 ? 's' : '');
+    }
+
+    function updateStats(filtered) {
+      document.getElementById('statCompleted').textContent = filtered.length;
+
+      // Compute average resolution (demo: simple average from duration strings)
+      var durationMap = {
+        '4h': 0.17, '1d 6h': 1.25, '2d 3h': 2.13, '3d 12h': 3.5
+      };
+
+      if (filtered.length > 0) {
+        var totalDays = 0;
+        var fastest = Infinity;
+        var fastestLabel = '';
+
+        filtered.forEach(function(t) {
+          var d = durationMap[t.duration] || 1;
+          totalDays += d;
+          if (d < fastest) {
+            fastest = d;
+            fastestLabel = t.duration;
+          }
+        });
+
+        var avg = totalDays / filtered.length;
+        var avgText = avg < 1 ? Math.round(avg * 24) + 'h' : avg.toFixed(1) + ' days';
+
+        document.getElementById('statAvg').textContent = avgText;
+        document.getElementById('statFastest').textContent = fastestLabel;
+      } else {
+        document.getElementById('statAvg').textContent = '-';
+        document.getElementById('statFastest').textContent = '-';
+      }
+    }
+
+    // ===== Period Filters =====
+    document.querySelectorAll('.filter-pill').forEach(function(pill) {
+      pill.addEventListener('click', function() {
+        document.querySelectorAll('.filter-pill').forEach(function(p) {
+          p.classList.remove('active');
+        });
+        pill.classList.add('active');
+        currentPeriod = pill.getAttribute('data-period');
+        renderTable();
+      });
+    });
+
+    // ===== Theme =====
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') {
+      document.documentElement.setAttribute('data-theme', 'airlock');
+    }
+
+    // ===== Init =====
+    renderTable();
+  </script>
+</body>
+</html>

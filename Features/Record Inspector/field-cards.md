@@ -34,10 +34,24 @@ Each section header displays:
 
 ## Tier System
 
-| Tier | Default State | Criteria |
-|---|---|---|
-| Tier 1 | Expanded (card visible, drawer closed) | High-priority fields determined by preflight engine |
-| Tier 2 | Collapsed (card hidden until section is expanded) | Supporting fields, lower priority |
+| Tier | Default State | Accent | Criteria |
+|---|---|---|---|
+| Tier 0 (Hinge) | Always visible, above sections | Teal | Gate-all-downstream fields that must be resolved before processing can advance |
+| Tier 1 | Expanded (card visible, drawer closed) | Blue | High-priority fields determined by preflight engine |
+| Tier 2 | Collapsed (card hidden until section is expanded) | Gray | Supporting fields, lower priority |
+
+### Tier 0: Hinge Fields
+
+Hinge fields render in a dedicated strip above the section groups. They are visually distinct:
+
+- **HINGE** badge on the left edge (teal background, white text, uppercase)
+- If unresolved: **START HERE** badge appears (amber, pulsing) guiding the analyst
+- Teal left border instead of the standard gray
+- Cannot be collapsed or hidden
+- Only two hinge fields in v1: `OPP_CONTRACT_TYPE` and `OPP_CONTRACT_SUBTYPE`
+- For amendment-type contracts, `OPP_WHAT_ARE_WE_AMENDING` also appears as hinge-adjacent (Tier 0.5 — always visible but below the two primary hinges)
+
+### Tier 1 and Tier 2
 
 Within each section:
 - Tier 1 fields render first.
@@ -114,6 +128,19 @@ Identifies which of the seven extractors produced this field.
 - Accompanied by a horizontal bar visualization (filled proportionally).
 - Color of the bar matches the confidence badge tier (green / amber / red).
 
+### 5. Clause Library Source (v2 Integration)
+
+If the field maps to a known clause in the v2 clause library:
+
+| Element | Description |
+|---|---|
+| Clause ID badge | Small pill showing the clause ID (e.g., `GEN-AMENDMENT-V1`), clickable to expand |
+| Risk level | Standard (no indicator), Elevated (amber dot), Critical (red dot) |
+| Anchor patterns | The primary/secondary/negative anchors used for extraction, sourced from the clause's `variables[].extraction` block |
+| Contract type coverage | Which template types reference this clause (e.g., "Distribution, License, Recording") |
+
+If no clause mapping exists, this block is hidden (many fields are extracted via anchors only, without clause definitions).
+
 ---
 
 ## Heatmap Toggle
@@ -153,16 +180,37 @@ Spotlight mode is designed for review workflows where the user needs to evaluate
 
 ---
 
+## Context Menu Actions
+
+Right-clicking a field card opens a context menu with field-specific actions. These map to keyboard shortcuts for power users.
+
+| Action | Shortcut | Description |
+|---|---|---|
+| Verify | V | Mark this field as human-verified (status → pass) |
+| Remap Value | M | Manually change the extracted value (opens inline editor) |
+| Request Info | R | Create an RFI triage item for this field |
+| Blacklist | B | Exclude this field from health scoring (reversible) |
+| Reset to TODO | T | Reset field status back to "review" |
+| View in Document | D | Scroll Document Viewer to the extraction source region |
+| Ask Otto | K | Open Otto AI tab with this field's context pre-loaded |
+| Jump to Section | J | Scroll Record Inspector to this field's parent section header |
+| Copy Value | P | Copy the extracted value to clipboard |
+| Add Comment | N | Attach a note/annotation to this field (stored as channel event) |
+
+---
+
 ## Interaction Summary
 
 | User Action | Result |
 |---|---|
 | Click field card | Drawer expands/collapses |
+| Right-click field card | Context menu with 10 field actions |
 | Click evidence context in drawer | Document Viewer scrolls to source region |
 | Toggle heatmap | Confidence color overlay applied to all cards |
 | Activate spotlight | All cards blur except selected; Artifact Focus triggered |
 | Click "N more fields" divider | Tier 2 fields revealed in that section |
 | Click section header toggle | Entire section collapses/expands |
+| Click clause ID badge in drawer | Expands clause source details (anchor patterns, risk level) |
 
 ---
 

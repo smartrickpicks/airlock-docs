@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — Week View</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .week-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+      flex-shrink: 0;
+      background: var(--bg-panel);
+    }
+
+    .nav-btn {
+      padding: 5px 11px;
+      font-size: 13px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.15s;
+      line-height: 1;
+    }
+
+    .nav-btn:hover { background: var(--bg-card-hover); }
+
+    .week-title {
+      font-size: 15px;
+      font-weight: 700;
+      min-width: 200px;
+      color: var(--text-primary);
+    }
+
+    .today-btn {
+      padding: 4px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--accent-blue);
+      border-radius: var(--radius-sm);
+      color: var(--accent-blue);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      transition: background 0.15s;
+    }
+
+    .today-btn:hover {
+      background: var(--accent-blue-dim);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    /* Module filter pills */
+    .filter-pills {
+      display: flex;
+      gap: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .filter-pill {
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      border-right: 1px solid var(--border);
+    }
+
+    .filter-pill:last-child { border-right: none; }
+
+    .filter-pill.active {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .filter-pill:hover:not(.active) {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    /* ===== Day Headers ===== */
+    .day-headers {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .day-header-gutter {
+      /* empty gutter cell */
+    }
+
+    .day-header {
+      text-align: center;
+      padding: 10px 4px 6px;
+      border-left: 1px solid var(--border);
+    }
+
+    .day-header-name {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .day-header-num {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+
+    .day-header.today .day-header-name {
+      color: var(--accent-blue);
+    }
+
+    .day-header.today .day-header-num {
+      color: var(--accent-blue);
+      background: var(--accent-blue-dim);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== All-Day Events Strip ===== */
+    .allday-strip {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      min-height: 28px;
+    }
+
+    .allday-gutter {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 0;
+    }
+
+    .allday-gutter-label {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      writing-mode: horizontal-tb;
+    }
+
+    .allday-col {
+      border-left: 1px solid var(--border);
+      padding: 4px 3px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-height: 28px;
+    }
+
+    .allday-col.today-col {
+      background: var(--accent-blue-dim);
+    }
+
+    .allday-event {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: filter 0.15s;
+      border-left: 3px solid;
+    }
+
+    .allday-event:hover { filter: brightness(1.2); }
+
+    .allday-event.contracts { background: var(--accent-blue-dim); color: var(--accent-blue); border-left-color: var(--accent-blue); }
+    .allday-event.deadline  { background: var(--red-dim); color: var(--red); border-left-color: var(--red); }
+    .allday-event.renewal   { background: var(--amber-dim); color: var(--amber); border-left-color: var(--amber); }
+    .allday-event.start     { background: var(--green-dim); color: var(--green); border-left-color: var(--green); }
+    .allday-event.crm       { background: var(--teal-dim); color: var(--teal); border-left-color: var(--teal); }
+    .allday-event.tasks     { background: var(--purple-dim); color: var(--purple); border-left-color: var(--purple); }
+
+    /* ===== Time Grid ===== */
+    .time-grid-wrap {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .time-grid {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+      grid-template-rows: repeat(13, 60px);
+      position: relative;
+      min-height: calc(13 * 60px);
+    }
+
+    /* Time gutter cells */
+    .time-gutter {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 0 8px 0 0;
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      position: relative;
+      border-bottom: 1px solid transparent;
+    }
+
+    .time-gutter span {
+      transform: translateY(-7px);
+    }
+
+    /* Day columns */
+    .day-col-cell {
+      border-left: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+
+    .day-col-cell.today-col {
+      background: var(--accent-blue-dim);
+    }
+
+    /* Half-hour dashed line */
+    .day-col-cell::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-bottom: 1px dashed var(--border);
+      opacity: 0.4;
+    }
+
+    /* ===== Time Block Events ===== */
+    .time-event {
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      border-radius: var(--radius-sm);
+      padding: 4px 6px;
+      cursor: pointer;
+      overflow: hidden;
+      z-index: 2;
+      transition: filter 0.15s, box-shadow 0.15s;
+      border-left: 4px solid;
+    }
+
+    .time-event:hover {
+      filter: brightness(1.15);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 3;
+    }
+
+    .time-event-title {
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .time-event-time {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .time-event.contracts {
+      background: var(--accent-blue-dim);
+      border-left-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+    .time-event.contracts .time-event-time { color: rgba(0,145,234,0.6); }
+
+    .time-event.deadline {
+      background: var(--red-dim);
+      border-left-color: var(--red);
+      color: var(--red);
+    }
+    .time-event.deadline .time-event-time { color: rgba(244,67,54,0.6); }
+
+    .time-event.renewal {
+      background: var(--amber-dim);
+      border-left-color: var(--amber);
+      color: var(--amber);
+    }
+    .time-event.renewal .time-event-time { color: rgba(255,152,0,0.6); }
+
+    .time-event.tasks {
+      background: var(--purple-dim);
+      border-left-color: var(--purple);
+      color: var(--purple);
+    }
+    .time-event.tasks .time-event-time { color: rgba(123,31,162,0.6); }
+
+    .time-event.crm {
+      background: var(--teal-dim);
+      border-left-color: var(--teal);
+      color: var(--teal);
+    }
+    .time-event.crm .time-event-time { color: rgba(38,166,154,0.6); }
+
+    .time-event.start {
+      background: var(--green-dim);
+      border-left-color: var(--green);
+      color: var(--green);
+    }
+    .time-event.start .time-event-time { color: rgba(76,175,80,0.6); }
+
+    /* Airlock theme overrides for event text */
+    html[data-theme="airlock"] .time-event.contracts .time-event-time { color: rgba(0,209,255,0.5); }
+
+    /* ===== Current Time Indicator ===== */
+    .now-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--red);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .now-line::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+
+    /* ===== Day Column Overlay for Events ===== */
+    .day-col-overlay {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      pointer-events: none;
+    }
+
+    .day-col-overlay .time-event {
+      pointer-events: all;
+    }
+
+    /* ===== Scrollbar ===== */
+    .time-grid-wrap::-webkit-scrollbar { width: 6px; }
+    .time-grid-wrap::-webkit-scrollbar-track { background: transparent; }
+    .time-grid-wrap::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+    .time-grid-wrap::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ===== Tooltip ===== */
+    .event-tooltip {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      max-width: 260px;
+      pointer-events: none;
+    }
+
+    .event-tooltip.visible { display: block; }
+
+    .event-tooltip-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .event-tooltip-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .event-tooltip-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-top: 4px;
+    }
+
+    .event-tooltip-badge.contracts { background: var(--accent-blue-dim); color: var(--accent-blue); }
+    .event-tooltip-badge.crm { background: var(--teal-dim); color: var(--teal); }
+    .event-tooltip-badge.tasks { background: var(--purple-dim); color: var(--purple); }
+  </style>
+</head>
+<body>
+  <div class="week-layout">
+    <!-- ===== Toolbar ===== -->
+    <div class="toolbar">
+      <button class="nav-btn" id="prevBtn" title="Previous week">&#9664;</button>
+      <button class="nav-btn" id="nextBtn" title="Next week">&#9654;</button>
+      <div class="week-title" id="weekTitle">March 2 &ndash; 8, 2026</div>
+      <button class="today-btn" id="todayBtn">Today</button>
+      <div class="toolbar-spacer"></div>
+      <div class="filter-pills">
+        <button class="filter-pill active" data-filter="all">All</button>
+        <button class="filter-pill" data-filter="contracts">Contracts</button>
+        <button class="filter-pill" data-filter="crm">CRM</button>
+        <button class="filter-pill" data-filter="tasks">Tasks</button>
+      </div>
+    </div>
+
+    <!-- ===== Day Headers ===== -->
+    <div class="day-headers" id="dayHeaders">
+      <div class="day-header-gutter"></div>
+      <!-- Filled by JS -->
+    </div>
+
+    <!-- ===== All-Day Events Strip ===== -->
+    <div class="allday-strip" id="alldayStrip">
+      <div class="allday-gutter">
+        <span class="allday-gutter-label">All day</span>
+      </div>
+      <!-- Filled by JS -->
+    </div>
+
+    <!-- ===== Time Grid ===== -->
+    <div class="time-grid-wrap" id="timeGridWrap">
+      <div class="time-grid" id="timeGrid">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Tooltip ===== -->
+  <div class="event-tooltip" id="eventTooltip">
+    <div class="event-tooltip-title" id="tooltipTitle"></div>
+    <div class="event-tooltip-meta" id="tooltipMeta"></div>
+  </div>
+
+  <script>
+    /* ===== Theme Support ===== */
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('theme') === 'airlock') {
+        document.documentElement.setAttribute('data-theme', 'airlock');
+      }
+    })();
+
+    /* ===== Data Model ===== */
+    const WEEK_START = new Date(2026, 2, 2); // Mon Mar 2, 2026
+    const TODAY = new Date(2026, 2, 5);       // Thu Mar 5, 2026
+    const START_HOUR = 8;
+    const END_HOUR = 20;
+    const HOUR_COUNT = END_HOUR - START_HOUR + 1; // 13 rows: 8:00 through 20:00
+
+    const DAYS = [
+      { name: 'Mon', date: new Date(2026, 2, 2) },
+      { name: 'Tue', date: new Date(2026, 2, 3) },
+      { name: 'Wed', date: new Date(2026, 2, 4) },
+      { name: 'Thu', date: new Date(2026, 2, 5) },
+      { name: 'Fri', date: new Date(2026, 2, 6) },
+      { name: 'Sat', date: new Date(2026, 2, 7) },
+      { name: 'Sun', date: new Date(2026, 2, 8) },
+    ];
+
+    /* All-day events */
+    const ALL_DAY_EVENTS = [
+      { day: 1, title: 'henderson-msa \u2014 Renewal',         type: 'deadline', module: 'contracts' },
+      { day: 1, title: 'Enrich Acme Inc',                     type: 'crm',      module: 'crm' },
+      { day: 2, title: 'sony-dist-2024 \u2014 Effective',     type: 'start',    module: 'contracts' },
+      { day: 2, title: 'Review Q1 Reports',                   type: 'tasks',    module: 'tasks' },
+      { day: 4, title: 'warner-amendment \u2014 Renewal Warning', type: 'renewal', module: 'contracts' },
+      { day: 5, title: 'Onboard Henderson',                   type: 'tasks',    module: 'tasks' },
+    ];
+
+    /* Timed events: day index 0=Mon ... 6=Sun, startHour as decimal (14.5 = 2:30pm) */
+    const TIMED_EVENTS = [
+      { day: 1, startHour: 10, duration: 1,   title: 'Triage Review Meeting',         type: 'contracts', module: 'contracts' },
+      { day: 1, startHour: 14, duration: 1,   title: 'henderson-msa SLA Discussion',  type: 'deadline',  module: 'contracts' },
+      { day: 2, startHour: 9,  duration: 1.5, title: 'Sony Distribution Review',      type: 'contracts', module: 'contracts' },
+      { day: 3, startHour: 11, duration: 1,   title: 'Team Standup',                  type: 'tasks',     module: 'tasks' },
+      { day: 3, startHour: 14, duration: 2,   title: 'Contract Extraction Deep Dive', type: 'contracts', module: 'contracts' },
+      { day: 4, startHour: 10, duration: 1,   title: 'Warner Amendment Review',       type: 'renewal',   module: 'contracts' },
+    ];
+
+    /* Week titles for demo navigation */
+    const WEEK_TITLES = [
+      'Feb 16 \u2013 22, 2026',
+      'Feb 23 \u2013 Mar 1, 2026',
+      'March 2 \u2013 8, 2026',
+      'March 9 \u2013 15, 2026',
+      'March 16 \u2013 22, 2026',
+    ];
+    let currentWeekIdx = 2; // starts at March 2-8
+
+    /* Active filter */
+    let activeFilter = 'all';
+
+    /* ===== Render Functions ===== */
+
+    function formatHour(h) {
+      if (h === 0) return '12:00 AM';
+      if (h < 12) return h + ':00';
+      if (h === 12) return '12:00';
+      return (h - 12) + ':00';
+    }
+
+    function formatTimeRange(startHour, duration) {
+      const sh = Math.floor(startHour);
+      const sm = Math.round((startHour - sh) * 60);
+      const endH = startHour + duration;
+      const eh = Math.floor(endH);
+      const em = Math.round((endH - eh) * 60);
+      const fmt = (h, m) => {
+        const hr = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        const suffix = h >= 12 ? 'PM' : 'AM';
+        return hr + ':' + String(m).padStart(2, '0') + ' ' + suffix;
+      };
+      return fmt(sh, sm) + ' \u2013 ' + fmt(eh, em);
+    }
+
+    function isToday(dayIdx) {
+      return DAYS[dayIdx].date.getTime() === TODAY.getTime();
+    }
+
+    function renderDayHeaders() {
+      const container = document.getElementById('dayHeaders');
+      // Keep the gutter
+      container.innerHTML = '<div class="day-header-gutter"></div>';
+      DAYS.forEach((d, idx) => {
+        const today = isToday(idx);
+        const div = document.createElement('div');
+        div.className = 'day-header' + (today ? ' today' : '');
+        div.innerHTML =
+          '<div class="day-header-name">' + d.name + '</div>' +
+          '<div class="day-header-num">' + d.date.getDate() + '</div>';
+        container.appendChild(div);
+      });
+    }
+
+    function renderAllDayStrip() {
+      const container = document.getElementById('alldayStrip');
+      // Keep the gutter
+      container.innerHTML =
+        '<div class="allday-gutter"><span class="allday-gutter-label">All day</span></div>';
+
+      DAYS.forEach((d, dayIdx) => {
+        const col = document.createElement('div');
+        col.className = 'allday-col' + (isToday(dayIdx) ? ' today-col' : '');
+
+        const evts = ALL_DAY_EVENTS.filter(e => e.day === dayIdx);
+        evts.forEach(evt => {
+          const el = document.createElement('div');
+          el.className = 'allday-event ' + evt.type;
+          el.textContent = evt.title;
+          el.dataset.module = evt.module;
+          el.dataset.title = evt.title;
+          el.dataset.type = evt.type;
+          el.dataset.allday = 'true';
+
+          // Filter visibility
+          if (activeFilter !== 'all' && evt.module !== activeFilter) {
+            el.style.display = 'none';
+          }
+
+          attachTooltipEvents(el);
+          col.appendChild(el);
+        });
+
+        container.appendChild(col);
+      });
+    }
+
+    function renderTimeGrid() {
+      const container = document.getElementById('timeGrid');
+      container.innerHTML = '';
+      container.style.gridTemplateRows = 'repeat(' + HOUR_COUNT + ', 60px)';
+
+      // Build the static grid cells (gutter + 7 day columns per row)
+      for (let h = 0; h < HOUR_COUNT; h++) {
+        const hour = START_HOUR + h;
+
+        // Time gutter
+        const gutter = document.createElement('div');
+        gutter.className = 'time-gutter';
+        gutter.innerHTML = '<span>' + formatHour(hour) + '</span>';
+        container.appendChild(gutter);
+
+        // Day columns
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const cell = document.createElement('div');
+          cell.className = 'day-col-cell' + (isToday(dayIdx) ? ' today-col' : '');
+          container.appendChild(cell);
+        }
+      }
+
+      // Place timed events as absolutely positioned blocks
+      // We need to compute column positions. Each column starts at:
+      // colStart = 56px + dayIdx * colWidth
+      // We'll use overlays after layout.
+      requestAnimationFrame(() => placeTimedEvents());
+
+      // Place current-time indicator
+      requestAnimationFrame(() => placeNowLine());
+    }
+
+    function placeTimedEvents() {
+      // Remove old event overlays
+      document.querySelectorAll('.time-event').forEach(el => el.remove());
+
+      const grid = document.getElementById('timeGrid');
+      const gridRect = grid.getBoundingClientRect();
+      const gutterWidth = 56;
+      const colWidth = (gridRect.width - gutterWidth) / 7;
+      const rowHeight = 60; // each hour = 60px
+
+      TIMED_EVENTS.forEach(evt => {
+        if (activeFilter !== 'all' && evt.module !== activeFilter) return;
+
+        const topOffset = (evt.startHour - START_HOUR) * rowHeight;
+        const height = evt.duration * rowHeight;
+        const left = gutterWidth + evt.day * colWidth + 3;
+        const width = colWidth - 6;
+
+        const el = document.createElement('div');
+        el.className = 'time-event ' + evt.type;
+        el.style.position = 'absolute';
+        el.style.top = topOffset + 'px';
+        el.style.height = height + 'px';
+        el.style.left = left + 'px';
+        el.style.width = width + 'px';
+
+        el.innerHTML =
+          '<div class="time-event-title">' + evt.title + '</div>' +
+          '<div class="time-event-time">' + formatTimeRange(evt.startHour, evt.duration) + '</div>';
+
+        el.dataset.module = evt.module;
+        el.dataset.title = evt.title;
+        el.dataset.type = evt.type;
+        el.dataset.timeRange = formatTimeRange(evt.startHour, evt.duration);
+
+        attachTooltipEvents(el);
+        grid.appendChild(el);
+      });
+    }
+
+    function placeNowLine() {
+      // Remove existing
+      document.querySelectorAll('.now-line').forEach(el => el.remove());
+
+      const grid = document.getElementById('timeGrid');
+      const gutterWidth = 56;
+      const gridRect = grid.getBoundingClientRect();
+      const colWidth = (gridRect.width - gutterWidth) / 7;
+      const rowHeight = 60;
+
+      // Find today's column index
+      const todayIdx = DAYS.findIndex((d, i) => isToday(i));
+      if (todayIdx === -1) return;
+
+      // For demo: place at ~11:30 AM (a nice visible position)
+      const demoHour = 11.5;
+      const topOffset = (demoHour - START_HOUR) * rowHeight;
+      const left = gutterWidth + todayIdx * colWidth;
+      const width = colWidth;
+
+      const line = document.createElement('div');
+      line.className = 'now-line';
+      line.style.top = topOffset + 'px';
+      line.style.left = left + 'px';
+      line.style.width = width + 'px';
+      grid.appendChild(line);
+    }
+
+    /* ===== Tooltip ===== */
+    const tooltip = document.getElementById('eventTooltip');
+    const tooltipTitle = document.getElementById('tooltipTitle');
+    const tooltipMeta = document.getElementById('tooltipMeta');
+
+    function attachTooltipEvents(el) {
+      el.addEventListener('mouseenter', function(e) {
+        const data = this.dataset;
+        tooltipTitle.textContent = data.title;
+
+        let metaHTML = '';
+        if (data.allday === 'true') {
+          metaHTML += '<span>All day</span>';
+        } else if (data.timeRange) {
+          metaHTML += '<span>' + data.timeRange + '</span>';
+        }
+
+        const moduleName = (data.module || '').charAt(0).toUpperCase() + (data.module || '').slice(1);
+        metaHTML += '<span class="event-tooltip-badge ' + data.module + '">' + moduleName + '</span>';
+        tooltipMeta.innerHTML = metaHTML;
+
+        tooltip.classList.add('visible');
+        positionTooltip(e);
+      });
+
+      el.addEventListener('mousemove', positionTooltip);
+
+      el.addEventListener('mouseleave', function() {
+        tooltip.classList.remove('visible');
+      });
+    }
+
+    function positionTooltip(e) {
+      const pad = 12;
+      let x = e.clientX + pad;
+      let y = e.clientY + pad;
+
+      // Prevent offscreen
+      const tw = 260;
+      const th = 80;
+      if (x + tw > window.innerWidth) x = e.clientX - tw - pad;
+      if (y + th > window.innerHeight) y = e.clientY - th - pad;
+
+      tooltip.style.left = x + 'px';
+      tooltip.style.top = y + 'px';
+    }
+
+    /* ===== Filter Pills ===== */
+    document.querySelectorAll('.filter-pill').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        activeFilter = this.dataset.filter;
+        renderAllDayStrip();
+        placeTimedEvents();
+      });
+    });
+
+    /* ===== Week Navigation ===== */
+    document.getElementById('prevBtn').addEventListener('click', function() {
+      if (currentWeekIdx > 0) {
+        currentWeekIdx--;
+        document.getElementById('weekTitle').innerHTML = WEEK_TITLES[currentWeekIdx];
+      }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', function() {
+      if (currentWeekIdx < WEEK_TITLES.length - 1) {
+        currentWeekIdx++;
+        document.getElementById('weekTitle').innerHTML = WEEK_TITLES[currentWeekIdx];
+      }
+    });
+
+    document.getElementById('todayBtn').addEventListener('click', function() {
+      currentWeekIdx = 2;
+      document.getElementById('weekTitle').innerHTML = WEEK_TITLES[2];
+    });
+
+    /* ===== Resize Handling ===== */
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() {
+        placeTimedEvents();
+        placeNowLine();
+      }, 100);
+    });
+
+    /* ===== Initial Render ===== */
+    renderDayHeaders();
+    renderAllDayStrip();
+    renderTimeGrid();
+
+    // Scroll to ~8:00 AM initially (top of grid), then nudge to show 9 AM area
+    requestAnimationFrame(function() {
+      const wrap = document.getElementById('timeGridWrap');
+      wrap.scrollTop = 60; // scroll past 8:00 to show 9:00 at top
+    });
+  </script>
+</body>
+</html>

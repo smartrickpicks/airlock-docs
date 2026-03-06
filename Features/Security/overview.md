@@ -559,3 +559,9 @@ Prioritized for a local, low-cost MVP start:
 - [EventBus / Overview](../EventBus/overview.md) -- BullMQ, event routing
 - [PatchWorkflow / Overview](../PatchWorkflow/overview.md) -- Approval chain, SoD enforcement
 - [TechStack / Overview](../TechStack/overview.md) -- Locked library choices
+- [Data Cipher Model](./data-cipher-model.md) -- AES-256-GCM column-level encryption, HKDF key hierarchy, blind indexes (Q8-Q18, A1/A2/A12)
+- [Auth and Identity](./auth-and-identity.md) -- JWT lifecycle, OAuth PKCE, API keys, WebSocket auth (Q16-Q17, A9/A13)
+- [RBAC Enforcement](./rbac-enforcement.md) -- Permission computation, self-approval prevention, tenant isolation (Q1-Q5, A8)
+- [LLM Safety Policy](./llm-safety-policy.md) -- PII redaction, prompt injection defense, OGC chunks, determinism (Q19-Q29/Q63-Q70, A4/A11)
+- [Local Dev Playbook](./local-dev-playbook.md) -- Docker Compose setup, secrets, seeding, Ollama (Q30-Q37, A6)
+- [Audit and Immutability](./audit-and-immutability.md) -- Append-only tables, hash chain tamper evidence, decision lineage (Q6, A14)

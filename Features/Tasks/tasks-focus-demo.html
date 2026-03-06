@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airlock — Focus Mode</title>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg-darkest: #0d1017; --bg-page: #12161f; --bg-input: #161b28;
+  --bg-panel: #1a1f2e; --bg-card: #1e2436; --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed; --text-secondary: #9aa0a6; --text-muted: #6b7280;
+  --accent-blue: #0091ea; --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50; --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800; --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336; --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a; --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2; --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040; --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas',monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+}
+html[data-theme="airlock"] {
+  --bg-darkest: #080a0f; --bg-page: #0B0E14; --bg-input: #0F1219;
+  --bg-panel: #0F1219; --bg-card: #151923; --bg-card-hover: #1a2030;
+  --border: #1E2330; --border-light: #2a3040;
+  --accent-blue: #00D1FF; --accent-blue-dim: rgba(0,209,255,0.12);
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  background: var(--bg-darkest);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.back-link {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.back-link:hover { color: var(--text-secondary); }
+.top-bar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.focus-icon {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-blue);
+  position: relative;
+}
+.focus-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+}
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.task-counter {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+.next-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.next-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+/* ── MAIN CONTAINER ── */
+.focus-container {
+  max-width: 640px;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+
+/* ── FOCUS CARD ── */
+.focus-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+.focus-card.slide-out {
+  transform: translateX(-120%);
+  opacity: 0;
+}
+.focus-card.slide-in-right {
+  transform: translateX(120%);
+  opacity: 0;
+}
+.focus-card.slide-in {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.severity-header {
+  display: flex;
+  align-items: stretch;
+}
+.severity-bar {
+  width: 4px;
+  flex-shrink: 0;
+}
+.severity-bar.blocker { background: var(--red); }
+.severity-bar.warning { background: var(--amber); }
+.severity-bar.info { background: var(--accent-blue); }
+
+.card-body {
+  padding: 24px;
+  flex: 1;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+/* ── META ROW ── */
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.module-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+}
+.vault-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--mono);
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+}
+.status-badge.open { background: var(--amber-dim); color: var(--amber); }
+.status-badge.in-progress { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.status-badge.done { background: var(--green-dim); color: var(--green); }
+.status-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.due-countdown {
+  font-size: 12px;
+  color: var(--red);
+  font-weight: 500;
+}
+.due-countdown.safe { color: var(--green); }
+.due-countdown.warn { color: var(--amber); }
+
+.meta-separator {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+}
+
+/* ── DESCRIPTION ── */
+.description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.description code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-input);
+  color: var(--accent-blue);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── CONTEXT SECTION ── */
+.context-section {
+  margin-bottom: 20px;
+}
+.context-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 12px;
+}
+.context-toggle:hover { color: var(--text-secondary); }
+.context-arrow {
+  display: inline-block;
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+.context-arrow.collapsed { transform: rotate(-90deg); }
+.context-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+.context-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+.context-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.context-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.context-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: var(--mono);
+}
+.confidence-bar-track {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 4px;
+}
+.confidence-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.confidence-low { background: var(--red); }
+.confidence-med { background: var(--amber); }
+.confidence-high { background: var(--green); }
+
+/* ── ACTION BUTTONS ── */
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+.btn-primary:hover { filter: brightness(1.15); }
+.btn-green {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.btn-green:hover { filter: brightness(1.15); }
+.btn-amber {
+  background: var(--amber);
+  color: #000;
+  border-color: var(--amber);
+}
+.btn-amber:hover { filter: brightness(1.15); }
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+.btn-outline:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 9px 14px;
+}
+.btn-ghost:hover { color: var(--text-secondary); }
+.action-row .spacer { flex: 1; }
+
+/* ── UP NEXT QUEUE ── */
+.up-next-section {
+  margin-top: 36px;
+}
+.up-next-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.up-next-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.up-next-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: all 0.2s;
+}
+.up-next-card:hover {
+  opacity: 1;
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+}
+.severity-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.severity-dot.blocker { background: var(--red); }
+.severity-dot.warning { background: var(--amber); }
+.severity-dot.info { background: var(--accent-blue); }
+.up-next-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.up-next-due {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+/* ── KEYBOARD HINTS ── */
+.keyboard-hints {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 2px 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+/* ── TRANSITIONS ── */
+.fade-enter { animation: fadeIn 0.3s ease forwards; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <a class="back-link" onclick="window.history.back()">&#8592; Back to Board</a>
+    <div class="top-bar-title">
+      <div class="focus-icon"></div>
+      Focus Mode
+    </div>
+  </div>
+  <div class="top-bar-right">
+    <span class="task-counter" id="taskCounter">1 of 7 open tasks</span>
+    <button class="next-btn" id="nextBtn" onclick="nextTask()">Next Task &#8594;</button>
+  </div>
+</div>
+
+<!-- FOCUS CONTAINER -->
+<div class="focus-container">
+
+  <!-- FOCUS CARD -->
+  <div class="focus-card" id="focusCard">
+    <div class="severity-header">
+      <div class="severity-bar" id="severityBar"></div>
+      <div class="card-body">
+        <div class="card-title" id="cardTitle"></div>
+
+        <div class="meta-row" id="metaRow"></div>
+
+        <div class="description" id="cardDesc"></div>
+
+        <!-- CONTEXT SECTION -->
+        <div class="context-section">
+          <button class="context-toggle" onclick="toggleContext()">
+            <span class="context-arrow" id="contextArrow">&#9660;</span>
+            Context
+          </button>
+          <div class="context-body" id="contextBody"></div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="action-row" id="actionRow"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UP NEXT QUEUE -->
+  <div class="up-next-section fade-enter" id="upNextSection">
+    <div class="up-next-label">Up Next</div>
+    <div class="up-next-list" id="upNextList"></div>
+  </div>
+
+  <!-- KEYBOARD HINTS -->
+  <div class="keyboard-hints">
+    <div class="hint"><kbd>J</kbd> Next task</div>
+    <div class="hint"><kbd>K</kbd> Previous task</div>
+    <div class="hint"><kbd>Enter</kbd> Start working</div>
+    <div class="hint"><kbd>S</kbd> Skip</div>
+    <div class="hint"><kbd>C</kbd> Toggle context</div>
+  </div>
+</div>
+
+<script>
+/* ── THEME ── */
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('theme') === 'airlock') {
+    document.documentElement.setAttribute('data-theme', 'airlock');
+  }
+})();
+
+/* ── TASK DATA ── */
+const tasks = [
+  {
+    id: 't1',
+    title: 'Missing payment threshold in henderson-msa',
+    severity: 'blocker',
+    module: 'Contracts',
+    vault: 'henderson-msa',
+    status: 'open',
+    due: 'Due in 3h',
+    dueClass: '',
+    description: 'Review the payment threshold clause on page 12 of <code>henderson-msa</code>. The extracted value was below confidence threshold (42%). Compare against clause <code>GEN-COMP-DIST-V1</code> in the clause library.',
+    context: {
+      vault: 'henderson-msa',
+      source: 'Preflight Engine — Rule PF-COMP-003',
+      created: '2h ago by System',
+      confidence: 42
+    }
+  },
+  {
+    id: 't2',
+    title: 'Territory scope ambiguity in atlantic-dist-24',
+    severity: 'warning',
+    module: 'Contracts',
+    vault: 'atlantic-dist-24',
+    status: 'open',
+    due: 'Due tomorrow',
+    dueClass: 'warn',
+    description: 'The territory scope clause references "worldwide excluding restricted territories" but does not enumerate the restricted list. Extraction tagged <code>OPP_TERRITORY</code> with low specificity. Needs manual review against <code>GEN-SCOPE-DIST-V1</code>.',
+    context: {
+      vault: 'atlantic-dist-24',
+      source: 'Preflight Engine — Rule PF-SCOPE-007',
+      created: '4h ago by System',
+      confidence: 61
+    }
+  },
+  {
+    id: 't3',
+    title: 'Expired royalty rate on summit-sync-lic',
+    severity: 'blocker',
+    module: 'Contracts',
+    vault: 'summit-sync-lic',
+    status: 'open',
+    due: 'Due in 6h',
+    dueClass: '',
+    description: 'The royalty rate clause in section 4.2 references a rate schedule that expired 2024-12-31. The vault still carries the old rate (<code>OPP_ROYALTY_RATE = 12.5%</code>). Confirm whether the renewal terms apply automatically.',
+    context: {
+      vault: 'summit-sync-lic',
+      source: 'Preflight Engine — Rule PF-RATE-011',
+      created: '1h ago by System',
+      confidence: 78
+    }
+  },
+  {
+    id: 't4',
+    title: 'Add contact records for Nova Media onboarding',
+    severity: 'info',
+    module: 'CRM',
+    vault: 'nova-media',
+    status: 'open',
+    due: 'Due in 2d',
+    dueClass: 'safe',
+    description: 'Nova Media was imported via CSV but contact records are incomplete. Three contacts are missing email and phone fields. Complete the records before moving the vault to the Build chamber.',
+    context: {
+      vault: 'nova-media',
+      source: 'CRM Import — Batch #1042',
+      created: '6h ago by Ana Chen',
+      confidence: null
+    }
+  },
+  {
+    id: 't5',
+    title: 'Review SLA breach on ortega-publishing renewal',
+    severity: 'warning',
+    module: 'Contracts',
+    vault: 'ortega-pub-renew',
+    status: 'open',
+    due: 'Due in 1d',
+    dueClass: 'warn',
+    description: 'The renewal deadline is approaching and the vault has been in Review chamber for 8 days (SLA target: 5 days). Escalate to Gatekeeper or resolve the pending patch on clause 7.1.',
+    context: {
+      vault: 'ortega-pub-renew',
+      source: 'SLA Monitor — Threshold Breach',
+      created: '12h ago by System',
+      confidence: null
+    }
+  },
+  {
+    id: 't6',
+    title: 'Validate extraction on chen-film-coproduction',
+    severity: 'info',
+    module: 'Contracts',
+    vault: 'chen-film-coprod',
+    status: 'open',
+    due: 'Due in 3d',
+    dueClass: 'safe',
+    description: 'New co-production agreement uploaded. All 14 extraction fields populated but 3 are below 80% confidence. Run manual validation pass on <code>OPP_CREDIT_POSITION</code>, <code>OPP_DELIVERY_FORMAT</code>, and <code>OPP_TERRITORY</code>.',
+    context: {
+      vault: 'chen-film-coprod',
+      source: 'Extraction Engine — Batch Process',
+      created: '3h ago by System',
+      confidence: 72
+    }
+  },
+  {
+    id: 't7',
+    title: 'Schedule Q2 pipeline review meeting',
+    severity: 'info',
+    module: 'Calendar',
+    vault: 'team-ops',
+    status: 'open',
+    due: 'Due in 5d',
+    dueClass: 'safe',
+    description: 'Create a recurring calendar event for the Q2 pipeline review. Invite all Gatekeeper-role users. Include the CRM pipeline dashboard link in the event description.',
+    context: {
+      vault: 'team-ops',
+      source: 'Manual — Created by Marcus Webb',
+      created: '1d ago by Marcus Webb',
+      confidence: null
+    }
+  }
+];
+
+let currentIndex = 0;
+let isWorking = false;
+
+/* ── RENDER ── */
+function renderTask(index, direction) {
+  const card = document.getElementById('focusCard');
+  const t = tasks[index];
+
+  if (direction) {
+    card.classList.add('slide-out');
+    setTimeout(() => {
+      updateCardContent(t);
+      card.classList.remove('slide-out');
+      card.classList.add('slide-in-right');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          card.classList.remove('slide-in-right');
+          card.classList.add('slide-in');
+          setTimeout(() => card.classList.remove('slide-in'), 300);
+        });
+      });
+    }, 280);
+  } else {
+    updateCardContent(t);
+  }
+
+  document.getElementById('taskCounter').textContent = `${index + 1} of ${tasks.length} open tasks`;
+  renderUpNext(index);
+  isWorking = false;
+}
+
+function updateCardContent(t) {
+  document.getElementById('severityBar').className = `severity-bar ${t.severity}`;
+  document.getElementById('cardTitle').textContent = t.title;
+
+  const moduleColors = {
+    'Contracts': { bg: 'var(--accent-blue-dim)', color: 'var(--accent-blue)' },
+    'CRM': { bg: 'var(--teal-dim)', color: 'var(--teal)' },
+    'Calendar': { bg: 'var(--amber-dim)', color: 'var(--amber)' },
+    'Tasks': { bg: 'var(--purple-dim)', color: 'var(--purple)' }
+  };
+  const mc = moduleColors[t.module] || moduleColors['Contracts'];
+
+  document.getElementById('metaRow').innerHTML = `
+    <span class="module-badge" style="background:${mc.bg};color:${mc.color}">${t.module}</span>
+    <span class="meta-separator"></span>
+    <span class="vault-name">${t.vault}</span>
+    <span class="meta-separator"></span>
+    <span class="status-badge ${t.status}">${t.status === 'open' ? 'Open' : t.status === 'in-progress' ? 'In Progress' : 'Done'}</span>
+    <span class="meta-separator"></span>
+    <span class="due-countdown ${t.dueClass}">${t.due}</span>
+  `;
+
+  document.getElementById('cardDesc').innerHTML = t.description;
+
+  const ctx = t.context;
+  let contextHTML = `
+    <div class="context-item">
+      <span class="context-label">Related Vault</span>
+      <span class="context-value">${ctx.vault}</span>
+    </div>
+    <div class="context-item">
+      <span class="context-label">Source</span>
+      <span class="context-value" style="font-size:11px">${ctx.source}</span>
+    </div>
+    <div class="context-item">
+      <span class="context-label">Created</span>
+      <span class="context-value">${ctx.created}</span>
+    </div>
+  `;
+  if (ctx.confidence !== null) {
+    const confClass = ctx.confidence < 50 ? 'confidence-low' : ctx.confidence < 75 ? 'confidence-med' : 'confidence-high';
+    contextHTML += `
+      <div class="context-item">
+        <span class="context-label">Extraction Confidence</span>
+        <span class="context-value">${ctx.confidence}%</span>
+        <div class="confidence-bar-track">
+          <div class="confidence-bar-fill ${confClass}" style="width:${ctx.confidence}%"></div>
+        </div>
+      </div>
+    `;
+  } else {
+    contextHTML += `
+      <div class="context-item">
+        <span class="context-label">Extraction Confidence</span>
+        <span class="context-value" style="color:var(--text-muted)">N/A</span>
+      </div>
+    `;
+  }
+  document.getElementById('contextBody').innerHTML = contextHTML;
+
+  renderActions();
+}
+
+function renderActions() {
+  const row = document.getElementById('actionRow');
+  if (isWorking) {
+    row.innerHTML = `
+      <button class="btn btn-green" onclick="completeTask()">&#10003; Mark Complete</button>
+      <button class="btn btn-amber" onclick="pauseTask()">&#9646;&#9646; Pause</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="skipTask()">Skip</button>
+    `;
+  } else {
+    row.innerHTML = `
+      <button class="btn btn-primary" onclick="startWorking()">&#9654; Start Working</button>
+      <button class="btn btn-outline" onclick="assignToMe()">Assign to Me</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="skipTask()">Skip</button>
+    `;
+  }
+}
+
+function renderUpNext(currentIdx) {
+  const list = document.getElementById('upNextList');
+  let html = '';
+  let count = 0;
+  for (let i = 0; i < tasks.length && count < 3; i++) {
+    const idx = (currentIdx + 1 + i) % tasks.length;
+    if (idx === currentIdx) continue;
+    const t = tasks[idx];
+    html += `
+      <div class="up-next-card" onclick="jumpToTask(${idx})">
+        <div class="severity-dot ${t.severity}"></div>
+        <span class="up-next-title">${t.title}</span>
+        <span class="up-next-due">${t.due}</span>
+      </div>
+    `;
+    count++;
+  }
+  list.innerHTML = html;
+}
+
+/* ── ACTIONS ── */
+function startWorking() {
+  isWorking = true;
+  const badge = document.querySelector('.status-badge');
+  if (badge) {
+    badge.className = 'status-badge in-progress';
+    badge.innerHTML = '';
+    badge.textContent = 'In Progress';
+    const dot = document.createElement('span');
+    badge.prepend(dot);
+  }
+  renderActions();
+}
+
+function completeTask() {
+  tasks[currentIndex].status = 'done';
+  isWorking = false;
+  nextTask();
+}
+
+function pauseTask() {
+  isWorking = false;
+  renderActions();
+}
+
+function assignToMe() {
+  const btn = document.querySelector('.btn-outline');
+  if (btn) {
+    btn.textContent = '✓ Assigned to you';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.pointerEvents = 'none';
+  }
+}
+
+function skipTask() { nextTask(); }
+
+function nextTask() {
+  currentIndex = (currentIndex + 1) % tasks.length;
+  isWorking = false;
+  renderTask(currentIndex, 'next');
+}
+
+function prevTask() {
+  currentIndex = (currentIndex - 1 + tasks.length) % tasks.length;
+  isWorking = false;
+  renderTask(currentIndex, 'prev');
+}
+
+function jumpToTask(idx) {
+  currentIndex = idx;
+  isWorking = false;
+  renderTask(currentIndex, 'next');
+}
+
+/* ── CONTEXT TOGGLE ── */
+function toggleContext() {
+  const body = document.getElementById('contextBody');
+  const arrow = document.getElementById('contextArrow');
+  body.classList.toggle('collapsed');
+  arrow.classList.toggle('collapsed');
+}
+
+/* ── KEYBOARD SHORTCUTS ── */
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  switch(e.key.toLowerCase()) {
+    case 'j': nextTask(); break;
+    case 'k': prevTask(); break;
+    case 'enter':
+      e.preventDefault();
+      if (!isWorking) startWorking();
+      else completeTask();
+      break;
+    case 's': skipTask(); break;
+    case 'c': toggleContext(); break;
+  }
+});
+
+/* ── INIT ── */
+renderTask(0);
+</script>
+</body>
+</html>

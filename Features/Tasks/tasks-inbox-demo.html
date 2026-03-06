@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — Task Inbox</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .inbox-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+      background: var(--bg-panel);
+    }
+
+    .toolbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border-light);
+      flex-shrink: 0;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 4px;
+    }
+
+    .filter-pill {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border-light);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .filter-pill:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .filter-pill.active {
+      background: var(--accent-blue-dim);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-dropdown {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .toolbar-dropdown:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+    }
+
+    .toolbar-dropdown .label {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .toolbar-dropdown .value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .toolbar-dropdown svg {
+      width: 12px;
+      height: 12px;
+      opacity: 0.5;
+    }
+
+    .btn-new-task {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+
+    .btn-new-task:hover {
+      opacity: 0.85;
+    }
+
+    .btn-new-task svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ===== Stats Strip ===== */
+    .stats-strip {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-darkest);
+      flex-shrink: 0;
+    }
+
+    .stat-item {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-item .stat-value {
+      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .stat-item.active .stat-value { color: var(--accent-blue); }
+    .stat-item.blocker .stat-value { color: var(--red); }
+    .stat-item.overdue .stat-value { color: var(--red); }
+    .stat-item.unassigned .stat-value { color: var(--amber); }
+
+    .stat-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--border-light);
+      margin: 0 6px;
+    }
+
+    /* ===== Table Container ===== */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+
+    .table-container::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .table-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .table-container::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* ===== Task Table ===== */
+    .task-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+    }
+
+    .task-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .task-table th {
+      padding: 8px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      text-align: left;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: color 0.15s;
+    }
+
+    .task-table th:hover {
+      color: var(--text-secondary);
+    }
+
+    .task-table th.sorted {
+      color: var(--accent-blue);
+    }
+
+    .task-table th .sort-icon {
+      display: inline-block;
+      margin-left: 4px;
+      opacity: 0;
+      font-size: 10px;
+      transition: opacity 0.15s;
+    }
+
+    .task-table th:hover .sort-icon,
+    .task-table th.sorted .sort-icon {
+      opacity: 1;
+    }
+
+    .task-table th:first-child { padding-left: 20px; width: 60px; }
+    .task-table td:first-child { padding-left: 20px; }
+
+    .task-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s ease;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .task-table tbody tr:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .task-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .task-table td {
+      padding: 10px 16px;
+      font-size: 13px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    /* Priority Column */
+    .priority-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .priority-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .priority-dot.blocker {
+      background: var(--red);
+      box-shadow: 0 0 6px rgba(244,67,54,0.5);
+    }
+
+    .priority-dot.warning {
+      background: var(--amber);
+      box-shadow: 0 0 6px rgba(255,152,0,0.35);
+    }
+
+    .priority-dot.info {
+      background: var(--accent-blue);
+    }
+
+    /* Title Column */
+    .task-title {
+      font-weight: 500;
+      color: var(--text-primary);
+      max-width: 380px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-table tbody tr:hover .task-title {
+      color: var(--accent-blue);
+    }
+
+    /* Module Badge */
+    .module-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .module-badge.contracts {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .module-badge.crm {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .module-badge.tasks {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    .module-badge.calendar {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    /* Vault */
+    .vault-text {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .status-badge.open {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .status-badge.in-progress {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .status-badge.in-review {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    /* Assigned */
+    .assignee-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .assignee-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .assignee-name.unassigned {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Due */
+    .due-text {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .due-text.overdue {
+      color: var(--red);
+      font-weight: 600;
+    }
+
+    .due-text.soon {
+      color: var(--amber);
+    }
+
+    .due-text.normal {
+      color: var(--text-muted);
+    }
+
+    .due-text.none {
+      color: var(--text-muted);
+      font-family: inherit;
+      font-style: italic;
+    }
+
+    /* ===== Footer ===== */
+    .table-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-darkest);
+      flex-shrink: 0;
+    }
+
+    .footer-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer-text .highlight {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* ===== Row Severity Accent ===== */
+    .task-table tbody tr.severity-blocker {
+      border-left: 2px solid var(--red);
+    }
+
+    .task-table tbody tr.severity-warning {
+      border-left: 2px solid transparent;
+    }
+
+    .task-table tbody tr.severity-info {
+      border-left: 2px solid transparent;
+    }
+
+    /* ===== Overdue row pulse ===== */
+    @keyframes overdue-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .due-text.overdue {
+      animation: overdue-pulse 2s ease-in-out infinite;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 1100px) {
+      .task-title { max-width: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="inbox-layout">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      </svg>
+      <span class="toolbar-title">Inbox</span>
+      <div class="toolbar-sep"></div>
+      <div class="filter-pills" id="filterPills">
+        <button class="filter-pill active" data-filter="all">All</button>
+        <button class="filter-pill" data-filter="contracts">Contracts</button>
+        <button class="filter-pill" data-filter="crm">CRM</button>
+        <button class="filter-pill" data-filter="tasks">Manual</button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="toolbar-dropdown">
+        <span class="label">Sort:</span>
+        <span class="value">Priority</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <button class="btn-new-task">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New Task
+      </button>
+    </div>
+
+    <!-- Stats Strip -->
+    <div class="stats-strip" id="statsStrip">
+      <span class="stat-item active"><span class="stat-value">14</span> active</span>
+      <span class="stat-dot"></span>
+      <span class="stat-item blocker"><span class="stat-value">2</span> blockers</span>
+      <span class="stat-dot"></span>
+      <span class="stat-item overdue"><span class="stat-value">1</span> overdue</span>
+      <span class="stat-dot"></span>
+      <span class="stat-item unassigned"><span class="stat-value">7</span> unassigned</span>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <table class="task-table">
+        <thead>
+          <tr>
+            <th class="sorted">Priority <span class="sort-icon">&#9660;</span></th>
+            <th>Title <span class="sort-icon">&#9650;</span></th>
+            <th>Module <span class="sort-icon">&#9650;</span></th>
+            <th>Vault <span class="sort-icon">&#9650;</span></th>
+            <th>Status <span class="sort-icon">&#9650;</span></th>
+            <th>Assigned <span class="sort-icon">&#9650;</span></th>
+            <th>Due <span class="sort-icon">&#9650;</span></th>
+          </tr>
+        </thead>
+        <tbody id="taskTableBody">
+          <!-- Rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div class="table-footer" id="tableFooter">
+      <span class="footer-text">Showing <span class="highlight" id="footerShowing">14</span> of <span class="highlight">18</span> tasks &middot; <span class="highlight">4</span> resolved hidden</span>
+    </div>
+
+  </div>
+
+  <script>
+    /* ===== Theme Support ===== */
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') document.documentElement.setAttribute('data-theme', 'airlock');
+
+    /* ===== People ===== */
+    var PEOPLE = {
+      'ana':     { name: 'Ana Chen',       initials: 'AC', color: '#0091ea' },
+      'daniele': { name: 'Daniele Leoni',  initials: 'DL', color: '#e91e63' },
+      'marcus':  { name: 'Marcus Webb',    initials: 'MW', color: '#26a69a' },
+      'sarah':   { name: 'Sarah Chen',     initials: 'SC', color: '#7b1fa2' },
+      'james':   { name: 'James Liu',      initials: 'JL', color: '#ff9800' }
+    };
+
+    /* ===== Task Data ===== */
+    var TASKS = [
+      // Open (7)
+      { id: 't1',  title: 'Missing payment threshold in henderson-msa',             module: 'contracts', severity: 'blocker', status: 'open',        assigned: null,      due: '45m overdue', dueClass: 'overdue',  vault: 'henderson-msa',       sortPriority: 0 },
+      { id: 't7',  title: 'Universal Sub-License APAC extraction failed 2x',        module: 'contracts', severity: 'blocker', status: 'open',        assigned: null,      due: '2h',          dueClass: 'soon',    vault: 'universal-sublicense', sortPriority: 1 },
+      { id: 't2',  title: 'Low entity confidence on sony-dist-2024 (38%)',           module: 'contracts', severity: 'warning', status: 'open',        assigned: null,      due: null,          dueClass: 'none',    vault: 'sony-dist-2024',      sortPriority: 2 },
+      { id: 't4',  title: 'OCR misread on page 4 of the-theorist',                  module: 'contracts', severity: 'warning', status: 'open',        assigned: 'ana',     due: null,          dueClass: 'none',    vault: 'the-theorist',        sortPriority: 3 },
+      { id: 't6',  title: 'Duplicate account: Sony Music detected',                 module: 'crm',      severity: 'warning', status: 'open',        assigned: null,      due: null,          dueClass: 'none',    vault: 'sony-music',          sortPriority: 4 },
+      { id: 't3',  title: 'Enrich Acme Corp account metadata',                      module: 'crm',      severity: 'info',    status: 'open',        assigned: null,      due: '3d',          dueClass: 'normal',  vault: 'acme-corp',           sortPriority: 5 },
+      { id: 't5',  title: 'New lead: Drift Audio needs qualification',              module: 'crm',      severity: 'info',    status: 'open',        assigned: null,      due: '5d',          dueClass: 'normal',  vault: 'drift-audio',         sortPriority: 6 },
+
+      // In Progress (4)
+      { id: 't8',  title: 'Review pricing terms in warner-amendment',                module: 'contracts', severity: 'warning', status: 'in-progress', assigned: 'daniele', due: '4h 30m',      dueClass: 'soon',    vault: 'warner-amendment',     sortPriority: 7 },
+      { id: 't9',  title: 'Entity disambiguation for warner-amendment',              module: 'contracts', severity: 'warning', status: 'in-progress', assigned: 'ana',     due: '6h',          dueClass: 'normal',  vault: 'warner-amendment',     sortPriority: 8 },
+      { id: 't10', title: 'Onboard Henderson Artists (contract shipped)',            module: 'tasks',     severity: 'info',    status: 'in-progress', assigned: 'marcus',  due: '1d',          dueClass: 'soon',    vault: 'henderson-artists',    sortPriority: 9 },
+      { id: 't11', title: 'Broke Records health score investigation',               module: 'crm',      severity: 'warning', status: 'in-progress', assigned: 'sarah',   due: '2d',          dueClass: 'normal',  vault: 'broke-records',        sortPriority: 10 },
+
+      // In Review (3)
+      { id: 't12', title: 'Patch #11 approval for slowhands distribution',          module: 'contracts', severity: 'info',    status: 'in-review',   assigned: 'james',   due: '2h 15m',      dueClass: 'soon',    vault: 'slowhands-dist',       sortPriority: 11 },
+      { id: 't14', title: 'Atlantic Distribution 2026 gate review',                 module: 'contracts', severity: 'info',    status: 'in-review',   assigned: 'james',   due: '1d',          dueClass: 'soon',    vault: 'atlantic-dist-2026',   sortPriority: 12 },
+      { id: 't13', title: 'Review Sony Q1 extraction results',                      module: 'contracts', severity: 'info',    status: 'in-review',   assigned: 'sarah',   due: '3d',          dueClass: 'normal',  vault: 'sony-q1',              sortPriority: 13 }
+    ];
+
+    /* ===== Render Helpers ===== */
+    function severityLabel(s) {
+      return s === 'blocker' ? 'blocker' : s === 'warning' ? 'warning' : 'info';
+    }
+
+    function moduleLabel(m) {
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    }
+
+    function statusLabel(s) {
+      if (s === 'open') return 'Open';
+      if (s === 'in-progress') return 'In Progress';
+      if (s === 'in-review') return 'In Review';
+      return s;
+    }
+
+    function renderAvatar(personKey) {
+      if (!personKey || !PEOPLE[personKey]) {
+        return '<span class="assignee-name unassigned">Unassigned</span>';
+      }
+      var p = PEOPLE[personKey];
+      return '<div class="avatar" style="background:' + p.color + '">' + p.initials + '</div>' +
+             '<span class="assignee-name">' + p.name + '</span>';
+    }
+
+    function renderDue(task) {
+      if (!task.due) return '<span class="due-text none">&mdash;</span>';
+      return '<span class="due-text ' + task.dueClass + '">' + task.due + '</span>';
+    }
+
+    function renderRow(task) {
+      var severityRow = task.severity === 'blocker' ? 'severity-blocker' : (task.severity === 'warning' ? 'severity-warning' : 'severity-info');
+      return '<tr class="' + severityRow + '" data-module="' + task.module + '" data-id="' + task.id + '">' +
+        '<td><div class="priority-cell"><span class="priority-dot ' + severityLabel(task.severity) + '"></span></div></td>' +
+        '<td><span class="task-title">' + task.title + '</span></td>' +
+        '<td><span class="module-badge ' + task.module + '">' + moduleLabel(task.module) + '</span></td>' +
+        '<td><span class="vault-text">' + task.vault + '</span></td>' +
+        '<td><span class="status-badge ' + task.status + '">' + statusLabel(task.status) + '</span></td>' +
+        '<td><div class="assignee-cell">' + renderAvatar(task.assigned) + '</div></td>' +
+        '<td>' + renderDue(task) + '</td>' +
+      '</tr>';
+    }
+
+    /* ===== Render Table ===== */
+    function renderTable(filter) {
+      var tbody = document.getElementById('taskTableBody');
+      var filtered = filter === 'all' ? TASKS : TASKS.filter(function(t) { return t.module === filter; });
+      tbody.innerHTML = filtered.map(renderRow).join('');
+
+      /* Update stats */
+      var blockers = filtered.filter(function(t) { return t.severity === 'blocker'; }).length;
+      var overdue = filtered.filter(function(t) { return t.dueClass === 'overdue'; }).length;
+      var unassigned = filtered.filter(function(t) { return !t.assigned; }).length;
+
+      document.getElementById('statsStrip').innerHTML =
+        '<span class="stat-item active"><span class="stat-value">' + filtered.length + '</span> active</span>' +
+        '<span class="stat-dot"></span>' +
+        '<span class="stat-item blocker"><span class="stat-value">' + blockers + '</span> blocker' + (blockers !== 1 ? 's' : '') + '</span>' +
+        '<span class="stat-dot"></span>' +
+        '<span class="stat-item overdue"><span class="stat-value">' + overdue + '</span> overdue</span>' +
+        '<span class="stat-dot"></span>' +
+        '<span class="stat-item unassigned"><span class="stat-value">' + unassigned + '</span> unassigned</span>';
+
+      /* Update footer */
+      document.getElementById('footerShowing').textContent = filtered.length;
+    }
+
+    /* ===== Filter Pills ===== */
+    var pills = document.querySelectorAll('.filter-pill');
+    pills.forEach(function(pill) {
+      pill.addEventListener('click', function() {
+        pills.forEach(function(p) { p.classList.remove('active'); });
+        pill.classList.add('active');
+        renderTable(pill.getAttribute('data-filter'));
+      });
+    });
+
+    /* ===== Column Sort (visual indicator toggle) ===== */
+    var ths = document.querySelectorAll('.task-table th');
+    ths.forEach(function(th) {
+      th.addEventListener('click', function() {
+        ths.forEach(function(t) { t.classList.remove('sorted'); });
+        th.classList.add('sorted');
+      });
+    });
+
+    /* ===== Init ===== */
+    renderTable('all');
+  </script>
+</body>
+</html>

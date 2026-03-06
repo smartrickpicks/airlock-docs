@@ -320,3 +320,5 @@ Shows pipeline throughput projected over time — how many contracts are in each
 - **[Notifications](../Notifications/overview.md)** — Advance warning alerts via Novu
 - **[CRM Communications](../CRM/crm-comms-brainstorm.md)** — Google Meet integration
 - **[Batch Processing](../BatchProcessing/overview.md)** — Pipeline capacity data
+- **[Event Creation & Scheduling](./event-creation-and-scheduling.md)** — Manual events, meeting scheduling, Google Calendar sync, smart scheduling
+- **[Meeting Intelligence](../MeetingIntelligence/overview.md)** — Meeting lifecycle, transcription, prep briefs, conversation threading

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airlock — Task Reports</title>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg-darkest: #0d1017; --bg-page: #12161f; --bg-input: #161b28;
+  --bg-panel: #1a1f2e; --bg-card: #1e2436; --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed; --text-secondary: #9aa0a6; --text-muted: #6b7280;
+  --accent-blue: #0091ea; --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50; --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800; --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336; --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a; --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2; --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040; --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas',monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+}
+html[data-theme="airlock"] {
+  --bg-darkest: #080a0f; --bg-page: #0B0E14; --bg-input: #0F1219;
+  --bg-panel: #0F1219; --bg-card: #151923; --bg-card-hover: #1a2030;
+  --border: #1E2330; --border-light: #2a3040;
+  --accent-blue: #00D1FF; --accent-blue-dim: rgba(0,209,255,0.12);
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 32px;
+  background: var(--bg-darkest);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.report-icon {
+  width: 18px; height: 18px;
+  position: relative;
+}
+.report-icon::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 2px;
+  width: 4px; height: 10px;
+  background: var(--accent-blue);
+  border-radius: 1px;
+}
+.report-icon::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 8px;
+  width: 4px; height: 16px;
+  background: var(--accent-blue);
+  border-radius: 1px;
+  opacity: 0.6;
+}
+.top-bar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.time-pills {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 2px;
+}
+.pill {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pill:hover { color: var(--text-secondary); }
+.pill.active {
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+/* ── MAIN LAYOUT ── */
+.dashboard {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── ROW 1: METRIC CARDS ── */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: border-color 0.15s;
+}
+.metric-card:hover { border-color: var(--border-light); }
+.metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.metric-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.metric-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.metric-trend.up { background: var(--green-dim); color: var(--green); }
+.metric-trend.down-good { background: var(--green-dim); color: var(--green); }
+.metric-trend.down-bad { background: var(--red-dim); color: var(--red); }
+.trend-arrow-up::before { content: '\2191'; margin-right: 2px; }
+.trend-arrow-down::before { content: '\2193'; margin-right: 2px; }
+
+/* ── ROW 2: TWO-COLUMN ── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+/* BAR CHART */
+.bar-chart { display: flex; flex-direction: column; gap: 14px; }
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bar-label {
+  width: 80px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+  flex-shrink: 0;
+}
+.bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 0.6s ease;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+}
+.bar-fill-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+}
+.bar-count {
+  width: 32px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+/* RESOLUTION BY SEVERITY */
+.severity-list { display: flex; flex-direction: column; gap: 12px; }
+.severity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+.severity-indicator {
+  width: 4px;
+  height: 36px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.severity-indicator.blocker { background: var(--red); }
+.severity-indicator.warning { background: var(--amber); }
+.severity-indicator.info { background: var(--accent-blue); }
+.severity-info { flex: 1; }
+.severity-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.severity-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.severity-stat {
+  text-align: right;
+}
+.severity-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.severity-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── ROW 3: TABLE ── */
+.table-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+thead th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody tr { transition: background 0.1s; }
+tbody tr:hover { background: var(--bg-card-hover); }
+tbody tr:last-child td { border-bottom: none; }
+.member-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.sla-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+}
+.sla-high { background: var(--green-dim); color: var(--green); }
+.sla-mid { background: var(--amber-dim); color: var(--amber); }
+.sla-low { background: var(--red-dim); color: var(--red); }
+td.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+/* ── ROW 4: SPARKLINE ── */
+.sparkline-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.sparkline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.sparkline-avg {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.sparkline-avg strong {
+  color: var(--accent-blue);
+  font-weight: 700;
+}
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 80px;
+}
+.spark-bar-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  justify-content: flex-end;
+}
+.spark-bar {
+  width: 100%;
+  max-width: 48px;
+  border-radius: 3px 3px 0 0;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.spark-bar:hover { filter: brightness(1.3); }
+.spark-bar:hover::after {
+  content: attr(data-value);
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+.spark-day {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .metrics-row { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .dashboard { padding: 20px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="top-bar-left">
+    <div class="report-icon"></div>
+    <span class="top-bar-title">Reports</span>
+  </div>
+  <div class="time-pills" id="timePills">
+    <button class="pill" data-range="7" onclick="setRange(7)">Last 7 days</button>
+    <button class="pill active" data-range="30" onclick="setRange(30)">Last 30 days</button>
+    <button class="pill" data-range="90" onclick="setRange(90)">Last 90 days</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+
+  <!-- ROW 1: METRICS -->
+  <div class="metrics-row" id="metricsRow"></div>
+
+  <!-- ROW 2: TWO COLUMN -->
+  <div class="two-col">
+    <!-- TASKS BY MODULE -->
+    <div class="panel">
+      <div class="panel-title">Tasks by Module</div>
+      <div class="bar-chart" id="barChart"></div>
+    </div>
+
+    <!-- RESOLUTION BY SEVERITY -->
+    <div class="panel">
+      <div class="panel-title">Resolution by Severity</div>
+      <div class="severity-list" id="severityList"></div>
+    </div>
+  </div>
+
+  <!-- ROW 3: TEAM TABLE -->
+  <div class="table-panel">
+    <div class="panel-title">Team Performance</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Team Member</th>
+          <th>Assigned</th>
+          <th>Resolved</th>
+          <th>In Progress</th>
+          <th>Avg Time</th>
+          <th>SLA %</th>
+        </tr>
+      </thead>
+      <tbody id="teamBody"></tbody>
+    </table>
+  </div>
+
+  <!-- ROW 4: SPARKLINE -->
+  <div class="sparkline-panel">
+    <div class="sparkline-header">
+      <div class="panel-title" style="margin-bottom:0">Daily Throughput</div>
+      <div class="sparkline-avg">Avg <strong id="avgThroughput">3.8</strong> tasks/day</div>
+    </div>
+    <div class="sparkline" id="sparkline"></div>
+  </div>
+</div>
+
+<script>
+/* ── THEME ── */
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('theme') === 'airlock') {
+    document.documentElement.setAttribute('data-theme', 'airlock');
+  }
+})();
+
+/* ── DATA SETS BY TIME RANGE ── */
+const datasets = {
+  7: {
+    metrics: [
+      { label: 'Total Tasks', value: 18, trend: '+22%', dir: 'up' },
+      { label: 'Resolved', value: 12, trend: '+15%', dir: 'up' },
+      { label: 'Avg Resolution', value: '1.9d', trend: '-18%', dir: 'down-good' },
+      { label: 'SLA Compliance', value: '96%', trend: '+5%', dir: 'up' }
+    ],
+    modules: [
+      { name: 'Contracts', count: 10, pct: 56, color: 'var(--accent-blue)' },
+      { name: 'CRM', count: 5, pct: 28, color: 'var(--teal)' },
+      { name: 'Tasks', count: 2, pct: 11, color: 'var(--purple)' },
+      { name: 'Calendar', count: 1, pct: 5, color: 'var(--amber)' }
+    ],
+    severity: [
+      { name: 'Blocker', resolved: 2, avg: '3.1h', cls: 'blocker' },
+      { name: 'Warning', resolved: 5, avg: '1.4d', cls: 'warning' },
+      { name: 'Info', resolved: 5, avg: '2.6d', cls: 'info' }
+    ],
+    team: [
+      { name: 'Ana Chen', initials: 'AC', color: '#0091ea', assigned: 3, resolved: 3, ip: 0, avg: '0.9d', sla: 100 },
+      { name: 'James Liu', initials: 'JL', color: '#7b1fa2', assigned: 5, resolved: 4, ip: 1, avg: '2.1d', sla: 94 },
+      { name: 'Marcus Webb', initials: 'MW', color: '#26a69a', assigned: 4, resolved: 3, ip: 0, avg: '1.5d', sla: 100 },
+      { name: 'Sarah Chen', initials: 'SC', color: '#ff9800', assigned: 3, resolved: 1, ip: 1, avg: '2.8d', sla: 86 },
+      { name: 'Daniele Leoni', initials: 'DL', color: '#4caf50', assigned: 3, resolved: 1, ip: 1, avg: '1.7d', sla: 96 }
+    ],
+    spark: [5, 2, 4, 6, 3, 1, 4],
+    sparkAvg: '3.6'
+  },
+  30: {
+    metrics: [
+      { label: 'Total Tasks', value: 47, trend: '+12%', dir: 'up' },
+      { label: 'Resolved', value: 31, trend: '+8%', dir: 'up' },
+      { label: 'Avg Resolution', value: '2.3d', trend: '-15%', dir: 'down-good' },
+      { label: 'SLA Compliance', value: '94%', trend: '+3%', dir: 'up' }
+    ],
+    modules: [
+      { name: 'Contracts', count: 28, pct: 60, color: 'var(--accent-blue)' },
+      { name: 'CRM', count: 12, pct: 25, color: 'var(--teal)' },
+      { name: 'Tasks', count: 5, pct: 11, color: 'var(--purple)' },
+      { name: 'Calendar', count: 2, pct: 4, color: 'var(--amber)' }
+    ],
+    severity: [
+      { name: 'Blocker', resolved: 5, avg: '4.2h', cls: 'blocker' },
+      { name: 'Warning', resolved: 14, avg: '1.8d', cls: 'warning' },
+      { name: 'Info', resolved: 12, avg: '3.1d', cls: 'info' }
+    ],
+    team: [
+      { name: 'Ana Chen', initials: 'AC', color: '#0091ea', assigned: 8, resolved: 6, ip: 2, avg: '1.2d', sla: 100 },
+      { name: 'James Liu', initials: 'JL', color: '#7b1fa2', assigned: 12, resolved: 10, ip: 1, avg: '2.4d', sla: 92 },
+      { name: 'Marcus Webb', initials: 'MW', color: '#26a69a', assigned: 9, resolved: 7, ip: 1, avg: '1.8d', sla: 96 },
+      { name: 'Sarah Chen', initials: 'SC', color: '#ff9800', assigned: 7, resolved: 4, ip: 2, avg: '3.1d', sla: 88 },
+      { name: 'Daniele Leoni', initials: 'DL', color: '#4caf50', assigned: 6, resolved: 4, ip: 1, avg: '2.0d', sla: 95 }
+    ],
+    spark: [3, 5, 2, 4, 6, 3, 1, 4, 5, 7, 3, 2, 4, 6],
+    sparkAvg: '3.8'
+  },
+  90: {
+    metrics: [
+      { label: 'Total Tasks', value: 134, trend: '+28%', dir: 'up' },
+      { label: 'Resolved', value: 109, trend: '+22%', dir: 'up' },
+      { label: 'Avg Resolution', value: '2.8d', trend: '-9%', dir: 'down-good' },
+      { label: 'SLA Compliance', value: '91%', trend: '+6%', dir: 'up' }
+    ],
+    modules: [
+      { name: 'Contracts', count: 76, pct: 57, color: 'var(--accent-blue)' },
+      { name: 'CRM', count: 34, pct: 25, color: 'var(--teal)' },
+      { name: 'Tasks', count: 16, pct: 12, color: 'var(--purple)' },
+      { name: 'Calendar', count: 8, pct: 6, color: 'var(--amber)' }
+    ],
+    severity: [
+      { name: 'Blocker', resolved: 14, avg: '5.8h', cls: 'blocker' },
+      { name: 'Warning', resolved: 48, avg: '2.2d', cls: 'warning' },
+      { name: 'Info', resolved: 47, avg: '3.6d', cls: 'info' }
+    ],
+    team: [
+      { name: 'Ana Chen', initials: 'AC', color: '#0091ea', assigned: 24, resolved: 20, ip: 2, avg: '1.4d', sla: 98 },
+      { name: 'James Liu', initials: 'JL', color: '#7b1fa2', assigned: 32, resolved: 27, ip: 3, avg: '2.6d', sla: 89 },
+      { name: 'Marcus Webb', initials: 'MW', color: '#26a69a', assigned: 28, resolved: 24, ip: 2, avg: '2.0d', sla: 93 },
+      { name: 'Sarah Chen', initials: 'SC', color: '#ff9800', assigned: 22, resolved: 17, ip: 3, avg: '3.4d', sla: 85 },
+      { name: 'Daniele Leoni', initials: 'DL', color: '#4caf50', assigned: 18, resolved: 14, ip: 2, avg: '2.2d', sla: 92 }
+    ],
+    spark: [4, 6, 3, 5, 7, 4, 2, 5, 6, 8, 4, 3, 5, 7],
+    sparkAvg: '4.8'
+  }
+};
+
+let currentRange = 30;
+
+/* ── RENDER FUNCTIONS ── */
+function renderMetrics(data) {
+  const el = document.getElementById('metricsRow');
+  el.innerHTML = data.metrics.map(m => {
+    const isDown = m.dir.startsWith('down');
+    const arrowClass = isDown ? 'trend-arrow-down' : 'trend-arrow-up';
+    return `
+      <div class="metric-card">
+        <div class="metric-value">${m.value}</div>
+        <div class="metric-label">${m.label}</div>
+        <span class="metric-trend ${m.dir}"><span class="${arrowClass}"></span>${m.trend}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderBarChart(data) {
+  const el = document.getElementById('barChart');
+  const maxPct = Math.max(...data.modules.map(m => m.pct));
+  el.innerHTML = data.modules.map(m => `
+    <div class="bar-row">
+      <span class="bar-label">${m.name}</span>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(m.pct / maxPct) * 100}%;background:${m.color}">
+          <span class="bar-fill-text">${m.pct}%</span>
+        </div>
+      </div>
+      <span class="bar-count">${m.count}</span>
+    </div>
+  `).join('');
+}
+
+function renderSeverity(data) {
+  const el = document.getElementById('severityList');
+  el.innerHTML = data.severity.map(s => `
+    <div class="severity-item">
+      <div class="severity-indicator ${s.cls}"></div>
+      <div class="severity-info">
+        <div class="severity-name">${s.name}</div>
+        <div class="severity-detail">Avg resolution: ${s.avg}</div>
+      </div>
+      <div class="severity-stat">
+        <div class="severity-count">${s.resolved}</div>
+        <div class="severity-unit">resolved</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderTeam(data) {
+  const el = document.getElementById('teamBody');
+  el.innerHTML = data.team.map(t => {
+    const slaClass = t.sla >= 95 ? 'sla-high' : t.sla >= 90 ? 'sla-mid' : 'sla-low';
+    return `
+      <tr>
+        <td>
+          <div class="member-name">
+            <div class="avatar" style="background:${t.color}">${t.initials}</div>
+            ${t.name}
+          </div>
+        </td>
+        <td class="mono">${t.assigned}</td>
+        <td class="mono">${t.resolved}</td>
+        <td class="mono">${t.ip}</td>
+        <td class="mono">${t.avg}</td>
+        <td><span class="sla-badge ${slaClass}">${t.sla}%</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderSparkline(data) {
+  const el = document.getElementById('sparkline');
+  const maxVal = Math.max(...data.spark);
+  const dayLabels = [];
+  const today = new Date();
+  for (let i = data.spark.length - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dayLabels.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  }
+
+  el.innerHTML = data.spark.map((v, i) => {
+    const height = Math.max(8, (v / maxVal) * 70);
+    const opacity = 0.5 + (v / maxVal) * 0.5;
+    return `
+      <div class="spark-bar-group">
+        <div class="spark-bar" style="height:${height}px;background:var(--accent-blue);opacity:${opacity}" data-value="${v} tasks"></div>
+        <span class="spark-day">${dayLabels[i].split(' ')[1]}</span>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('avgThroughput').textContent = data.sparkAvg;
+}
+
+function renderAll(range) {
+  const data = datasets[range];
+  renderMetrics(data);
+  renderBarChart(data);
+  renderSeverity(data);
+  renderTeam(data);
+  renderSparkline(data);
+}
+
+/* ── TIME RANGE ── */
+function setRange(range) {
+  currentRange = range;
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.toggle('active', parseInt(p.dataset.range) === range);
+  });
+  renderAll(range);
+}
+
+/* ── INIT ── */
+renderAll(30);
+</script>
+</body>
+</html>

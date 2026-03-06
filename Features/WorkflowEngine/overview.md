@@ -1,6 +1,6 @@
 # Workflow Engine: Visual Automation Builder
 
-> **Status:** BRAINSTORM — Defining the visual workflow builder that powers lead qualification, communications routing, contract generation triggers, task automation, and conversational intake funnels.
+> **Status:** SPECCED — Visual workflow builder that powers lead qualification, communications routing, contract generation triggers, task automation, and conversational intake funnels.
 
 > **Key Insight:** Every automation in Airlock — lead qualification, iMessage routing, contract generation triggers, deal stage tasks, notification workflows — is the same thing: an event enters, conditions are evaluated, actions fire. One visual builder handles all of them.
 
@@ -1260,36 +1260,383 @@ For the demo shell HTML prototype:
 
 ---
 
-## Open Questions
+## Resolved Design Decisions
 
-### 1. Workflow builder access control
-Who can create/edit workflows? Options:
-- **Admin only** — safest, workflows are system configuration
-- **Admin + Builder role** — Builders can create, Admins approve before activation
-- **Any role with workflow permission** — most flexible, could be chaotic
+### 1. Workflow builder access control — DECIDED: Admin + Builder with approval
 
-**Recommendation:** Admin creates workflows. Builders can view and suggest edits (like patches). Gatekeepers approve workflow changes before they go live. This follows our existing governance pattern.
+Admin (Owner) creates and publishes workflows. Builders can create draft workflows and submit for activation — an Owner must approve before the workflow goes live. Gatekeepers can view workflows but cannot edit. This follows the existing governance pattern (patch workflow: author → verifier → admin).
 
-### 2. Workflow limits
-How many active workflows per workspace? Knock has unlimited. HubSpot limits by plan tier. For POC: unlimited. For production: TBD based on BullMQ load.
+**Permission mapping:**
+| Role | Create Draft | Edit Draft | Activate | Deactivate | Delete | View |
+|------|-------------|-----------|----------|------------|--------|------|
+| Owner | Yes | Yes | Yes | Yes | Yes | Yes |
+| Builder | Yes | Own only | No (submit for approval) | No | Own drafts only | Yes |
+| Gatekeeper | No | No | No | No | No | Yes |
+| Viewer | No | No | No | No | No | Yes |
 
-### 3. Conversational Ask across channels
-If a workflow starts via iMessage, can a Conversational Ask node send via email instead? Or must it stay on the same channel?
+### 2. Workflow limits — DECIDED: 50 active, unlimited drafts
 
-**Recommendation:** Stay on the originating channel by default. Allow explicit channel override in node config for cases like "Follow up via email if no response in 24h."
+- **Active workflows per workspace:** 50 (POC). Feature Control Plane calibration key for increase.
+- **Draft workflows:** Unlimited
+- **Nodes per workflow:** 100 max (performance ceiling for React Flow rendering + BullMQ execution)
+- **Concurrent workflow runs:** 200 per workspace (BullMQ concurrency setting)
+- **Nested workflow depth:** 3 levels (workflow A → start workflow B → start workflow C)
 
-### 4. Workflow conflicts
-What happens when two workflows trigger on the same event? Options:
-- **All execute** — parallel execution, last-write-wins for record updates
-- **Priority order** — workflows have priority, highest wins
-- **First match** — first workflow whose conditions match executes, others skip
+### 3. Conversational Ask across channels — DECIDED: Same channel default, explicit override
 
-**Recommendation:** All execute by default (like Knock). Add priority ordering later if conflicts become a real problem.
+Stay on the originating channel by default. Conversational Ask node config includes an optional `channel_override` field for cases like "Follow up via email if no iMessage response in 24h." The node config specifies:
+- `channel: "originating"` (default) — reply on same channel the trigger came from
+- `channel: "email"` — send question via email regardless of trigger channel
+- `channel: "best_available"` — use recipient's preferred channel from contact profile
 
-### 5. Contract generator as workflow
-Should the contract generator's template/clause selection be modeled as a workflow? The template → clause expansion → placeholder fill → preview pipeline maps naturally to workflow nodes. This would let admins customize generation pipelines per contract type.
+### 4. Workflow conflicts — DECIDED: All execute, priority tiebreaker for writes
 
-**Recommendation:** Yes, eventually. For POC, keep the generator as dedicated code. Later, extract the pipeline into a workflow template category.
+All matching workflows execute in parallel by default (Knock model). For record mutation conflicts (two workflows trying to update the same vault field), **priority order** determines which write wins:
+- Each workflow has a `priority` field (1-100, default 50)
+- Higher priority workflow's write takes effect
+- Equal priority: first to complete wins (race)
+- Conflict detection: log a warning event when two workflows write the same field in the same 5-second window
+
+### 5. Contract generator as workflow — DECIDED: Dedicated code for POC, workflow later
+
+POC keeps the contract generator as dedicated code in `server/engines/generation/`. Phase 2+ extracts the pipeline into a "Contract Generation" workflow template category. This allows admins to customize generation pipelines per contract type without modifying code.
+
+---
+
+## Node Property Schemas (Complete)
+
+Every node type has a well-defined config schema stored in the `data` field of the React Flow node JSON. These schemas power the right-panel editor form.
+
+### Trigger Nodes
+
+```typescript
+// Inbound Message
+interface InboundMessageConfig {
+  channels: ('imessage' | 'sms' | 'email' | 'web_chat')[];
+  sender_filter?: {
+    known_contacts_only?: boolean;
+    phone_patterns?: string[];  // regex
+    email_patterns?: string[];
+  };
+  keyword_match?: {
+    any_of?: string[];  // trigger if message contains any
+    none_of?: string[];  // skip if message contains any
+  };
+  smart_line_ids?: string[];  // filter to specific Smart Line numbers
+}
+
+// Stage Change
+interface StageChangeConfig {
+  module: 'contracts' | 'crm' | 'tasks';
+  from_stage?: string;  // null = any
+  to_stage?: string;    // null = any
+  vault_type_filter?: string[];
+}
+
+// Schedule
+interface ScheduleConfig {
+  type: 'cron' | 'interval' | 'daily' | 'weekly';
+  cron?: string;           // "0 9 * * 1-5" (weekdays 9am)
+  interval_minutes?: number;
+  daily_time?: string;     // "09:00"
+  weekly_day?: number;     // 0=Sun, 1=Mon...
+  timezone: string;        // "America/New_York"
+}
+
+// Webhook
+interface WebhookConfig {
+  path: string;            // "/webhooks/my-trigger" (auto-generated)
+  auth_type: 'none' | 'bearer' | 'hmac';
+  secret?: string;
+  payload_schema?: object; // JSON schema for validation
+}
+
+// Threshold Crossed
+interface ThresholdConfig {
+  field_path: string;      // "vault.health_score", "vault.deal_value"
+  threshold: number;
+  direction: 'above' | 'below' | 'either';
+  cooldown_minutes: number; // prevent re-firing (default: 60)
+}
+```
+
+### Function Nodes
+
+```typescript
+// Branch
+interface BranchConfig {
+  paths: Array<{
+    name: string;
+    conditions: Array<{
+      field: string;       // dot-path into workflow scope
+      op: 'equals' | 'not_equals' | 'contains' | 'gt' | 'lt' | 'gte' | 'lte'
+           | 'in' | 'not_in' | 'exists' | 'not_exists' | 'matches';
+      value: any;
+    }>;
+    logic: 'and' | 'or';  // how conditions combine (default: 'and')
+  }>;
+  default_path: string;   // name of fallback path
+}
+
+// Delay
+interface DelayConfig {
+  type: 'duration' | 'until_field' | 'until_time';
+  duration?: { value: number; unit: 'minutes' | 'hours' | 'days' };
+  field_path?: string;     // wait until this date/time field
+  time?: string;           // "09:00" — wait until next occurrence
+  timezone?: string;
+}
+
+// AI Classify
+interface AIClassifyConfig {
+  prompt: string;          // Liquid template: "Classify: {{trigger_data.body}}"
+  model: string;           // LiteLLM alias: "otto-fast", "otto-default"
+  categories: string[];
+  confidence_threshold: number;  // below this → "unknown" category
+  output_key: string;      // where to store result in variables
+  output_confidence_key?: string;
+}
+
+// AI Generate
+interface AIGenerateConfig {
+  prompt: string;          // Liquid template
+  model: string;
+  output_format: 'text' | 'json';
+  output_schema?: object;  // JSON schema if format=json
+  output_key: string;
+  max_tokens: number;
+  temperature: number;
+}
+
+// Transform
+interface TransformConfig {
+  mappings: Array<{
+    source: string;        // dot-path or Liquid expression
+    target: string;        // dot-path into variables
+    transform?: 'uppercase' | 'lowercase' | 'trim' | 'split' | 'join'
+                | 'parse_number' | 'parse_date' | 'default';
+    default_value?: any;
+  }>;
+}
+
+// Batch
+interface BatchConfig {
+  key: string;             // group-by expression: "{{contact.id}}"
+  window_seconds: number;  // aggregation window (default: 300)
+  max_size: number;        // max events per batch (default: 50)
+  output_key: string;      // array of trigger_data objects
+}
+
+// Experiment
+interface ExperimentConfig {
+  variants: Array<{
+    name: string;
+    percentage: number;    // must sum to 100
+  }>;
+  output_key: string;      // stores selected variant name
+}
+```
+
+### Action Nodes
+
+```typescript
+// Send Message
+interface SendMessageConfig {
+  recipient: string;       // "{{contact.phone}}" or "{{variables.target_phone}}"
+  channel: 'originating' | 'imessage' | 'sms' | 'email' | 'best_available';
+  template: string;        // Liquid: "Hi {{contact.name}}, ..."
+  media_url?: string;      // attachment URL
+  smart_line_id?: string;  // which number to send from (null = auto-select)
+}
+
+// Create Task
+interface CreateTaskConfig {
+  title: string;           // Liquid template
+  description?: string;
+  severity: 'low' | 'normal' | 'high' | 'urgent';
+  module: string;          // which module this task belongs to
+  vault_id?: string;       // "{{vault.id}}" — link to vault
+  assign_to?: string;      // user_id, "{{variables.rep_id}}", or role name
+  due_in?: { value: number; unit: 'hours' | 'days' };
+}
+
+// Assign
+interface AssignConfig {
+  strategy: 'direct' | 'pool' | 'round_robin' | 'least_busy' | 'territory';
+  user_id?: string;        // for direct assignment
+  pool_id?: string;        // for pool/round_robin/least_busy
+  territory_rules?: Array<{
+    field: string;
+    match: string;
+    assign_to: string;
+  }>;
+}
+
+// Conversational Ask
+interface ConversationalAskConfig {
+  question: string;        // Liquid template
+  channel: 'originating' | 'imessage' | 'sms' | 'email' | 'best_available';
+  expected_response: 'free_text' | 'multiple_choice' | 'number' | 'yes_no' | 'date';
+  choices?: string[];      // for multiple_choice
+  ai_parse: boolean;       // use AI to classify free-text response
+  ai_categories?: string[];
+  timeout: { value: number; unit: 'minutes' | 'hours' | 'days' };
+  timeout_action: 'send_reminder' | 'escalate' | 'end_workflow' | 'skip';
+  reminder_text?: string;
+  output_key: string;      // raw response
+  parsed_output_key?: string;  // AI-parsed category
+  max_retries?: number;    // how many times to re-ask on unparseable response
+}
+
+// Set SLA
+interface SetSLAConfig {
+  duration: { value: number; unit: 'minutes' | 'hours' | 'days' };
+  name: string;            // "Initial Response", "Resolution"
+  escalation_workflow_id?: string;  // workflow to trigger on expiry
+  warning_threshold?: number;  // percentage of time elapsed to send warning (e.g., 75)
+}
+
+// Route to Pool
+interface RouteToPoolConfig {
+  pool_id: string;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  assignment_override?: 'manual' | 'round_robin' | 'least_busy';
+  context_template?: string;  // Liquid — internal context note for agents
+}
+```
+
+---
+
+## Error Recovery & Resilience
+
+### Per-Node Error Handling
+
+Each node can define an error path (an output handle named `error`) that routes to recovery logic:
+
+```
+[Fetch Node] ──success──> [Transform] ──> [Send Message]
+      |
+      └──error──> [Log Event: "Fetch failed"] ──> [Notify Admin]
+```
+
+**If no error path is defined:** The node follows the default retry policy for its type.
+
+### Retry Policies by Node Type
+
+| Node Type | Max Retries | Backoff | Timeout | On Final Failure |
+|-----------|------------|---------|---------|-----------------|
+| Fetch | 3 | Exponential (1s, 5s, 30s) | 15s per attempt | Take error path or fail workflow |
+| AI Classify / AI Generate | 2 | Linear (2s, 5s) | 30s per attempt | Use default classification + warning event |
+| Send Message | 3 | Exponential (5s, 30s, 120s) | 30s per attempt | Create task "Message delivery failed" |
+| Create Task | 1 | None | 10s | Log error, continue (task creation is not critical-path) |
+| Create Vault | 1 | None | 10s | Fail workflow (vault is usually critical) |
+| Update Record | 2 | Linear (1s, 3s) | 10s | Log stale update, continue |
+| Conversational Ask | 0 | N/A | Uses timeout config | Execute timeout_action |
+| Start Workflow | 1 | None | 5s | Log warning, continue |
+
+### Workflow-Level Recovery
+
+| Scenario | Recovery |
+|----------|---------|
+| **BullMQ worker crash mid-execution** | On restart, query Postgres for `workflow_runs` with status `running`. Re-enqueue from `current_node_id`. Each node is idempotent (uses `workflow_run_id + node_id` as idempotency key). |
+| **Redis unavailable** | BullMQ cannot process jobs. Health check surfaces in Feature Control Plane. Pending events queue in Postgres `pending_workflow_events` table as fallback. On Redis recovery, drain fallback table. |
+| **LiteLLM unavailable** | AI nodes fail after retries. Workflow continues on error path if defined. If no error path, workflow fails with clear error: "AI service unavailable." Feature Control Plane shows Otto health degraded. |
+| **Infinite loop detection** | Max node visits per run: 500. If exceeded, workflow fails with "Execution limit exceeded" error. Loop nodes have `max_iterations` config (default: 50). |
+| **Circular workflow detection** | At commit time, validate that Start Workflow nodes don't create cycles (A starts B starts A). Builder shows validation error. |
+| **Stale Conversational Ask** | If a workflow is `waiting` for > 30 days, auto-expire with timeout_action. Configurable per workspace. |
+
+### Idempotency
+
+Every action node checks an idempotency key before executing:
+
+```python
+async def execute_node(run_id: str, node_id: str, action: Callable):
+    idem_key = f"{run_id}:{node_id}"
+    if await check_idempotency(idem_key):
+        return await get_cached_result(idem_key)
+
+    result = await action()
+    await store_idempotency(idem_key, result, ttl=86400)
+    return result
+```
+
+This prevents duplicate sends, double task creation, or duplicate vault creation on workflow re-execution after crash recovery.
+
+---
+
+## Workflow Testing
+
+### Test Runner
+
+The builder includes a "Test" button that runs the workflow against sample data without executing side effects:
+
+```
++------------------------------------------------------------------+
+| TEST WORKFLOW: "Lead Qualification"                               |
+|------------------------------------------------------------------|
+| TRIGGER DATA (editable JSON):                                     |
+| {                                                                 |
+|   "channel": "imessage",                                         |
+|   "from": "+15551234567",                                        |
+|   "body": "Hi, I need help managing 200 contracts monthly"       |
+| }                                                                 |
+|                                                                   |
+| [Run Test]                                                        |
+|                                                                   |
+| EXECUTION TRACE:                                                  |
+| ✓ Trigger: Inbound Message          0ms                          |
+| ✓ Fetch: Phone # Lookup             45ms  → contact: null        |
+| ✓ Branch: Known Contact?            2ms   → NO path              |
+| ✓ AI Classify: Intent               1.2s  → "contracts" (0.94)   |
+| ✓ Conv. Ask: "What brings you..."   SIMULATED → skipped          |
+| ✓ Branch: Lead Score                2ms   → Medium (65)          |
+| ○ Create Vault                      DRY RUN → would create       |
+| ○ Route to Pool                     DRY RUN → sales-pool         |
+| ○ Send Message                      DRY RUN → "Thanks! Sarah..." |
+|                                                                   |
+| Result: COMPLETED (3 actions would execute)                       |
+| Estimated cost: $0.002 (AI Classify)                              |
++------------------------------------------------------------------+
+```
+
+**Test modes:**
+- **Dry run** (default): Triggers and functions execute for real (including AI calls). Actions are simulated — they log what they would do but don't execute.
+- **Full run**: Everything executes for real. Used with test contacts/vaults only.
+- **Replay**: Re-run a historical workflow_run with the same trigger_data. Useful for debugging.
+
+### Validation Rules (Checked on Commit)
+
+| Rule | Error Level | Message |
+|------|------------|---------|
+| No trigger node | Error | "Workflow must have exactly one trigger" |
+| Multiple trigger nodes | Error | "Only one trigger allowed per workflow" |
+| Disconnected nodes | Warning | "Node [name] is not connected to the workflow" |
+| Branch with no default | Warning | "Branch [name] has no default/fallback path" |
+| Missing required config | Error | "Node [name] is missing required field: [field]" |
+| Circular Start Workflow | Error | "Circular workflow reference: A → B → A" |
+| > 100 nodes | Error | "Workflow exceeds maximum of 100 nodes" |
+| Nested depth > 3 | Error | "Start Workflow nesting exceeds maximum depth of 3" |
+| Delay > 30 days | Warning | "Delay of [N] days may cause stale executions" |
+
+---
+
+## Feature Control Plane Integration
+
+| Toggle / Calibration | Default | Range | Description |
+|---------------------|---------|-------|-------------|
+| `workflows.enabled` | true | bool | Master kill switch for all workflow execution |
+| `workflows.max_active` | 50 | 10-500 | Max active workflows per workspace |
+| `workflows.max_concurrent_runs` | 200 | 50-1000 | Max simultaneous workflow executions |
+| `workflows.max_nodes` | 100 | 20-500 | Max nodes per workflow |
+| `workflows.conversational_ask_expiry_days` | 30 | 1-90 | Auto-expire waiting workflows |
+| `workflows.ai_node_timeout_seconds` | 30 | 5-120 | AI node request timeout |
+| `workflows.execution_log_retention_days` | 90 | 30-365 | How long to keep run logs |
+
+**Health monitoring:**
+- Runs per hour / success rate / avg duration / error count
+- Alert if success rate < 95% in any 1-hour window
+- Alert if any single workflow has > 10 consecutive failures
+- BullMQ queue depth visible (how many pending jobs)
 
 ---
 

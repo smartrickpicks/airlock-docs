@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airlock — CRM Contacts Directory</title>
+<style>
+/* ===== Base Tokens ===== */
+:root {
+  --bg-darkest: #0d1017;
+  --bg-page: #12161f;
+  --bg-input: #161b28;
+  --bg-panel: #1a1f2e;
+  --bg-card: #1e2436;
+  --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #6b7280;
+  --accent-blue: #0091ea;
+  --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50;
+  --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800;
+  --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336;
+  --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a;
+  --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2;
+  --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040;
+  --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+
+/* Airlock theme overrides */
+html[data-theme="airlock"] {
+  --bg-darkest: #080a0f;
+  --bg-page: #0B0E14;
+  --bg-input: #0F1219;
+  --bg-panel: #0F1219;
+  --bg-card: #151923;
+  --bg-card-hover: #1a2030;
+  --border: #1E2330;
+  --border-light: #2a3040;
+  --accent-blue: #00D1FF;
+  --accent-blue-dim: rgba(0,209,255,0.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ===== Main Layout: 50/50 Split ===== */
+.contacts-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* ===== LEFT PANEL: Contact Directory ===== */
+.directory-panel {
+  width: 50%;
+  min-width: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.directory-header {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.directory-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.directory-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.directory-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.directory-search {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.directory-search:focus {
+  border-color: var(--accent-blue);
+}
+
+.directory-search::placeholder {
+  color: var(--text-muted);
+}
+
+.search-wrapper {
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.directory-filters {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.filter-chip {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-chip:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.filter-chip.active {
+  background: var(--accent-blue-dim);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* ===== Account Groups ===== */
+.directory-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.directory-list::-webkit-scrollbar { width: 5px; }
+.directory-list::-webkit-scrollbar-track { background: transparent; }
+.directory-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+.account-group {
+  margin-bottom: 2px;
+}
+
+.account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.account-header:hover .account-name {
+  color: var(--text-primary);
+}
+
+.account-name {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-chevron {
+  font-size: 8px;
+  transition: transform 0.2s;
+  color: var(--text-muted);
+}
+
+.account-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.account-count {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.account-contacts {
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+}
+
+.account-contacts.collapsed {
+  max-height: 0 !important;
+}
+
+/* ===== Contact Row ===== */
+.contact-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 18px 8px 28px;
+  cursor: pointer;
+  transition: background 0.12s;
+  gap: 10px;
+  border-left: 2px solid transparent;
+}
+
+.contact-row:hover {
+  background: var(--bg-card-hover);
+}
+
+.contact-row.active {
+  background: var(--accent-blue-dim);
+  border-left-color: var(--accent-blue);
+}
+
+.contact-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.contact-avatar .source-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+}
+
+.contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-role {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.contact-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.msg-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent-blue);
+  padding: 1px 6px;
+  border-radius: 8px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ===== RIGHT PANEL: Org Tree + Detail ===== */
+.tree-panel {
+  width: 50%;
+  min-width: 0;
+  background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tree-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tree-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+}
+
+.tree-account-label {
+  font-size: 11px;
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+/* ===== Org Tree Visualization ===== */
+.tree-view {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+
+.tree-view::-webkit-scrollbar { width: 5px; }
+.tree-view::-webkit-scrollbar-track { background: transparent; }
+.tree-view::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+.org-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Tree tiers */
+.tree-tier {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  position: relative;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.tree-connector-down {
+  width: 2px;
+  height: 24px;
+  background: var(--border-light);
+  margin: 0 auto;
+}
+
+.tree-connector-horizontal {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  padding: 0 20px;
+}
+
+.tree-connector-horizontal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  height: 2px;
+  background: var(--border-light);
+}
+
+.tree-branch-line {
+  position: absolute;
+  top: 0;
+  height: 2px;
+  background: var(--border-light);
+}
+
+/* Tree Node */
+.tree-node {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  min-width: 100px;
+}
+
+.tree-node:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-light);
+}
+
+.tree-node.active {
+  border-color: var(--accent-blue);
+  background: var(--accent-blue-dim);
+  box-shadow: 0 0 12px rgba(0,145,234,0.15);
+}
+
+html[data-theme="airlock"] .tree-node.active {
+  box-shadow: 0 0 12px rgba(0,209,255,0.15);
+}
+
+.tree-node.size-lg {
+  padding: 14px 18px;
+}
+
+.tree-node.size-md {
+  padding: 10px 14px;
+}
+
+.tree-node.size-sm {
+  padding: 8px 12px;
+}
+
+.tree-node-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.tree-node-role {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tree-node-msgs {
+  margin-top: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.tree-node-msgs .count-bar {
+  display: inline-block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent-blue);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ===== Contact Detail Card ===== */
+.detail-card {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  padding: 18px 20px;
+  overflow-y: auto;
+  max-height: 260px;
+}
+
+.detail-empty {
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.detail-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.detail-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.detail-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.detail-role-company {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.detail-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+
+.detail-field-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.detail-field-value {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.detail-field-value a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+.detail-field-value a:hover {
+  text-decoration: underline;
+}
+
+.detail-history {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.detail-history-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.history-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.history-text {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.history-time {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ===== Source Icons (SVG inline) ===== */
+.source-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Empty / No Selection States ===== */
+.tree-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-muted);
+  gap: 8px;
+}
+
+.tree-empty-icon {
+  font-size: 32px;
+  opacity: 0.3;
+}
+
+.tree-empty-text {
+  font-size: 12px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 860px) {
+  .contacts-layout { flex-direction: column; }
+  .directory-panel, .tree-panel { width: 100%; height: 50vh; }
+  .directory-panel { border-right: none; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<div class="contacts-layout">
+  <!-- LEFT: Contact Directory -->
+  <div class="directory-panel">
+    <div class="directory-header">
+      <div class="directory-title-row">
+        <span class="directory-title">Contacts</span>
+        <span class="directory-count" id="totalCount">12 contacts</span>
+      </div>
+      <div class="search-wrapper">
+        <span class="search-icon">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><line x1="10.5" y1="10.5" x2="15" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <input type="text" class="directory-search" placeholder="Search contacts, roles, accounts..." id="searchInput">
+      </div>
+      <div class="directory-filters">
+        <button class="filter-chip active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="manual">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-1px;margin-right:2px"><path d="M8 8a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm0 1.5c-3.87 0-7 1.56-7 3.5v1h14v-1c0-1.94-3.13-3.5-7-3.5z"/></svg>
+          Manual
+        </button>
+        <button class="filter-chip" data-filter="inbound">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-1px;margin-right:2px"><path d="M3.6 1.5A1.5 1.5 0 015.09.28l1.39.46a1.5 1.5 0 011 1.42v1.1a7.5 7.5 0 003.68 1.53h.17a1.5 1.5 0 011.5 1.06l.37 1.44a1.5 1.5 0 01-.84 1.72 5.5 5.5 0 00-2.4 1.83l-.1.14a1.5 1.5 0 01-.04 1.98l-.98 1.07a1.5 1.5 0 01-2.16.06l-4.5-4.34A1.5 1.5 0 012 8.21V5.5c0-.37.14-.73.39-1z"/></svg>
+          Inbound
+        </button>
+        <button class="filter-chip" data-filter="resolved">
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-1px;margin-right:2px"><path d="M6 1a2 2 0 00-2 2v1H3a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a2 2 0 00-2-2H6zm0 2h4v1H6V3zm-1 4.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM8 10c-2 0-3.5.67-3.5 1.5V12h7v-.5c0-.83-1.5-1.5-3.5-1.5z"/></svg>
+          Entity Resolved
+        </button>
+      </div>
+    </div>
+
+    <div class="directory-list" id="directoryList">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <!-- RIGHT: Org Tree + Detail -->
+  <div class="tree-panel">
+    <div class="tree-header">
+      <span class="tree-title">Org Tree</span>
+      <span class="tree-account-label" id="treeAccountLabel"></span>
+    </div>
+
+    <div class="tree-view" id="treeView">
+      <div class="tree-empty">
+        <div class="tree-empty-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8.5" y="16" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="12"/><line x1="17.5" y1="8" x2="17.5" y2="12"/><line x1="6.5" y1="12" x2="17.5" y2="12"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+        </div>
+        <div class="tree-empty-text">Select a contact to view org tree</div>
+      </div>
+    </div>
+
+    <div class="detail-card" id="detailCard">
+      <div class="detail-empty">Click a contact to view details</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Theme Support =====
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('theme') === 'airlock') {
+    document.documentElement.setAttribute('data-theme', 'airlock');
+  }
+})();
+
+// ===== Sample Data =====
+const ACCOUNTS = [
+  {
+    id: 'acme',
+    name: 'Acme Inc',
+    color: '#0091ea',
+    contacts: [
+      {
+        id: 'c1', name: 'Sarah Kim', role: 'Billing Director', email: 'sarah.kim@acme-inc.com',
+        phone: '+1 (555) 234-1001', msgs: 24, lastActive: '12m ago', source: 'manual',
+        avatarBg: '#1a3a5c', initials: 'SK',
+        history: [
+          { text: 'Discussed Q2 billing reconciliation', time: '12m ago', color: 'var(--accent-blue)' },
+          { text: 'Sent updated invoice schedule', time: '2h ago', color: 'var(--green)' },
+          { text: 'Flagged discrepancy on line item 47', time: '1d ago', color: 'var(--amber)' }
+        ]
+      },
+      {
+        id: 'c2', name: 'Tom Bradley', role: 'Operations Manager', email: 'tom.bradley@acme-inc.com',
+        phone: '+1 (555) 234-1002', msgs: 11, lastActive: '3h ago', source: 'inbound',
+        avatarBg: '#1c3a2e', initials: 'TB',
+        history: [
+          { text: 'Called about delivery schedule for batch #892', time: '3h ago', color: 'var(--accent-blue)' },
+          { text: 'Confirmed warehouse capacity', time: '2d ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 'c3', name: 'R. Whitfield', role: 'Executive (Unverified)', email: null,
+        phone: '+1 (555) 234-1000', msgs: 2, lastActive: '5d ago', source: 'resolved',
+        avatarBg: '#2a2040', initials: 'RW',
+        history: [
+          { text: 'Entity resolved from contract signature block', time: '5d ago', color: 'var(--purple)' }
+        ]
+      }
+    ],
+    orgTree: {
+      root: 'c3',
+      children: { 'c3': ['c1', 'c2'] }
+    }
+  },
+  {
+    id: 'ostereo',
+    name: 'Ostereo Music Group',
+    color: '#7b1fa2',
+    contacts: [
+      {
+        id: 'c4', name: 'Alex Rivera', role: 'CEO', email: 'alex@ostereo.com',
+        phone: '+1 (555) 819-2200', msgs: 37, lastActive: '5m ago', source: 'manual',
+        avatarBg: '#3a1a4a', initials: 'AR',
+        history: [
+          { text: 'Strategy call re: catalog acquisition', time: '5m ago', color: 'var(--accent-blue)' },
+          { text: 'Approved distribution terms v3', time: '1d ago', color: 'var(--green)' },
+          { text: 'Requested revision on exclusivity clause', time: '3d ago', color: 'var(--amber)' },
+          { text: 'Initial outreach meeting', time: '2w ago', color: 'var(--teal)' }
+        ]
+      },
+      {
+        id: 'c5', name: 'Jen Park', role: 'General Counsel', email: 'jen.park@ostereo.com',
+        phone: '+1 (555) 819-2205', msgs: 18, lastActive: '1h ago', source: 'manual',
+        avatarBg: '#1a3050', initials: 'JP',
+        history: [
+          { text: 'Redlined master services agreement', time: '1h ago', color: 'var(--red)' },
+          { text: 'Sent NDA for counter-signature', time: '4d ago', color: 'var(--green)' }
+        ]
+      }
+    ],
+    orgTree: {
+      root: 'c4',
+      children: { 'c4': ['c5'] }
+    }
+  },
+  {
+    id: 'summit',
+    name: 'Summit Media',
+    color: '#26a69a',
+    contacts: [
+      {
+        id: 'c6', name: 'Maria Santos', role: 'VP Partnerships', email: 'maria.santos@summitmedia.com',
+        phone: '+1 (555) 770-3301', msgs: 29, lastActive: '20m ago', source: 'manual',
+        avatarBg: '#1a3a3a', initials: 'MS',
+        history: [
+          { text: 'Reviewed co-production deal terms', time: '20m ago', color: 'var(--accent-blue)' },
+          { text: 'Introduced Kevin Wu for legal review', time: '2d ago', color: 'var(--teal)' },
+          { text: 'Kickoff call for partnership framework', time: '1w ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 'c7', name: 'Kevin Wu', role: 'Legal Counsel', email: 'k.wu@summitmedia.com',
+        phone: '+1 (555) 770-3305', msgs: 8, lastActive: '4h ago', source: 'inbound',
+        avatarBg: '#2a2a1a', initials: 'KW',
+        history: [
+          { text: 'Called to discuss indemnity provisions', time: '4h ago', color: 'var(--accent-blue)' },
+          { text: 'Sent markup of Schedule B', time: '1d ago', color: 'var(--amber)' }
+        ]
+      },
+      {
+        id: 'c8', name: 'Diana Frost', role: 'CFO', email: 'diana.frost@summitmedia.com',
+        phone: '+1 (555) 770-3300', msgs: 14, lastActive: '2h ago', source: 'manual',
+        avatarBg: '#2e1a2e', initials: 'DF',
+        history: [
+          { text: 'Approved budget allocation for Q3 deal', time: '2h ago', color: 'var(--green)' },
+          { text: 'Reviewed financial projections deck', time: '3d ago', color: 'var(--accent-blue)' }
+        ]
+      }
+    ],
+    orgTree: {
+      root: 'c8',
+      children: { 'c8': ['c6', 'c7'] }
+    }
+  },
+  {
+    id: 'nova',
+    name: 'Nova Entertainment',
+    color: '#ff9800',
+    contacts: [
+      {
+        id: 'c9', name: 'Jack Chen', role: 'Biz Dev Lead', email: 'jack.chen@novaent.com',
+        phone: '+1 (555) 401-8800', msgs: 42, lastActive: '2m ago', source: 'manual',
+        avatarBg: '#3a2a1a', initials: 'JC',
+        history: [
+          { text: 'Pitched expanded licensing scope', time: '2m ago', color: 'var(--accent-blue)' },
+          { text: 'Sent term sheet draft v2', time: '6h ago', color: 'var(--green)' },
+          { text: 'Follow-up on sync licensing inquiry', time: '2d ago', color: 'var(--amber)' },
+          { text: 'Initial discovery call', time: '3w ago', color: 'var(--teal)' }
+        ]
+      },
+      {
+        id: 'c10', name: 'Lisa Tran', role: 'Head of A&R', email: 'lisa.tran@novaent.com',
+        phone: '+1 (555) 401-8810', msgs: 15, lastActive: '45m ago', source: 'inbound',
+        avatarBg: '#1a2a3a', initials: 'LT',
+        history: [
+          { text: 'Discussed artist roster for sync opportunities', time: '45m ago', color: 'var(--accent-blue)' },
+          { text: 'Shared catalog samples via secure link', time: '1d ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 'c11', name: 'Omar Patel', role: 'Finance Director', email: 'omar.patel@novaent.com',
+        phone: '+1 (555) 401-8820', msgs: 6, lastActive: '1d ago', source: 'resolved',
+        avatarBg: '#2a3a1a', initials: 'OP',
+        history: [
+          { text: 'Entity resolved from payment records', time: '1d ago', color: 'var(--purple)' },
+          { text: 'Linked to vault: Nova Master License', time: '1d ago', color: 'var(--teal)' }
+        ]
+      },
+      {
+        id: 'c12', name: 'Sam Reeves', role: 'Creative Director', email: 'sam.r@novaent.com',
+        phone: null, msgs: 3, lastActive: '3d ago', source: 'resolved',
+        avatarBg: '#1a1a3a', initials: 'SR',
+        history: [
+          { text: 'Entity resolved from email thread metadata', time: '3d ago', color: 'var(--purple)' }
+        ]
+      }
+    ],
+    orgTree: {
+      root: 'c9',
+      children: { 'c9': ['c10', 'c11', 'c12'] }
+    }
+  }
+];
+
+// Build flat contact lookup
+const contactMap = {};
+const accountByContact = {};
+ACCOUNTS.forEach(acct => {
+  acct.contacts.forEach(c => {
+    contactMap[c.id] = c;
+    accountByContact[c.id] = acct;
+  });
+});
+
+// ===== State =====
+let activeContactId = null;
+let activeFilter = 'all';
+let searchQuery = '';
+
+// ===== Source Icon SVGs =====
+function sourceIcon(source) {
+  switch (source) {
+    case 'manual':
+      return '<svg width="8" height="8" viewBox="0 0 16 16" fill="var(--text-muted)"><path d="M8 8a3.5 3.5 0 100-7 3.5 3.5 0 000 7zm0 1.5c-3.87 0-7 1.56-7 3.5v1h14v-1c0-1.94-3.13-3.5-7-3.5z"/></svg>';
+    case 'inbound':
+      return '<svg width="8" height="8" viewBox="0 0 16 16" fill="var(--teal)"><path d="M3.6 1.5A1.5 1.5 0 015.09.28l1.39.46a1.5 1.5 0 011 1.42v1.1a7.5 7.5 0 003.68 1.53h.17a1.5 1.5 0 011.5 1.06l.37 1.44a1.5 1.5 0 01-.84 1.72 5.5 5.5 0 00-2.4 1.83l-.1.14a1.5 1.5 0 01-.04 1.98l-.98 1.07a1.5 1.5 0 01-2.16.06l-4.5-4.34A1.5 1.5 0 012 8.21V5.5c0-.37.14-.73.39-1z"/></svg>';
+    case 'resolved':
+      return '<svg width="8" height="8" viewBox="0 0 16 16" fill="var(--purple)"><path d="M6 1a2 2 0 00-2 2v1H3a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a2 2 0 00-2-2H6zm0 2h4v1H6V3zm-1 4.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM8 10c-2 0-3.5.67-3.5 1.5V12h7v-.5c0-.83-1.5-1.5-3.5-1.5z"/></svg>';
+    default: return '';
+  }
+}
+
+// ===== Render Directory =====
+function renderDirectory() {
+  const list = document.getElementById('directoryList');
+  const q = searchQuery.toLowerCase();
+  let totalVisible = 0;
+
+  let html = '';
+
+  ACCOUNTS.forEach(acct => {
+    const filtered = acct.contacts.filter(c => {
+      if (activeFilter !== 'all' && c.source !== activeFilter) return false;
+      if (q && !c.name.toLowerCase().includes(q) && !c.role.toLowerCase().includes(q) && !acct.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    if (filtered.length === 0) return;
+    totalVisible += filtered.length;
+
+    html += `<div class="account-group" data-account="${acct.id}">`;
+    html += `<div class="account-header" onclick="toggleGroup('${acct.id}')">`;
+    html += `<span class="account-name">`;
+    html += `<span class="account-chevron" id="chevron-${acct.id}">&#9660;</span>`;
+    html += `<span style="color:${acct.color}; margin-right:4px;">&#9679;</span>`;
+    html += `${acct.name}`;
+    html += `</span>`;
+    html += `<span class="account-count">${filtered.length} contact${filtered.length !== 1 ? 's' : ''}</span>`;
+    html += `</div>`;
+    html += `<div class="account-contacts" id="contacts-${acct.id}" style="max-height:${filtered.length * 56}px">`;
+
+    filtered.forEach(c => {
+      const isActive = c.id === activeContactId;
+      html += `<div class="contact-row${isActive ? ' active' : ''}" onclick="selectContact('${c.id}')" data-id="${c.id}">`;
+      html += `<div class="contact-avatar" style="background:${c.avatarBg}">`;
+      html += `${c.initials}`;
+      html += `<span class="source-badge">${sourceIcon(c.source)}</span>`;
+      html += `</div>`;
+      html += `<div class="contact-info">`;
+      html += `<div class="contact-name">${c.name}</div>`;
+      html += `<div class="contact-role">${c.role}</div>`;
+      html += `</div>`;
+      html += `<div class="contact-meta">`;
+      html += `<span class="contact-time">${c.lastActive}</span>`;
+      if (c.msgs > 0) {
+        html += `<span class="msg-badge">${c.msgs}</span>`;
+      }
+      html += `</div>`;
+      html += `</div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  list.innerHTML = html;
+  document.getElementById('totalCount').textContent = `${totalVisible} contact${totalVisible !== 1 ? 's' : ''}`;
+}
+
+function toggleGroup(accountId) {
+  const el = document.getElementById('contacts-' + accountId);
+  const chev = document.getElementById('chevron-' + accountId);
+  if (el.classList.contains('collapsed')) {
+    el.classList.remove('collapsed');
+    chev.classList.remove('collapsed');
+  } else {
+    el.classList.add('collapsed');
+    chev.classList.add('collapsed');
+  }
+}
+
+// ===== Select Contact =====
+function selectContact(contactId) {
+  activeContactId = contactId;
+  renderDirectory();
+  renderOrgTree();
+  renderDetail();
+}
+
+// ===== Render Org Tree =====
+function renderOrgTree() {
+  const view = document.getElementById('treeView');
+  const label = document.getElementById('treeAccountLabel');
+
+  if (!activeContactId) {
+    label.textContent = '';
+    view.innerHTML = `<div class="tree-empty">
+      <div class="tree-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="8.5" y="16" width="7" height="5" rx="1"/><line x1="6.5" y1="8" x2="6.5" y2="12"/><line x1="17.5" y1="8" x2="17.5" y2="12"/><line x1="6.5" y1="12" x2="17.5" y2="12"/><line x1="12" y1="12" x2="12" y2="16"/></svg></div>
+      <div class="tree-empty-text">Select a contact to view org tree</div>
+    </div>`;
+    return;
+  }
+
+  const acct = accountByContact[activeContactId];
+  label.textContent = acct.name;
+
+  const tree = acct.orgTree;
+  const rootContact = contactMap[tree.root];
+  const children = tree.children[tree.root] || [];
+
+  // Determine node sizes by message count
+  function nodeSize(c) {
+    if (c.msgs >= 25) return 'size-lg';
+    if (c.msgs >= 10) return 'size-md';
+    return 'size-sm';
+  }
+
+  function barWidth(c) {
+    const max = Math.max(...acct.contacts.map(x => x.msgs));
+    return Math.max(12, Math.round((c.msgs / max) * 50));
+  }
+
+  function renderNode(c) {
+    const isActive = c.id === activeContactId;
+    return `<div class="tree-node ${nodeSize(c)}${isActive ? ' active' : ''}" onclick="selectContact('${c.id}')" data-node="${c.id}">
+      <div class="tree-node-name">${c.name}</div>
+      <div class="tree-node-role">${c.role}</div>
+      <div class="tree-node-msgs">${c.msgs} msgs <span class="count-bar" style="width:${barWidth(c)}px"></span></div>
+    </div>`;
+  }
+
+  let html = '<div class="org-tree">';
+
+  // Root tier
+  html += `<div class="tree-tier">${renderNode(rootContact)}</div>`;
+
+  if (children.length > 0) {
+    // Vertical connector from root
+    html += '<div class="tree-connector-down"></div>';
+
+    // Horizontal branch line
+    if (children.length > 1) {
+      html += '<div style="position:relative;width:100%;display:flex;justify-content:center">';
+      html += '<div style="position:relative;display:flex;justify-content:center;gap:16px;width:100%">';
+
+      // Calculate branch line coverage
+      const childCount = children.length;
+      // We just draw a line across the children container
+      html += `<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:${Math.min(80, childCount * 30)}%;height:2px;background:var(--border-light)"></div>`;
+
+      children.forEach(childId => {
+        const c = contactMap[childId];
+        html += `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:0">`;
+        html += `<div style="width:2px;height:20px;background:var(--border-light)"></div>`;
+        html += renderNode(c);
+
+        // Second-level children
+        const grandchildren = tree.children[childId] || [];
+        if (grandchildren.length > 0) {
+          html += '<div style="width:2px;height:16px;background:var(--border-light)"></div>';
+          grandchildren.forEach(gcId => {
+            const gc = contactMap[gcId];
+            html += renderNode(gc);
+          });
+        }
+
+        html += `</div>`;
+      });
+
+      html += '</div></div>';
+    } else {
+      // Single child -- just a straight connector
+      const c = contactMap[children[0]];
+      html += `<div class="tree-tier">${renderNode(c)}</div>`;
+    }
+  }
+
+  html += '</div>';
+  view.innerHTML = html;
+}
+
+// ===== Render Detail Card =====
+function renderDetail() {
+  const card = document.getElementById('detailCard');
+
+  if (!activeContactId) {
+    card.innerHTML = '<div class="detail-empty">Click a contact to view details</div>';
+    return;
+  }
+
+  const c = contactMap[activeContactId];
+  const acct = accountByContact[activeContactId];
+
+  let html = '';
+
+  // Top section
+  html += `<div class="detail-top">`;
+  html += `<div class="detail-avatar" style="background:${c.avatarBg}">${c.initials}</div>`;
+  html += `<div>`;
+  html += `<div class="detail-name">${c.name}</div>`;
+  html += `<div class="detail-role-company">${c.role} at ${acct.name}</div>`;
+  html += `</div>`;
+  html += `</div>`;
+
+  // Fields
+  html += `<div class="detail-fields">`;
+  html += `<div><div class="detail-field-label">Email</div><div class="detail-field-value">${c.email ? `<a href="mailto:${c.email}">${c.email}</a>` : '<span style="color:var(--text-muted)">--</span>'}</div></div>`;
+  html += `<div><div class="detail-field-label">Phone</div><div class="detail-field-value">${c.phone || '<span style="color:var(--text-muted)">--</span>'}</div></div>`;
+  html += `<div><div class="detail-field-label">Company</div><div class="detail-field-value" style="color:${acct.color}">${acct.name}</div></div>`;
+  html += `<div><div class="detail-field-label">Source</div><div class="detail-field-value">${sourceLabel(c.source)}</div></div>`;
+  html += `<div><div class="detail-field-label">Messages</div><div class="detail-field-value">${c.msgs}</div></div>`;
+  html += `<div><div class="detail-field-label">Last Active</div><div class="detail-field-value">${c.lastActive}</div></div>`;
+  html += `</div>`;
+
+  // History
+  if (c.history && c.history.length > 0) {
+    html += `<div class="detail-history">`;
+    html += `<div class="detail-history-title">Communication History</div>`;
+    c.history.forEach(h => {
+      html += `<div class="history-item">`;
+      html += `<div class="history-dot" style="background:${h.color}"></div>`;
+      html += `<span class="history-text">${h.text}</span>`;
+      html += `<span class="history-time">${h.time}</span>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  card.innerHTML = html;
+}
+
+function sourceLabel(source) {
+  switch (source) {
+    case 'manual': return '<span style="color:var(--text-primary)">Manual entry</span>';
+    case 'inbound': return '<span style="color:var(--teal)">Inbound call/text</span>';
+    case 'resolved': return '<span style="color:var(--purple)">Entity resolution</span>';
+    default: return source;
+  }
+}
+
+// ===== Filter Chips =====
+document.querySelectorAll('.filter-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    renderDirectory();
+  });
+});
+
+// ===== Search =====
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderDirectory();
+});
+
+// ===== Init =====
+renderDirectory();
+renderOrgTree();
+renderDetail();
+</script>
+</body>
+</html>

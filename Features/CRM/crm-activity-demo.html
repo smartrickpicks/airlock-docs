@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Activity Feed - Airlock</title>
+<style>
+:root {
+  --bg-darkest: #0d1017;
+  --bg-page: #12161f;
+  --bg-input: #161b28;
+  --bg-panel: #1a1f2e;
+  --bg-card: #1e2436;
+  --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #6b7280;
+  --accent-blue: #0091ea;
+  --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50;
+  --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800;
+  --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336;
+  --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a;
+  --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2;
+  --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040;
+  --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas','Monaco',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+html[data-theme="airlock"] {
+  --bg-page: #0B0E14;
+  --bg-card: #151923;
+  --accent-blue: #00D1FF;
+  --accent-blue-dim: rgba(0,209,255,0.15);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── TOOLBAR ─── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  min-height: 48px;
+  flex-shrink: 0;
+}
+.toolbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin-right: 16px;
+  white-space: nowrap;
+}
+.toolbar-title svg { vertical-align: -2px; margin-right: 6px; }
+.filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+  white-space: nowrap;
+}
+.filter-chip:hover {
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+}
+.filter-chip.active {
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+.filter-chip .chip-icon {
+  margin-right: 4px;
+  font-size: 10px;
+}
+.toolbar-spacer { flex: 1; }
+.toolbar-search {
+  padding: 5px 10px;
+  font-size: 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  width: 180px;
+  outline: none;
+  font-family: var(--sans);
+}
+.toolbar-search::placeholder { color: var(--text-muted); }
+.toolbar-search:focus { border-color: var(--accent-blue); }
+
+/* ─── FEED ─── */
+.feed-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 40px;
+}
+.feed-container::-webkit-scrollbar { width: 6px; }
+.feed-container::-webkit-scrollbar-track { background: transparent; }
+.feed-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.feed-container::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+/* ─── DATE GROUPS ─── */
+.date-group { margin-bottom: 24px; }
+.date-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  padding: 0 0 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.date-label span {
+  font-weight: 400;
+  letter-spacing: 0.4px;
+  margin-left: 8px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  font-size: 9px;
+  text-transform: none;
+}
+
+/* ─── EVENT CARDS ─── */
+.event-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  transition: background 0.12s;
+  cursor: default;
+  position: relative;
+}
+.event-card:hover {
+  background: var(--bg-card);
+}
+.event-time {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  min-width: 62px;
+  padding-top: 2px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.event-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.event-icon svg { width: 14px; height: 14px; }
+.event-icon.type-imessage { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.event-icon.type-sms { background: var(--green-dim); color: var(--green); }
+.event-icon.type-email { background: rgba(156,163,175,0.12); color: var(--text-secondary); }
+.event-icon.type-call { background: var(--purple-dim); color: var(--purple); }
+.event-icon.type-deal { background: var(--teal-dim); color: var(--teal); }
+.event-icon.type-task-done { background: var(--green-dim); color: var(--green); }
+.event-icon.type-task-new { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.event-icon.type-lead { background: var(--amber-dim); color: var(--amber); }
+.event-icon.type-alert { background: var(--red-dim); color: var(--red); }
+
+.event-body { flex: 1; min-width: 0; }
+.event-desc {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+.event-desc strong { font-weight: 600; }
+.event-desc .person-name { color: var(--accent-blue); font-weight: 600; }
+.event-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+  font-style: italic;
+}
+.event-detail:not(.preview) { font-style: normal; }
+.account-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  margin-top: 5px;
+  white-space: nowrap;
+}
+.account-tag svg { width: 10px; height: 10px; opacity: 0.6; }
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state p { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <span class="toolbar-title">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Activity Feed
+  </span>
+  <div class="filter-chips" id="filterChips">
+    <button class="filter-chip active" data-filter="all"><span class="chip-icon">*</span> All</button>
+    <button class="filter-chip" data-filter="text"><span class="chip-icon">&#x1F4AC;</span> Texts</button>
+    <button class="filter-chip" data-filter="email"><span class="chip-icon">&#x2709;</span> Emails</button>
+    <button class="filter-chip" data-filter="call"><span class="chip-icon">&#x1F4DE;</span> Calls</button>
+    <button class="filter-chip" data-filter="deal"><span class="chip-icon">&#x2194;</span> Deals</button>
+    <button class="filter-chip" data-filter="task"><span class="chip-icon">&#x2713;</span> Tasks</button>
+  </div>
+  <div class="toolbar-spacer"></div>
+  <input type="text" class="toolbar-search" placeholder="Search events..." id="searchInput">
+</div>
+
+<!-- FEED -->
+<div class="feed-container" id="feedContainer"></div>
+
+<script>
+// ─── THEME ───
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('theme') === 'airlock') document.documentElement.setAttribute('data-theme','airlock');
+})();
+
+// ─── SVG ICONS ───
+const ICONS = {
+  imessage: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>`,
+  sms: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h10v2H7z"/></svg>`,
+  email: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,6 12,13 2,6"/></svg>`,
+  call: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>`,
+  deal: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
+  taskDone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  taskNew: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  lead: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`,
+  alert: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  account: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>`
+};
+
+// ─── EVENT DATA ───
+const EVENTS = [
+  // TODAY
+  {
+    group: 'today',
+    time: '10:23 AM',
+    type: 'imessage',
+    filter: 'text',
+    icon: ICONS.imessage,
+    iconClass: 'type-imessage',
+    desc: 'iMessage from <span class="person-name">Jack Chen</span>',
+    detail: '"Hey, want to discuss the renewal terms before Friday?"',
+    detailIsPreview: true,
+    account: 'Nova Entertainment'
+  },
+  {
+    group: 'today',
+    time: '9:45 AM',
+    type: 'deal',
+    filter: 'deal',
+    icon: ICONS.deal,
+    iconClass: 'type-deal',
+    desc: 'Deal stage changed: <strong>Summit Media</strong> moved to <strong>Proposal</strong>',
+    detail: 'Previously: Qualification -- Pipeline value: $185,000',
+    account: 'Summit Media'
+  },
+  {
+    group: 'today',
+    time: '9:12 AM',
+    type: 'task-done',
+    filter: 'task',
+    icon: ICONS.taskDone,
+    iconClass: 'type-task-done',
+    desc: 'Task completed: <strong>Send intro email</strong>',
+    detail: 'Completed by you -- 2 days ahead of schedule',
+    account: 'TechFlow Inc'
+  },
+  {
+    group: 'today',
+    time: '8:30 AM',
+    type: 'email',
+    filter: 'email',
+    icon: ICONS.email,
+    iconClass: 'type-email',
+    desc: 'Email from <span class="person-name">Maria Santos</span>',
+    detail: '"Reviewed the proposal and have a few questions about the licensing scope..."',
+    detailIsPreview: true,
+    account: 'Summit Media'
+  },
+  {
+    group: 'today',
+    time: '8:05 AM',
+    type: 'lead',
+    filter: 'lead',
+    icon: ICONS.lead,
+    iconClass: 'type-lead',
+    desc: 'Lead created: <span class="person-name">Emma Thompson</span>',
+    detail: 'Source: Web Form -- Title: Head of Licensing',
+    account: 'Prism Studios'
+  },
+  {
+    group: 'today',
+    time: '7:40 AM',
+    type: 'sms',
+    filter: 'text',
+    icon: ICONS.sms,
+    iconClass: 'type-sms',
+    desc: 'SMS to <span class="person-name">Derek Owens</span>',
+    detail: '"Quick reminder about our call at noon today."',
+    detailIsPreview: true,
+    account: 'Horizon Records'
+  },
+
+  // YESTERDAY
+  {
+    group: 'yesterday',
+    time: '4:30 PM',
+    type: 'call',
+    filter: 'call',
+    icon: ICONS.call,
+    iconClass: 'type-call',
+    desc: 'Call with <span class="person-name">Alex Rivera</span>',
+    detail: 'Duration: 12 min -- Discussed contract terms and renewal timeline',
+    account: 'Ostereo'
+  },
+  {
+    group: 'yesterday',
+    time: '3:15 PM',
+    type: 'alert',
+    filter: 'alert',
+    icon: ICONS.alert,
+    iconClass: 'type-alert',
+    desc: 'Health alert: <strong>Drift Audio</strong> health score dropped to <strong style="color:var(--red)">45</strong>',
+    detail: 'Previous score: 72 -- Trigger: No engagement in 14 days',
+    account: 'Drift Audio'
+  },
+  {
+    group: 'yesterday',
+    time: '2:00 PM',
+    type: 'task-new',
+    filter: 'task',
+    icon: ICONS.taskNew,
+    iconClass: 'type-task-new',
+    desc: 'Task created: <strong>Schedule discovery call</strong>',
+    detail: 'Due: Mar 7, 2026 -- Priority: High',
+    account: 'Drift Audio'
+  },
+  {
+    group: 'yesterday',
+    time: '11:30 AM',
+    type: 'imessage',
+    filter: 'text',
+    icon: ICONS.imessage,
+    iconClass: 'type-imessage',
+    desc: 'iMessage from <span class="person-name">Lisa Park</span>',
+    detail: '"We\'re interested in expanding the sync license scope..."',
+    detailIsPreview: true,
+    account: 'TechFlow Inc'
+  },
+  {
+    group: 'yesterday',
+    time: '10:00 AM',
+    type: 'deal',
+    filter: 'deal',
+    icon: ICONS.deal,
+    iconClass: 'type-deal',
+    desc: 'Deal stage changed: <strong>Horizon Records</strong> moved to <strong>Negotiation</strong>',
+    detail: 'Previously: Proposal -- Pipeline value: $320,000',
+    account: 'Horizon Records'
+  },
+  {
+    group: 'yesterday',
+    time: '9:15 AM',
+    type: 'email',
+    filter: 'email',
+    icon: ICONS.email,
+    iconClass: 'type-email',
+    desc: 'Email to <span class="person-name">Rachel Kim</span>',
+    detail: 'Subject: Follow-up on Distribution Agreement Draft',
+    account: 'Nova Entertainment'
+  },
+
+  // LAST WEEK
+  {
+    group: 'last-week',
+    time: 'Thu 3:45 PM',
+    type: 'call',
+    filter: 'call',
+    icon: ICONS.call,
+    iconClass: 'type-call',
+    desc: 'Call with <span class="person-name">Sam Martinez</span>',
+    detail: 'Duration: 28 min -- Quarterly business review',
+    account: 'Prism Studios'
+  },
+  {
+    group: 'last-week',
+    time: 'Thu 11:00 AM',
+    type: 'task-done',
+    filter: 'task',
+    icon: ICONS.taskDone,
+    iconClass: 'type-task-done',
+    desc: 'Task completed: <strong>Draft distribution proposal</strong>',
+    detail: 'Completed by you -- Attached 3 files',
+    account: 'Summit Media'
+  },
+  {
+    group: 'last-week',
+    time: 'Wed 4:20 PM',
+    type: 'deal',
+    filter: 'deal',
+    icon: ICONS.deal,
+    iconClass: 'type-deal',
+    desc: 'Deal stage changed: <strong>TechFlow Inc</strong> moved to <strong>Qualification</strong>',
+    detail: 'Previously: Lead -- Pipeline value: $95,000',
+    account: 'TechFlow Inc'
+  },
+  {
+    group: 'last-week',
+    time: 'Wed 10:30 AM',
+    type: 'email',
+    filter: 'email',
+    icon: ICONS.email,
+    iconClass: 'type-email',
+    desc: 'Email from <span class="person-name">Tom Bradley</span>',
+    detail: '"Attached the signed NDA for your records..."',
+    detailIsPreview: true,
+    account: 'Drift Audio'
+  },
+  {
+    group: 'last-week',
+    time: 'Tue 2:10 PM',
+    type: 'lead',
+    filter: 'lead',
+    icon: ICONS.lead,
+    iconClass: 'type-lead',
+    desc: 'Lead created: <span class="person-name">Kai Nakamura</span>',
+    detail: 'Source: LinkedIn -- Title: VP of Business Development',
+    account: 'Apex Recordings'
+  },
+  {
+    group: 'last-week',
+    time: 'Tue 9:00 AM',
+    type: 'task-new',
+    filter: 'task',
+    icon: ICONS.taskNew,
+    iconClass: 'type-task-new',
+    desc: 'Task created: <strong>Prepare renewal proposal</strong>',
+    detail: 'Due: Mar 10, 2026 -- Priority: Medium',
+    account: 'Ostereo'
+  },
+  {
+    group: 'last-week',
+    time: 'Mon 4:50 PM',
+    type: 'imessage',
+    filter: 'text',
+    icon: ICONS.imessage,
+    iconClass: 'type-imessage',
+    desc: 'iMessage from <span class="person-name">Jack Chen</span>',
+    detail: '"Got the revised terms -- looks good on our end."',
+    detailIsPreview: true,
+    account: 'Nova Entertainment'
+  },
+  {
+    group: 'last-week',
+    time: 'Mon 11:20 AM',
+    type: 'alert',
+    filter: 'alert',
+    icon: ICONS.alert,
+    iconClass: 'type-alert',
+    desc: 'Health alert: <strong>Apex Recordings</strong> health score dropped to <strong style="color:var(--amber)">58</strong>',
+    detail: 'Previous score: 71 -- Trigger: Missed scheduled check-in',
+    account: 'Apex Recordings'
+  }
+];
+
+const GROUP_LABELS = {
+  'today': { label: 'Today', sub: 'March 5, 2026' },
+  'yesterday': { label: 'Yesterday', sub: 'March 4, 2026' },
+  'last-week': { label: 'Last Week', sub: 'Feb 23 - Mar 2' }
+};
+
+// ─── RENDER ───
+let activeFilter = 'all';
+let searchQuery = '';
+
+function renderFeed() {
+  const container = document.getElementById('feedContainer');
+  const filtered = EVENTS.filter(ev => {
+    const matchFilter = activeFilter === 'all' || ev.filter === activeFilter;
+    const matchSearch = !searchQuery ||
+      ev.desc.toLowerCase().includes(searchQuery) ||
+      ev.detail.toLowerCase().includes(searchQuery) ||
+      ev.account.toLowerCase().includes(searchQuery);
+    return matchFilter && matchSearch;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <p>No activity matches your filters.</p>
+      </div>`;
+    return;
+  }
+
+  // Group events
+  const groups = {};
+  filtered.forEach(ev => {
+    if (!groups[ev.group]) groups[ev.group] = [];
+    groups[ev.group].push(ev);
+  });
+
+  let html = '';
+  const groupOrder = ['today', 'yesterday', 'last-week'];
+  groupOrder.forEach(gk => {
+    if (!groups[gk]) return;
+    const g = GROUP_LABELS[gk];
+    html += `<div class="date-group">`;
+    html += `<div class="date-label">${g.label}<span>${g.sub}</span></div>`;
+    groups[gk].forEach(ev => {
+      html += `
+        <div class="event-card" data-filter="${ev.filter}">
+          <div class="event-time">${ev.time}</div>
+          <div class="event-icon ${ev.iconClass}">${ev.icon}</div>
+          <div class="event-body">
+            <div class="event-desc">${ev.desc}</div>
+            <div class="event-detail${ev.detailIsPreview ? ' preview' : ''}">${ev.detail}</div>
+            <div class="account-tag">${ICONS.account} ${ev.account}</div>
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ─── FILTER CHIPS ───
+document.getElementById('filterChips').addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter = chip.dataset.filter;
+  renderFeed();
+});
+
+// ─── SEARCH ───
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  renderFeed();
+});
+
+// ─── INIT ───
+renderFeed();
+</script>
+</body>
+</html>

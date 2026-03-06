@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airlock — Export Center</title>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg-darkest: #0d1017; --bg-page: #12161f; --bg-input: #161b28;
+  --bg-panel: #1a1f2e; --bg-card: #1e2436; --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed; --text-secondary: #9aa0a6; --text-muted: #6b7280;
+  --accent-blue: #0091ea; --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50; --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800; --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336; --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a; --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2; --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040; --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas',monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+}
+html[data-theme="airlock"] {
+  --bg-darkest: #080a0f; --bg-page: #0B0E14; --bg-input: #0F1219;
+  --bg-panel: #0F1219; --bg-card: #151923; --bg-card-hover: #1a2030;
+  --border: #1E2330; --border-light: #2a3040;
+  --accent-blue: #00D1FF; --accent-blue-dim: rgba(0,209,255,0.12);
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--bg-darkest);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+}
+.toolbar-spacer { flex: 1; }
+
+/* ── TOGGLE ── */
+.toggle-group {
+  display: flex;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.toggle-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.toggle-btn.active {
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+}
+.toggle-btn:hover:not(.active) {
+  color: var(--text-secondary);
+  background: var(--bg-card);
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+.btn-primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-export {
+  background: var(--accent-blue-dim);
+  border-color: transparent;
+  color: var(--accent-blue);
+  font-size: 11px;
+  padding: 5px 12px;
+}
+.btn-export:hover { background: var(--accent-blue); color: #fff; }
+.btn-download {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 4px 10px;
+}
+.btn-download:hover { color: var(--accent-blue); border-color: var(--accent-blue); }
+
+/* ── MAIN CONTENT ── */
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ── SECTION HEADER ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.count-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--amber);
+  background: var(--amber-dim);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.count-badge.neutral {
+  color: var(--text-muted);
+  background: var(--bg-input);
+}
+.section-link {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--accent-blue);
+  text-decoration: none;
+  cursor: pointer;
+}
+.section-link:hover { text-decoration: underline; }
+
+/* ── READY TO SHIP CARDS ── */
+.ready-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+.ready-scroll::-webkit-scrollbar { height: 6px; }
+.ready-scroll::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+.ready-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.ship-card {
+  flex: 0 0 270px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ship-card:hover {
+  border-color: var(--border-light);
+  background: var(--bg-card-hover);
+}
+.ship-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.vault-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+}
+.health-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.health-high { color: var(--green); background: var(--green-dim); }
+
+.gate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--green);
+  background: var(--green-dim);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+.gate-badge .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.ship-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.meta-label { color: var(--text-muted); }
+.meta-value { color: var(--text-secondary); }
+
+.ship-card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── TABLES ── */
+.table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg-card-hover); }
+td.vault-col {
+  font-family: var(--mono);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* ── FORMAT BADGES ── */
+.format-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  margin-right: 4px;
+  letter-spacing: 0.03em;
+}
+.fmt-pdf { color: var(--red); background: var(--red-dim); }
+.fmt-json { color: var(--teal); background: var(--teal-dim); }
+.fmt-docx { color: var(--accent-blue); background: var(--accent-blue-dim); }
+.fmt-csv { color: var(--purple); background: var(--purple-dim); }
+
+/* ── STATUS BADGES ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+.status-processing { color: var(--accent-blue); background: var(--accent-blue-dim); }
+.status-queued { color: var(--amber); background: var(--amber-dim); }
+.status-complete { color: var(--green); background: var(--green-dim); }
+
+/* ── PROGRESS BAR ── */
+.progress-bar {
+  width: 100px;
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent-blue);
+  transition: width 0.3s ease;
+}
+.progress-fill.animated {
+  animation: progressPulse 2s ease-in-out infinite;
+}
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.progress-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 440px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: modalIn 0.2s ease-out;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 15px; font-weight: 600; }
+.modal-close {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+}
+.modal-close:hover { background: var(--bg-card); color: var(--text-primary); }
+.modal-body { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── FORM ELEMENTS ── */
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.field-select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+}
+.field-select:focus { outline: none; border-color: var(--accent-blue); }
+.checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.checkbox-row input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--accent-blue);
+  cursor: pointer;
+}
+
+/* ── TOAST ── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  font-size: 13px;
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastIn 0.25s ease-out;
+  min-width: 260px;
+}
+.toast.exit { animation: toastOut 0.2s ease-in forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
+.toast-icon { font-size: 16px; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-title">Export Center</div>
+  <div class="toolbar-sep"></div>
+  <div class="toggle-group">
+    <button class="toggle-btn active" data-filter="ready">Ready to Ship</button>
+    <button class="toggle-btn" data-filter="all">All Vaults</button>
+  </div>
+  <div class="toolbar-spacer"></div>
+  <button class="btn btn-primary" id="newExportBtn">+ New Export</button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- ROW 1: READY TO SHIP -->
+  <section>
+    <div class="section-header">
+      <span class="section-title">Ready to Ship</span>
+      <span class="count-badge neutral">4 vaults</span>
+    </div>
+    <div class="ready-scroll" id="readyCards">
+      <!-- Card 1 -->
+      <div class="ship-card">
+        <div class="ship-card-header">
+          <span class="vault-name">sony-amend-01</span>
+          <span class="health-badge health-high">96%</span>
+        </div>
+        <span class="gate-badge"><span class="dot"></span>All gates passed</span>
+        <div class="ship-card-meta">
+          <div class="meta-row">
+            <span class="meta-label">Approved</span>
+            <span class="meta-value">Mar 2, 2026</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Approved by</span>
+            <span class="meta-value">James Liu</span>
+          </div>
+        </div>
+        <div class="ship-card-footer">
+          <button class="btn-export" onclick="showToast('Export queued for sony-amend-01','check')">Export</button>
+        </div>
+      </div>
+      <!-- Card 2 -->
+      <div class="ship-card">
+        <div class="ship-card-header">
+          <span class="vault-name">getdough-license</span>
+          <span class="health-badge health-high">92%</span>
+        </div>
+        <span class="gate-badge"><span class="dot"></span>All gates passed</span>
+        <div class="ship-card-meta">
+          <div class="meta-row">
+            <span class="meta-label">Approved</span>
+            <span class="meta-value">Mar 1, 2026</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Approved by</span>
+            <span class="meta-value">Marcus Webb</span>
+          </div>
+        </div>
+        <div class="ship-card-footer">
+          <button class="btn-export" onclick="showToast('Export queued for getdough-license','check')">Export</button>
+        </div>
+      </div>
+      <!-- Card 3 -->
+      <div class="ship-card">
+        <div class="ship-card-header">
+          <span class="vault-name">atlantic-mgmt</span>
+          <span class="health-badge health-high">88%</span>
+        </div>
+        <span class="gate-badge"><span class="dot"></span>All gates passed</span>
+        <div class="ship-card-meta">
+          <div class="meta-row">
+            <span class="meta-label">Approved</span>
+            <span class="meta-value">Feb 28, 2026</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Approved by</span>
+            <span class="meta-value">James Liu</span>
+          </div>
+        </div>
+        <div class="ship-card-footer">
+          <button class="btn-export" onclick="showToast('Export queued for atlantic-mgmt','check')">Export</button>
+        </div>
+      </div>
+      <!-- Card 4 -->
+      <div class="ship-card">
+        <div class="ship-card-header">
+          <span class="vault-name">getdough-pub</span>
+          <span class="health-badge health-high">94%</span>
+        </div>
+        <span class="gate-badge"><span class="dot"></span>All gates passed</span>
+        <div class="ship-card-meta">
+          <div class="meta-row">
+            <span class="meta-label">Approved</span>
+            <span class="meta-value">Feb 27, 2026</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Approved by</span>
+            <span class="meta-value">Marcus Webb</span>
+          </div>
+        </div>
+        <div class="ship-card-footer">
+          <button class="btn-export" onclick="showToast('Export queued for getdough-pub','check')">Export</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROW 2: EXPORT QUEUE -->
+  <section>
+    <div class="section-header">
+      <span class="section-title">Export Queue</span>
+      <span class="count-badge">2 pending</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Vault</th>
+            <th>Format</th>
+            <th>Requested By</th>
+            <th>Requested</th>
+            <th>Status</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="vault-col">sony-amend-01</td>
+            <td><span class="format-badge fmt-pdf">PDF</span><span class="format-badge fmt-json">JSON</span></td>
+            <td>Ana Chen</td>
+            <td>10m ago</td>
+            <td><span class="status-badge status-processing">Processing</span></td>
+            <td>
+              <div class="progress-cell">
+                <div class="progress-bar"><div class="progress-fill animated" style="width:65%"></div></div>
+                <span class="progress-text">65%</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="vault-col">atlantic-mgmt</td>
+            <td><span class="format-badge fmt-pdf">PDF</span></td>
+            <td>James Liu</td>
+            <td>25m ago</td>
+            <td><span class="status-badge status-queued">Queued</span></td>
+            <td><span style="color:var(--text-muted); font-size:12px;">--</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ROW 3: RECENT EXPORTS -->
+  <section>
+    <div class="section-header">
+      <span class="section-title">Recent Exports</span>
+      <a class="section-link" href="#">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Vault</th>
+            <th>Format</th>
+            <th>Exported By</th>
+            <th>Date</th>
+            <th>Size</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="vault-col">henderson-msa</td>
+            <td><span class="format-badge fmt-pdf">PDF</span><span class="format-badge fmt-json">JSON</span></td>
+            <td>Daniele Leoni</td>
+            <td>Mar 1, 2026</td>
+            <td>2.4 MB</td>
+            <td><button class="btn-download" onclick="showToast('Download started: henderson-msa','download')">Download &#8595;</button></td>
+          </tr>
+          <tr>
+            <td class="vault-col">warner-amendment</td>
+            <td><span class="format-badge fmt-pdf">PDF</span></td>
+            <td>Sarah Chen</td>
+            <td>Feb 28, 2026</td>
+            <td>1.8 MB</td>
+            <td><button class="btn-download" onclick="showToast('Download started: warner-amendment','download')">Download &#8595;</button></td>
+          </tr>
+          <tr>
+            <td class="vault-col">slowhands</td>
+            <td><span class="format-badge fmt-pdf">PDF</span><span class="format-badge fmt-docx">DOCX</span></td>
+            <td>Ana Chen</td>
+            <td>Feb 25, 2026</td>
+            <td>3.1 MB</td>
+            <td><button class="btn-download" onclick="showToast('Download started: slowhands','download')">Download &#8595;</button></td>
+          </tr>
+          <tr>
+            <td class="vault-col">universal-lic-01</td>
+            <td><span class="format-badge fmt-json">JSON</span></td>
+            <td>Marcus Webb</td>
+            <td>Feb 22, 2026</td>
+            <td>0.8 MB</td>
+            <td><button class="btn-download" onclick="showToast('Download started: universal-lic-01','download')">Download &#8595;</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- MODAL: NEW EXPORT -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Export</span>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-group">
+        <label class="field-label">Vault</label>
+        <select class="field-select" id="vaultSelect">
+          <option value="">Select a vault...</option>
+          <option value="sony-amend-01">sony-amend-01</option>
+          <option value="getdough-license">getdough-license</option>
+          <option value="atlantic-mgmt">atlantic-mgmt</option>
+          <option value="getdough-pub">getdough-pub</option>
+          <option value="henderson-msa">henderson-msa</option>
+          <option value="warner-amendment">warner-amendment</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Format</label>
+        <div class="checkbox-group">
+          <label class="checkbox-row"><input type="checkbox" checked> PDF</label>
+          <label class="checkbox-row"><input type="checkbox"> DOCX</label>
+          <label class="checkbox-row"><input type="checkbox"> JSON</label>
+          <label class="checkbox-row"><input type="checkbox"> CSV</label>
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Include</label>
+        <div class="checkbox-group">
+          <label class="checkbox-row"><input type="checkbox" checked> Extraction data</label>
+          <label class="checkbox-row"><input type="checkbox" checked> Audit trail</label>
+          <label class="checkbox-row"><input type="checkbox"> Patch history</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="queueExport()">Queue Export</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ── THEME SUPPORT ── */
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('theme') === 'airlock') {
+    document.documentElement.setAttribute('data-theme', 'airlock');
+  }
+})();
+
+/* ── TOGGLE BUTTONS ── */
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+/* ── MODAL ── */
+const modal = document.getElementById('exportModal');
+document.getElementById('newExportBtn').addEventListener('click', () => {
+  modal.classList.add('active');
+});
+function closeModal() {
+  modal.classList.remove('active');
+}
+modal.addEventListener('click', (e) => {
+  if (e.target === modal) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+function queueExport() {
+  const vault = document.getElementById('vaultSelect').value;
+  if (!vault) {
+    showToast('Please select a vault', 'warn');
+    return;
+  }
+  closeModal();
+  showToast('Export queued for ' + vault, 'check');
+}
+
+/* ── TOASTS ── */
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  let icon = '';
+  if (type === 'check') icon = '<span class="toast-icon" style="color:var(--green)">&#10003;</span>';
+  else if (type === 'download') icon = '<span class="toast-icon" style="color:var(--accent-blue)">&#8595;</span>';
+  else if (type === 'warn') icon = '<span class="toast-icon" style="color:var(--amber)">&#9888;</span>';
+  toast.innerHTML = icon + '<span>' + message + ' <span style="color:var(--text-muted)">(demo)</span></span>';
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('exit');
+    setTimeout(() => toast.remove(), 200);
+  }, 3000);
+}
+</script>
+</body>
+</html>

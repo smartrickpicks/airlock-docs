@@ -1,6 +1,6 @@
 # Web-to-iMessage Handoff: First Touch Design
 
-> **Status:** BRAINSTORM
+> **Status:** SPECCED
 > **Problem:** When someone's on our website, the message they send should turn into a text — and they should know they're going to receive a text for further instructions. It needs to be done for them so we get the interaction the way we want.
 > **Core constraint:** The prospect must initiate the iMessage conversation (not us texting them cold), which also solves the iMessage rate limit / "Report Junk" problem entirely.
 
@@ -723,6 +723,220 @@ For the HTML prototype, build:
 ```
 
 This demo should be wirable into the demo shell under CRM > Discover > Inbox or a standalone "Smart Widget" view.
+
+---
+
+## Widget Analytics Dashboard
+
+Built into the CRM module's Discover chamber. Provides real-time visibility into widget performance, handoff conversion, and lead flow.
+
+### Dashboard Layout
+
+```
++------------------------------------------------------------------+
+| WIDGET ANALYTICS                          [Last 30 days v] [Export]|
+|------------------------------------------------------------------|
+| FUNNEL                          | TOP PAGES                       |
+|                                 |                                 |
+| Impressions  ████████████ 10,000| /pricing         960 handoffs  |
+| Opened       █████████     2,400| /features        420 handoffs  |
+| Submitted    ██████        960  | /demo            310 handoffs  |
+| Delivered    █████▍        912  | /case-studies    180 handoffs  |
+| Replied      ████          638  | /blog            130 handoffs  |
+| Qualified    ██            287  |                                 |
+|                                 | TOP TOPICS                     |
+| Conversion: 6.4%               | Contracts    42%               |
+| (impression → qualified)       | Pricing      28%               |
+|                                 | Partnership  18%               |
+|                                 | Other        12%               |
+|------------------------------------------------------------------|
+| HANDOFF TIMELINE (hourly)                                         |
+| [sparkline showing handoff volume by hour of day]                 |
+| Peak: 10am-2pm PT  |  Lowest: 11pm-6am PT                       |
+|------------------------------------------------------------------|
+| DEVICE BREAKDOWN              | DELIVERY                         |
+| Mobile (sms_uri): 62%         | iMessage delivered: 95%         |
+| Desktop (collect_phone): 38%  | SMS fallback: 3%                |
+|                               | Failed: 2%                      |
+|                               |                                 |
+| TIME TO FIRST REPLY           | WIDGET LOAD TIME                |
+| Median: 47 seconds            | p50: 180ms                     |
+| p95: 4.2 minutes              | p95: 420ms                     |
++------------------------------------------------------------------+
+```
+
+### Key Metrics
+
+| Metric | Formula | Target |
+|--------|---------|--------|
+| **Widget Open Rate** | opened / impressions | > 20% |
+| **Handoff Rate** | submitted / opened | > 35% |
+| **Delivery Rate** | delivered / submitted | > 95% |
+| **Reply Rate** | replied / delivered | > 60% |
+| **Qualification Rate** | qualified / replied | > 40% |
+| **Full Funnel Conversion** | qualified / impressions | > 5% |
+| **Time to First Reply** | median(reply_timestamp - send_timestamp) | < 2 minutes |
+| **Time to Qualification** | median(qualified_timestamp - first_reply_timestamp) | < 10 minutes |
+
+### Event Tracking Implementation
+
+The widget emits events to a lightweight analytics endpoint:
+
+```typescript
+// widget embed.js
+function trackEvent(event: string, data?: Record<string, any>) {
+  navigator.sendBeacon(`https://api.airlock.app/widget/events`, JSON.stringify({
+    event,
+    widget_id: config.widgetId,
+    workspace_id: config.workspaceId,
+    session_id: getSessionId(),
+    page_url: window.location.href,
+    page_title: document.title,
+    device: getDeviceType(),
+    timestamp: Date.now(),
+    ...data
+  }));
+}
+
+// Events emitted:
+trackEvent('widget.impression');           // widget script loaded
+trackEvent('widget.opened');               // user clicked/tapped widget
+trackEvent('widget.topic_selected', { topic: 'contracts' });
+trackEvent('widget.submitted', { strategy: 'sms_uri' | 'collect_phone' });
+trackEvent('widget.sms_uri_opened');       // Messages app launched (mobile)
+trackEvent('widget.dismissed');            // user closed widget without submitting
+trackEvent('widget.error', { error: 'invalid_phone' });
+```
+
+Backend-tracked events (not from widget JS):
+- `widget.text_sent` — outbound message dispatched
+- `widget.text_delivered` — delivery confirmed
+- `widget.text_failed` — delivery failed
+- `widget.reply_received` — prospect replied (conversion!)
+- `widget.qualified` — lead scored and qualified by workflow
+
+### Analytics Storage
+
+```sql
+CREATE TABLE widget_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id),
+    widget_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    event TEXT NOT NULL,
+    page_url TEXT,
+    page_title TEXT,
+    device TEXT,             -- 'mobile_ios' | 'mobile_android' | 'desktop'
+    topic TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_widget_events_workspace ON widget_events(workspace_id, created_at DESC);
+CREATE INDEX idx_widget_events_session ON widget_events(session_id);
+
+-- Materialized view for dashboard (refreshed hourly)
+CREATE MATERIALIZED VIEW widget_funnel AS
+SELECT
+    workspace_id,
+    date_trunc('day', created_at) as day,
+    COUNT(*) FILTER (WHERE event = 'widget.impression') as impressions,
+    COUNT(*) FILTER (WHERE event = 'widget.opened') as opened,
+    COUNT(*) FILTER (WHERE event = 'widget.submitted') as submitted,
+    COUNT(*) FILTER (WHERE event = 'widget.text_delivered') as delivered,
+    COUNT(*) FILTER (WHERE event = 'widget.reply_received') as replied,
+    COUNT(*) FILTER (WHERE event = 'widget.qualified') as qualified
+FROM widget_events
+GROUP BY workspace_id, date_trunc('day', created_at);
+```
+
+---
+
+## Widget Configuration & Versioning
+
+### Admin Configuration (Workspace Admin > Integrations > Web Widget)
+
+```
++------------------------------------------------------------------+
+| WEB WIDGET CONFIGURATION                                          |
+|------------------------------------------------------------------|
+| GENERAL                                                           |
+| Widget name:     [Acme Corp Widget          ]                     |
+| Smart Line:      [(310) 555-0142            v]                    |
+| Position:        [Bottom Right  v]                                |
+| Theme:           [Dark v]  [Custom CSS ↗]                        |
+|                                                                   |
+| CTA TEXT                                                          |
+| Collapsed:       [Text us                   ]                     |
+| Heading:         [Skip the form.            ]                     |
+| Subheading:      [We'll text you instead.   ]                     |
+| CTA Button:      [Send me a text            ]                     |
+|                                                                   |
+| TOPICS                                                            |
+| [x] Contracts    [x] Pricing                                     |
+| [x] Partnership  [x] Other                                       |
+| [+ Add topic]                                                     |
+|                                                                   |
+| MOBILE BEHAVIOR                                                   |
+| iOS:     [Open Messages directly (Recommended) v]                |
+| Android: [Open Messages directly              v]                  |
+| Desktop: [Collect phone number                v]                  |
+|                                                                   |
+| BUSINESS HOURS                                                    |
+| [x] Show widget 24/7                                             |
+| [ ] Only during business hours: [9am]-[6pm] [America/New_York v] |
+|                                                                   |
+| EMBED CODE                                                        |
+| <script src="https://widget.airlock.app/v1/embed.js"             |
+|   data-widget-id="wgt_abc123"                                    |
+|   data-theme="dark">                                              |
+| </script>                                     [Copy]              |
+|                                                                   |
+| [Save]  [Preview]  [Publish]                                     |
++------------------------------------------------------------------+
+```
+
+### Widget Versioning
+
+Each publish creates a new version. The embed script always loads the latest published version.
+
+| Version | Published | Changes | Status |
+|---------|-----------|---------|--------|
+| v3 | Mar 5, 2026 | Added "Partnership" topic | **Active** |
+| v2 | Feb 20, 2026 | Changed CTA text | Archived |
+| v1 | Feb 1, 2026 | Initial launch | Archived |
+
+Rollback: one-click revert to any previous version. The embed script URL is stable — it always loads the active config from the API.
+
+### A/B Testing
+
+Split test widget variants to optimize conversion:
+
+```
++------------------------------------------------------------------+
+| A/B TEST: CTA Button Text                                         |
+|------------------------------------------------------------------|
+| Variant A (50%): "Send me a text"     | Conversion: 38%          |
+| Variant B (50%): "Text me now"        | Conversion: 41%  ↑ +3%   |
+|                                                                   |
+| Status: Running (7 days, 2,400 sessions)                          |
+| Statistical significance: 89% (need 95% to declare winner)       |
+|                                                                   |
+| [End Test: Pick Winner]  [Continue Running]                       |
++------------------------------------------------------------------+
+```
+
+A/B tests are managed in the widget config panel. The embed script randomly assigns visitors to variants using a cookie-based session. Variant assignment is sticky (same visitor always sees the same variant).
+
+### Feature Control Plane
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `widget.enabled` | false | Master widget toggle |
+| `widget.ab_testing_enabled` | false | A/B test functionality |
+| `widget.analytics_enabled` | true | Event tracking |
+| `widget.rate_limit_per_session` | 3 | Max submissions per session (prevents spam) |
+| `widget.rate_limit_per_ip_hour` | 10 | Max submissions per IP per hour |
 
 ---
 

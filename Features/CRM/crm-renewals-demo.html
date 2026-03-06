@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Renewals - Airlock</title>
+<style>
+:root {
+  --bg-darkest: #0d1017;
+  --bg-page: #12161f;
+  --bg-input: #161b28;
+  --bg-panel: #1a1f2e;
+  --bg-card: #1e2436;
+  --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #6b7280;
+  --accent-blue: #0091ea;
+  --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50;
+  --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800;
+  --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336;
+  --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a;
+  --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2;
+  --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040;
+  --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas','Monaco',monospace;
+  --sans: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+}
+html[data-theme="airlock"] {
+  --bg-page: #0B0E14;
+  --bg-card: #151923;
+  --accent-blue: #00D1FF;
+  --accent-blue-dim: rgba(0,209,255,0.15);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── TOOLBAR ─── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  min-height: 48px;
+  flex-shrink: 0;
+}
+.toolbar-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  margin-right: 16px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolbar-title svg { width: 14px; height: 14px; flex-shrink: 0; }
+.filter-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+  white-space: nowrap;
+}
+.filter-chip:hover {
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+}
+.filter-chip.active {
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+.toolbar-spacer { flex: 1; }
+.upcoming-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 14px;
+  background: var(--amber-dim);
+  color: var(--amber);
+  white-space: nowrap;
+}
+.upcoming-badge svg { width: 12px; height: 12px; }
+
+/* ─── SUMMARY CARDS ─── */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+.summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.summary-card .card-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+}
+.summary-card .card-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+.summary-card .card-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.summary-card.highlight-red .card-value { color: var(--red); }
+.summary-card.highlight-green .card-value { color: var(--green); }
+
+/* ─── TABLE AREA ─── */
+.table-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.table-container::-webkit-scrollbar { width: 6px; }
+.table-container::-webkit-scrollbar-track { background: transparent; }
+.table-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.table-container::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+thead th:first-child { padding-left: 20px; }
+thead th:last-child { padding-right: 20px; }
+tbody tr {
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+tbody tr:hover { background: var(--bg-card-hover); }
+tbody tr.selected { background: var(--bg-card); }
+tbody tr.urgency-red { border-left-color: var(--red); }
+tbody tr.urgency-amber { border-left-color: var(--amber); }
+tbody tr.urgency-green { border-left-color: var(--green); }
+tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tbody td:first-child { padding-left: 20px; }
+tbody td:last-child { padding-right: 20px; }
+.col-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.col-account {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.col-contract {
+  color: var(--text-secondary);
+}
+.col-value {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.col-owner {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.col-owner.unassigned {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.status-pill.status-overdue {
+  background: var(--red-dim);
+  color: var(--red);
+}
+.status-pill.status-due-soon {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+.status-pill.status-on-track {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.status-pill .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-overdue .status-dot { background: var(--red); }
+.status-due-soon .status-dot { background: var(--amber); }
+.status-on-track .status-dot { background: var(--green); }
+
+.action-btn {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+}
+.action-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--accent-blue-dim);
+}
+
+/* ─── FOOTER ─── */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.footer-total {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.footer-total span {
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+.footer-count {
+  color: var(--text-muted);
+}
+
+/* ─── DETAIL PANEL ─── */
+.detail-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.detail-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: -440px;
+  width: 440px;
+  height: 100vh;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.25s ease;
+  overflow: hidden;
+}
+.detail-panel.open { right: 0; }
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.detail-header-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.detail-close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+.detail-close:hover {
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+.detail-close svg { width: 14px; height: 14px; }
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+.detail-body::-webkit-scrollbar { width: 5px; }
+.detail-body::-webkit-scrollbar-track { background: transparent; }
+.detail-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.detail-section {
+  margin-bottom: 24px;
+}
+.detail-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.detail-field.full-width { grid-column: 1 / -1; }
+.detail-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+.detail-field-value {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.detail-field-value.mono {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+/* Renewal history timeline */
+.history-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  padding-left: 18px;
+}
+.history-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border);
+}
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  position: relative;
+}
+.history-dot {
+  position: absolute;
+  left: -18px;
+  top: 10px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--border-light);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+.history-item.current .history-dot {
+  border-color: var(--accent-blue);
+  background: var(--accent-blue);
+}
+.history-content {
+  flex: 1;
+  min-width: 0;
+}
+.history-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.history-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Action buttons in detail */
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.detail-action-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.detail-action-btn:hover {
+  border-color: var(--border-light);
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+.detail-action-btn.primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+.detail-action-btn.primary:hover {
+  filter: brightness(1.15);
+}
+.detail-action-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ─── EMPTY STATE ─── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+.empty-state p { font-size: 12px; }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <span class="toolbar-title">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+    Renewals
+  </span>
+  <div class="filter-chips" id="filterChips">
+    <button class="filter-chip" data-filter="30">30 Days</button>
+    <button class="filter-chip active" data-filter="90">90 Days</button>
+    <button class="filter-chip" data-filter="all">All</button>
+  </div>
+  <div class="toolbar-spacer"></div>
+  <div class="upcoming-badge" id="upcomingBadge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span id="upcomingCount">4 upcoming</span>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary-row" id="summaryRow">
+  <div class="summary-card">
+    <span class="card-label">Total Renewal Value</span>
+    <span class="card-value" id="cardTotalValue">$1.2M</span>
+    <span class="card-sub">Across all filtered renewals</span>
+  </div>
+  <div class="summary-card">
+    <span class="card-label">Due This Month</span>
+    <span class="card-value" id="cardDueMonth">2</span>
+    <span class="card-sub">Before month-end</span>
+  </div>
+  <div class="summary-card highlight-red">
+    <span class="card-label">Overdue</span>
+    <span class="card-value" id="cardOverdue">1</span>
+    <span class="card-sub">Requires immediate action</span>
+  </div>
+  <div class="summary-card highlight-green">
+    <span class="card-label">Renewed This Quarter</span>
+    <span class="card-value" id="cardRenewed">5</span>
+    <span class="card-sub">Q1 2026</span>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Due Date</th>
+        <th>Account</th>
+        <th>Contract</th>
+        <th>Value</th>
+        <th>Owner</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="renewalsBody"></tbody>
+  </table>
+</div>
+
+<!-- FOOTER -->
+<div class="table-footer">
+  <div class="footer-total">Total renewal value: <span id="footerTotal">$1,215,000</span></div>
+  <div class="footer-count" id="footerCount">Showing 8 of 8 renewals</div>
+</div>
+
+<!-- DETAIL OVERLAY -->
+<div class="detail-overlay" id="detailOverlay"></div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-header">
+    <span class="detail-header-title" id="detailTitle">Renewal Details</span>
+    <button class="detail-close" id="detailClose">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+  <div class="detail-actions" id="detailActions"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── THEME ───
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('theme') === 'airlock') document.documentElement.setAttribute('data-theme','airlock');
+})();
+
+// ─── DATA ───
+const RENEWALS = [
+  {
+    id: 1,
+    dueDate: '2026-03-08',
+    dueDateDisplay: 'Mar 8, 2026',
+    account: 'Ostereo Music Group',
+    contract: 'Distribution Agreement',
+    value: 180000,
+    owner: 'David Park',
+    status: 'overdue',
+    statusLabel: 'Overdue',
+    urgency: 'red',
+    originalDate: '2025-03-08',
+    termLength: '12 months',
+    autoRenew: false,
+    lastContact: 'Feb 28, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Mar 8, 2026 -- Overdue', current: true },
+      { label: 'Renewal reminder sent', meta: 'Feb 20, 2026 -- Email' },
+      { label: 'Last renewed', meta: 'Mar 8, 2025 -- $165,000' },
+      { label: 'Original contract signed', meta: 'Mar 8, 2023 -- $140,000' }
+    ]
+  },
+  {
+    id: 2,
+    dueDate: '2026-03-15',
+    dueDateDisplay: 'Mar 15, 2026',
+    account: 'Drift Audio',
+    contract: 'Licensing Agreement',
+    value: 45000,
+    owner: 'Marcus Webb',
+    status: 'due-soon',
+    statusLabel: 'Due Soon',
+    urgency: 'amber',
+    originalDate: '2024-03-15',
+    termLength: '24 months',
+    autoRenew: false,
+    lastContact: 'Mar 1, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Mar 15, 2026 -- 10 days', current: true },
+      { label: 'Discovery call completed', meta: 'Mar 1, 2026 -- Marcus Webb' },
+      { label: 'Original contract signed', meta: 'Mar 15, 2024 -- $45,000' }
+    ]
+  },
+  {
+    id: 3,
+    dueDate: '2026-03-25',
+    dueDateDisplay: 'Mar 25, 2026',
+    account: 'Acme Inc',
+    contract: 'Master Service Agreement',
+    value: 85000,
+    owner: 'Ana Chen',
+    status: 'due-soon',
+    statusLabel: 'Due Soon',
+    urgency: 'amber',
+    originalDate: '2024-03-25',
+    termLength: '24 months',
+    autoRenew: true,
+    lastContact: 'Feb 18, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Mar 25, 2026 -- 20 days', current: true },
+      { label: 'Auto-renewal notice sent', meta: 'Feb 25, 2026 -- Email' },
+      { label: 'QBR completed', meta: 'Feb 18, 2026 -- Ana Chen' },
+      { label: 'Original contract signed', meta: 'Mar 25, 2024 -- $80,000' }
+    ]
+  },
+  {
+    id: 4,
+    dueDate: '2026-04-05',
+    dueDateDisplay: 'Apr 5, 2026',
+    account: 'Summit Media',
+    contract: 'Partnership Agreement',
+    value: 240000,
+    owner: 'Sarah Miller',
+    status: 'on-track',
+    statusLabel: 'On Track',
+    urgency: 'green',
+    originalDate: '2024-04-05',
+    termLength: '24 months',
+    autoRenew: false,
+    lastContact: 'Feb 26, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Apr 5, 2026 -- 31 days', current: true },
+      { label: 'Proposal sent', meta: 'Feb 26, 2026 -- $240,000' },
+      { label: 'Renewal kickoff meeting', meta: 'Feb 10, 2026 -- Sarah Miller' },
+      { label: 'Original contract signed', meta: 'Apr 5, 2024 -- $210,000' }
+    ]
+  },
+  {
+    id: 5,
+    dueDate: '2026-04-15',
+    dueDateDisplay: 'Apr 15, 2026',
+    account: 'Nova Entertainment',
+    contract: 'Distribution Agreement',
+    value: 120000,
+    owner: 'Sarah Miller',
+    status: 'on-track',
+    statusLabel: 'On Track',
+    urgency: 'green',
+    originalDate: '2025-04-15',
+    termLength: '12 months',
+    autoRenew: false,
+    lastContact: 'Feb 22, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Apr 15, 2026 -- 41 days', current: true },
+      { label: 'Health check completed', meta: 'Feb 22, 2026 -- Score: 87' },
+      { label: 'Last renewed', meta: 'Apr 15, 2025 -- $110,000' },
+      { label: 'Original contract signed', meta: 'Apr 15, 2023 -- $90,000' }
+    ]
+  },
+  {
+    id: 6,
+    dueDate: '2026-04-30',
+    dueDateDisplay: 'Apr 30, 2026',
+    account: 'Pinnacle Partners',
+    contract: 'Distribution Agreement',
+    value: 175000,
+    owner: 'David Park',
+    status: 'on-track',
+    statusLabel: 'On Track',
+    urgency: 'green',
+    originalDate: '2025-04-30',
+    termLength: '12 months',
+    autoRenew: true,
+    lastContact: 'Mar 2, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Apr 30, 2026 -- 56 days', current: true },
+      { label: 'Auto-renewal notice sent', meta: 'Mar 2, 2026 -- Email' },
+      { label: 'Last renewed', meta: 'Apr 30, 2025 -- $160,000' },
+      { label: 'Original contract signed', meta: 'Apr 30, 2022 -- $120,000' }
+    ]
+  },
+  {
+    id: 7,
+    dueDate: '2026-05-10',
+    dueDateDisplay: 'May 10, 2026',
+    account: 'TechFlow Inc',
+    contract: 'Master Service Agreement',
+    value: 60000,
+    owner: null,
+    status: 'on-track',
+    statusLabel: 'On Track',
+    urgency: 'green',
+    originalDate: '2025-05-10',
+    termLength: '12 months',
+    autoRenew: false,
+    lastContact: 'Feb 14, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'May 10, 2026 -- 66 days', current: true },
+      { label: 'Account transferred', meta: 'Feb 14, 2026 -- Previously: Tom Richards' },
+      { label: 'Last renewed', meta: 'May 10, 2025 -- $55,000' },
+      { label: 'Original contract signed', meta: 'May 10, 2024 -- $50,000' }
+    ]
+  },
+  {
+    id: 8,
+    dueDate: '2026-06-01',
+    dueDateDisplay: 'Jun 1, 2026',
+    account: 'Horizon Records',
+    contract: 'Distribution Agreement',
+    value: 310000,
+    owner: 'Sarah Miller',
+    status: 'on-track',
+    statusLabel: 'On Track',
+    urgency: 'green',
+    originalDate: '2024-06-01',
+    termLength: '24 months',
+    autoRenew: false,
+    lastContact: 'Feb 28, 2026',
+    history: [
+      { label: 'Current renewal due', meta: 'Jun 1, 2026 -- 88 days', current: true },
+      { label: 'Initial renewal discussion', meta: 'Feb 28, 2026 -- Sarah Miller' },
+      { label: 'Original contract signed', meta: 'Jun 1, 2024 -- $310,000' }
+    ]
+  }
+];
+
+// ─── HELPERS ───
+function formatCurrency(val) {
+  if (val >= 1000000) return '$' + (val / 1000000).toFixed(1) + 'M';
+  if (val >= 1000) return '$' + (val / 1000).toFixed(0) + 'K';
+  return '$' + val.toLocaleString();
+}
+function formatCurrencyFull(val) {
+  return '$' + val.toLocaleString();
+}
+function daysFromNow(dateStr) {
+  const now = new Date('2026-03-05');
+  const d = new Date(dateStr);
+  return Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+}
+
+// ─── STATE ───
+let activeFilter = '90';
+let selectedId = null;
+
+// ─── FILTER LOGIC ───
+function getFiltered() {
+  return RENEWALS.filter(r => {
+    if (activeFilter === 'all') return true;
+    const days = daysFromNow(r.dueDate);
+    const limit = parseInt(activeFilter);
+    return days <= limit;
+  });
+}
+
+// ─── RENDER TABLE ───
+function renderTable() {
+  const filtered = getFiltered();
+  const tbody = document.getElementById('renewalsBody');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><p>No renewals in this period.</p></div></td></tr>`;
+    updateFooter(filtered);
+    updateSummary(filtered);
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(r => {
+    const ownerHtml = r.owner
+      ? `<span class="col-owner">${r.owner}</span>`
+      : `<span class="col-owner unassigned">Unassigned</span>`;
+    html += `
+      <tr class="urgency-${r.urgency} ${selectedId === r.id ? 'selected' : ''}" data-id="${r.id}">
+        <td class="col-date">${r.dueDateDisplay}</td>
+        <td class="col-account">${r.account}</td>
+        <td class="col-contract">${r.contract}</td>
+        <td class="col-value">${formatCurrency(r.value)}</td>
+        <td>${ownerHtml}</td>
+        <td><span class="status-pill status-${r.status}"><span class="status-dot"></span>${r.statusLabel}</span></td>
+        <td><button class="action-btn" data-action="view" data-id="${r.id}">View</button></td>
+      </tr>`;
+  });
+
+  tbody.innerHTML = html;
+  updateFooter(filtered);
+  updateSummary(filtered);
+  updateUpcoming(filtered);
+}
+
+function updateFooter(filtered) {
+  const total = filtered.reduce((sum, r) => sum + r.value, 0);
+  document.getElementById('footerTotal').textContent = formatCurrencyFull(total);
+  document.getElementById('footerCount').textContent = `Showing ${filtered.length} of ${RENEWALS.length} renewals`;
+}
+
+function updateSummary(filtered) {
+  const total = filtered.reduce((sum, r) => sum + r.value, 0);
+  const dueThisMonth = filtered.filter(r => {
+    const d = new Date(r.dueDate);
+    return d.getMonth() === 2 && d.getFullYear() === 2026 && r.status !== 'overdue';
+  }).length;
+  const overdue = filtered.filter(r => r.status === 'overdue').length;
+
+  document.getElementById('cardTotalValue').textContent = formatCurrency(total);
+  document.getElementById('cardDueMonth').textContent = dueThisMonth;
+  document.getElementById('cardOverdue').textContent = overdue;
+  // Renewed this quarter stays static at 5
+}
+
+function updateUpcoming(filtered) {
+  const upcoming = filtered.filter(r => r.status !== 'overdue' && daysFromNow(r.dueDate) <= 30).length;
+  document.getElementById('upcomingCount').textContent = upcoming + ' upcoming';
+}
+
+// ─── DETAIL PANEL ───
+function openDetail(id) {
+  const r = RENEWALS.find(x => x.id === id);
+  if (!r) return;
+  selectedId = id;
+
+  document.getElementById('detailTitle').textContent = r.account;
+
+  // Build body
+  let html = '';
+
+  // Contract terms section
+  html += `<div class="detail-section">
+    <div class="detail-section-title">Contract Terms</div>
+    <div class="detail-grid">
+      <div class="detail-field">
+        <span class="detail-field-label">Contract Type</span>
+        <span class="detail-field-value">${r.contract}</span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Renewal Value</span>
+        <span class="detail-field-value mono">${formatCurrencyFull(r.value)}</span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Due Date</span>
+        <span class="detail-field-value">${r.dueDateDisplay}</span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Term Length</span>
+        <span class="detail-field-value">${r.termLength}</span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Owner</span>
+        <span class="detail-field-value">${r.owner || '<span style="color:var(--text-muted);font-style:italic">Unassigned</span>'}</span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Auto-Renew</span>
+        <span class="detail-field-value">${r.autoRenew ? '<span style="color:var(--green)">Enabled</span>' : '<span style="color:var(--text-muted)">Disabled</span>'}</span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Status</span>
+        <span class="detail-field-value"><span class="status-pill status-${r.status}"><span class="status-dot"></span>${r.statusLabel}</span></span>
+      </div>
+      <div class="detail-field">
+        <span class="detail-field-label">Last Contact</span>
+        <span class="detail-field-value">${r.lastContact}</span>
+      </div>
+    </div>
+  </div>`;
+
+  // Renewal history section
+  html += `<div class="detail-section">
+    <div class="detail-section-title">Renewal History</div>
+    <div class="history-timeline">`;
+  r.history.forEach(h => {
+    html += `<div class="history-item${h.current ? ' current' : ''}">
+      <div class="history-dot"></div>
+      <div class="history-content">
+        <div class="history-label">${h.label}</div>
+        <div class="history-meta">${h.meta}</div>
+      </div>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // Days remaining callout
+  const days = daysFromNow(r.dueDate);
+  let daysColor = 'var(--green)';
+  let daysLabel = days + ' days remaining';
+  if (days < 0) { daysColor = 'var(--red)'; daysLabel = Math.abs(days) + ' days overdue'; }
+  else if (days <= 7) { daysColor = 'var(--red)'; }
+  else if (days <= 30) { daysColor = 'var(--amber)'; }
+
+  html += `<div class="detail-section">
+    <div class="detail-section-title">Timeline</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg-card);border-radius:var(--radius-md);border:1px solid var(--border);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${daysColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:${daysColor};">${daysLabel}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">Original date: ${r.originalDate}</div>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('detailBody').innerHTML = html;
+
+  // Action buttons
+  const actionsHtml = `
+    <button class="detail-action-btn" data-action="reminder" data-id="${r.id}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,6 12,13 2,6"/></svg>
+      Send Reminder
+    </button>
+    <button class="detail-action-btn" data-action="call" data-id="${r.id}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 014.11 2H7.11a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+      Schedule Call
+    </button>
+    <button class="detail-action-btn primary" data-action="autorenew" data-id="${r.id}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      Auto-Renew
+    </button>`;
+  document.getElementById('detailActions').innerHTML = actionsHtml;
+
+  // Show panel
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('detailOverlay').classList.add('open');
+
+  // Re-render to show selected state
+  renderTableRows();
+}
+
+function closeDetail() {
+  selectedId = null;
+  document.getElementById('detailPanel').classList.remove('open');
+  document.getElementById('detailOverlay').classList.remove('open');
+  renderTableRows();
+}
+
+function renderTableRows() {
+  document.querySelectorAll('#renewalsBody tr[data-id]').forEach(tr => {
+    tr.classList.toggle('selected', parseInt(tr.dataset.id) === selectedId);
+  });
+}
+
+// ─── TOAST ───
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ─── EVENTS ───
+// Filter chips
+document.getElementById('filterChips').addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilter = chip.dataset.filter;
+  renderTable();
+});
+
+// Table row clicks
+document.getElementById('renewalsBody').addEventListener('click', e => {
+  const actionBtn = e.target.closest('.action-btn');
+  const row = e.target.closest('tr[data-id]');
+  if (actionBtn) {
+    const id = parseInt(actionBtn.dataset.id);
+    openDetail(id);
+    return;
+  }
+  if (row) {
+    const id = parseInt(row.dataset.id);
+    openDetail(id);
+  }
+});
+
+// Detail panel action buttons
+document.getElementById('detailActions').addEventListener('click', e => {
+  const btn = e.target.closest('.detail-action-btn');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = parseInt(btn.dataset.id);
+  const r = RENEWALS.find(x => x.id === id);
+  if (!r) return;
+
+  if (action === 'reminder') {
+    showToast('Reminder sent to ' + r.account);
+  } else if (action === 'call') {
+    showToast('Call scheduled for ' + r.account);
+  } else if (action === 'autorenew') {
+    showToast('Auto-renew initiated for ' + r.account);
+  }
+});
+
+// Close detail
+document.getElementById('detailClose').addEventListener('click', closeDetail);
+document.getElementById('detailOverlay').addEventListener('click', closeDetail);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDetail();
+});
+
+// ─── INIT ───
+renderTable();
+</script>
+</body>
+</html>

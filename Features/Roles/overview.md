@@ -358,19 +358,28 @@ Click user → User Permission Panel:
 └──────────────────────────────────────────┘
 ```
 
-## Open Questions
+## Related Specs
 
-- [ ] Should agentic roles be self-selected or admin-assigned?
-- [ ] Should PI personality assessments be required or optional?
-- [ ] How do cross-module actions work? (Contract release triggers CRM update — which role does the system act as?)
+- **[Auth & Authorization](../Auth/overview.md)** — JWT strategy, refresh tokens, `require_permission()` middleware, rate limiting
+- **[Auth Migrations](../Auth/migrations.md)** — SQL schema for refresh tokens, module roles, permission overrides, custom roles
+- **[Auth API Endpoints](../Auth/api-endpoints.md)** — Complete auth + permission + role management API surface
+- **[Security & Architecture](../Security/overview.md)** — Encryption, threat model, key management
+- **[Onboarding](../Onboarding/overview.md)** — First-login flow, role-specific onboarding content
+- **[Admin / Settings](../Admin/overview.md)** — Members page, role management UI
+
+## Resolved Questions
+
+- [x] ~~Should agentic roles be self-selected or admin-assigned?~~ → **Self-selected with admin visibility.** Users choose their own agentic role from a curated list during onboarding or in Profile settings. Admins can see and override assignments but don't gatekeep the initial selection. Rationale: agentic roles optimize the UI — they don't grant permissions, so self-selection is safe. PI assessment results (if available) surface as suggestions, not mandates.
+- [x] ~~Should PI personality assessments be required or optional?~~ → **Optional.** If a user takes a PI assessment and connects it via Linked Roles, their results are used to suggest an agentic role mapping. If not taken, users manually pick from the 16 roles or skip entirely (default: no agentic role, standard UI layout).
+- [x] ~~How do cross-module actions work?~~ → **System Service Account.** When a contract release triggers a CRM vault creation or a task creation, the system acts as `system@airlock.local` with a dedicated `service` module role. Service account actions are logged with `author_type: 'system'` in channel events. The service account has all permissions but cannot bypass SoD rules (e.g., it can create a vault but cannot approve a patch it generated via AI).
 - [x] ~~How do we handle role transitions (promotion, temporary escalation)?~~ → Ad-hoc overrides with expiry dates
 - [x] ~~Should there be a "delegation" mechanism?~~ → Ad-hoc temporary grants with expiry dates
 
 ---
 
-## Custom Role Creation — Brainstorm
+## Custom Role Creation
 
-> **Added:** 2026-03-04 — Discord-style custom role creation with granular permission assignment.
+> Discord-style custom role creation with granular permission assignment, drag-to-reorder hierarchy, multiple roles per user.
 
 ### The Problem
 
@@ -609,3 +618,131 @@ Every role creation, modification, assignment, and removal is logged:
 - `role.assigned` — role assigned to user
 - `role.revoked` — role removed from user
 - `role.deleted` — custom role removed (system roles can't be deleted)
+
+---
+
+## Role Scoping
+
+Custom roles are **workspace-wide**, not per-module. This mirrors Discord where roles are server-wide and permissions apply across all channels.
+
+| Scope | What Controls It | Example |
+|-------|-----------------|---------|
+| **Workspace** | Org role + custom roles | "Ana is a Member with Senior Analyst role" |
+| **Module** | Module role assignment | "Ana is Owner in Contracts, Viewer in CRM" |
+| **Vault/Channel** | Channel-level overrides | "Ana has explicit access to #confidential-merger" |
+
+**How custom roles interact with module roles:**
+- Custom roles define **what permissions you could have** (the permission set)
+- Module role assignment determines **which modules you're active in**
+- A user needs both a custom role granting `approve_low_risk` AND a module role of Gatekeeper+ in Contracts to actually approve patches in Contracts
+
+**Effective permission computation:**
+```
+permissions = union(all custom_role permissions)
+            + module_level_overrides
+            + channel_level_overrides
+            ∩ org_role_ceiling
+            - SoD_enforcement
+```
+
+---
+
+## Default Roles for New Members
+
+When a user joins a workspace:
+
+| Step | Default | Admin Can Change |
+|------|---------|-----------------|
+| Org role | `member` | Yes, during or after invite |
+| Custom roles | System `Viewer` role only | Yes, assign additional roles |
+| Module roles | No module access by default | Must explicitly grant per module |
+| Agentic role | None (standard UI) | User self-selects, admin can override |
+
+**First-login flow** (from Onboarding spec):
+1. Admin invites user → sets org role + initial module access
+2. User logs in → sees assigned modules in module bar
+3. User can self-select agentic role in Profile settings
+4. Admin can later add custom roles and module access
+
+---
+
+## Role Templates (Pre-Built)
+
+When creating a custom role, admins can start from a template. Templates are suggestions — all permissions are editable after selection.
+
+| Template | Base | Additional Permissions | Use Case |
+|----------|------|----------------------|----------|
+| **Senior Analyst** | Builder | `approve_low_risk` | Experienced analyst who can approve simple items |
+| **Compliance Officer** | Viewer | `view_audit_log`, `view_extraction`, `create_triage` | Read-only auditor who can flag issues |
+| **External Auditor** | Viewer | `view_audit_log`, `export_pdf`, `export_csv` | Third-party auditor with export access |
+| **Trainee** | Viewer | `view_vaults`, `view_extraction`, `view_triage`, `chat_with_otto` | New hire who can observe and ask Otto |
+| **Department Head** | Owner | All Owner permissions | Full module ownership (use module role assignment to scope) |
+| **Integration Bot** | Builder | `create_vaults`, `run_extraction`, `create_triage` | Service account for automated integrations |
+
+Templates are stored as workspace-level presets. Admins can create their own templates by saving a custom role as a template.
+
+---
+
+## Role Display in UI
+
+### Role Badges
+
+Custom roles display as colored pill badges throughout the UI:
+
+| Location | Display |
+|----------|---------|
+| **Member list** (Admin > Members) | Role badges next to user name, highest-hierarchy role first |
+| **User profile popover** (click avatar) | Stack of role badges with module assignments |
+| **Channel member list** | Role badge + module role label |
+| **Event feed** (Signal panel) | Author's highest role badge next to their name |
+| **Audit log** | Actor's role at time of action (snapshot, not current) |
+
+**Badge rendering:**
+```
+[● Senior Analyst]  ← dot uses role color, text is role name
+```
+- Dot color = `custom_roles.color` (hex)
+- Text = `custom_roles.name`
+- System roles use fixed colors: Builder (#22C55E), Gatekeeper (#EAB308), Owner (#A855F7), Designer (#00D1FF), Viewer (#64748B)
+- If user has multiple roles, show up to 3 badges then "+N more"
+
+### Role Colors (Default Palette)
+
+| Color | Hex | Suggested For |
+|-------|-----|---------------|
+| Green | `#22C55E` | Builder, productivity roles |
+| Yellow | `#EAB308` | Gatekeeper, review roles |
+| Purple | `#A855F7` | Owner, authority roles |
+| Cyan | `#00D1FF` | Designer, technical roles |
+| Slate | `#64748B` | Viewer, observer roles |
+| Red | `#EF4444` | Compliance, critical roles |
+| Orange | `#F97316` | Senior/elevated roles |
+| Pink | `#EC4899` | Custom, creative roles |
+| Indigo | `#6366F1` | Integration, bot roles |
+
+---
+
+## Role Deletion Cascade
+
+When a custom role is deleted:
+
+| What Happens | Behavior |
+|-------------|----------|
+| User assignments | All `user_custom_roles` rows for this role are removed |
+| Permission impact | Users lose permissions granted by this role (remaining roles still apply) |
+| Channel overrides referencing this role | Removed (channel now uses base permissions) |
+| Audit log entries | Preserved — show "Role: [deleted role name]" with original snapshot |
+| No user left with permissions | Warning shown to admin before deletion: "3 users will lose approve_low_risk" |
+
+**Safety:** Deleting a system role is blocked at the API level (`is_system = true` → 403 Forbidden).
+
+---
+
+## Feature Control Plane Integration
+
+| Capability | Parameter |
+|------------|-----------|
+| Toggle | `roles.custom_roles.enabled` (disabling hides "Create Role" button, existing roles still function) |
+| Max custom roles | `roles.custom_roles.max_per_workspace` (default: 25) |
+| Max roles per user | `roles.custom_roles.max_per_user` (default: 10) |
+| Permission catalog version | `roles.permission_catalog.version` (for adding new permissions without migration) |

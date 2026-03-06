@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM Health Monitor</title>
+  <style>
+    /* ===== Base Tokens (shared with demo shell) ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    /* Airlock overrides */
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .health-layout {
+      display: flex;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    /* ===== Toolbar ===== */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .toolbar-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .toolbar-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--accent-blue);
+      flex-shrink: 0;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      margin-left: 12px;
+    }
+
+    .chip {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border-light);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .chip:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+
+    .chip.active {
+      background: var(--accent-blue-dim);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .toolbar-stats {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .toolbar-stat {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .toolbar-stat .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ===== Main Split ===== */
+    .main-split {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== Left Panel: Customer List ===== */
+    .list-panel {
+      width: 60%;
+      min-width: 400px;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .list-panel::-webkit-scrollbar { width: 6px; }
+    .list-panel::-webkit-scrollbar-track { background: transparent; }
+    .list-panel::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* ===== Health Card ===== */
+    .health-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      grid-template-rows: auto auto;
+      gap: 6px 20px;
+      align-items: center;
+    }
+
+    .health-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-light);
+    }
+
+    .health-card.selected {
+      border-color: var(--accent-blue);
+      background: var(--bg-card-hover);
+      box-shadow: 0 0 0 1px var(--accent-blue), inset 0 0 0 1px rgba(0,145,234,0.05);
+    }
+
+    .card-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .card-meta {
+      grid-column: 1;
+      grid-row: 2;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .card-meta .status-label {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .status-healthy {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .status-watch {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .status-at-risk {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    .card-score-area {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .card-score {
+      font-size: 32px;
+      font-weight: 700;
+      font-family: var(--mono);
+      line-height: 1;
+    }
+
+    .card-trend {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--mono);
+    }
+
+    .trend-up { color: var(--green); }
+    .trend-down { color: var(--red); }
+    .trend-flat { color: var(--text-muted); }
+
+    .trend-arrow {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .card-sparkline {
+      grid-column: 3;
+      grid-row: 1 / 3;
+      width: 80px;
+      height: 36px;
+      position: relative;
+    }
+
+    /* ===== Sparkline (SVG) ===== */
+    .sparkline-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .sparkline-line {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .sparkline-area {
+      opacity: 0.1;
+    }
+
+    /* ===== Right Panel: Detail ===== */
+    .detail-panel {
+      width: 40%;
+      min-width: 320px;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .detail-panel::-webkit-scrollbar { width: 6px; }
+    .detail-panel::-webkit-scrollbar-track { background: transparent; }
+    .detail-panel::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    .detail-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+
+    .detail-empty-icon {
+      width: 48px;
+      height: 48px;
+      opacity: 0.3;
+    }
+
+    .detail-empty-text {
+      font-size: 14px;
+    }
+
+    /* Detail Header */
+    .detail-header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .score-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .score-circle-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      opacity: 0.15;
+    }
+
+    .score-circle-ring {
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      border: 3px solid;
+      opacity: 0.6;
+    }
+
+    .score-circle-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: var(--mono);
+      position: relative;
+      z-index: 1;
+    }
+
+    .detail-header-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .detail-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .detail-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .detail-trend {
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .detail-meta-row {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Trend Bar Chart */
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .trend-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 80px;
+      padding: 0 4px;
+    }
+
+    .trend-bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .trend-bar {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+      min-height: 4px;
+      transition: height 0.3s ease;
+    }
+
+    .trend-bar-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    /* Risk Factors */
+    .risk-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .risk-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .risk-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    /* Recommended Actions */
+    .action-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .action-item:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .action-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 2px solid var(--border-light);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .action-item.checked .action-check {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .action-item.checked .action-check::after {
+      content: '';
+      width: 8px;
+      height: 5px;
+      border-left: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      transform: rotate(-45deg) translateY(-1px);
+    }
+
+    .action-item.checked {
+      color: var(--text-muted);
+      text-decoration: line-through;
+    }
+
+    /* Key Contacts */
+    .contacts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .contact-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .contact-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .contact-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .contact-name {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .contact-role {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Recent Activity */
+    .activity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-text {
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .activity-time {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    /* Section wrapper */
+    .detail-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-divider {
+      height: 1px;
+      background: var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="health-layout">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <svg class="toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      </svg>
+      <span class="toolbar-title">Health Monitor</span>
+      <div class="filter-chips">
+        <div class="chip active" data-filter="all">All</div>
+        <div class="chip" data-filter="at-risk">At Risk</div>
+        <div class="chip" data-filter="watch">Watch</div>
+        <div class="chip" data-filter="healthy">Healthy</div>
+      </div>
+      <div class="toolbar-stats">
+        <div class="toolbar-stat"><span class="dot" style="background:var(--green)"></span> <span id="stat-healthy">3</span> Healthy</div>
+        <div class="toolbar-stat"><span class="dot" style="background:var(--amber)"></span> <span id="stat-watch">3</span> Watch</div>
+        <div class="toolbar-stat"><span class="dot" style="background:var(--red)"></span> <span id="stat-risk">2</span> At Risk</div>
+      </div>
+    </div>
+
+    <!-- Main Split -->
+    <div class="main-split">
+      <!-- Left: Card List -->
+      <div class="list-panel" id="list-panel"></div>
+
+      <!-- Right: Detail -->
+      <div class="detail-panel" id="detail-panel">
+        <div class="detail-empty">
+          <svg class="detail-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          <div class="detail-empty-text">Select a customer to view health details</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Theme support
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('theme') === 'airlock') {
+        document.documentElement.setAttribute('data-theme', 'airlock');
+      }
+    })();
+
+    // ===== Sample Data =====
+    const customers = [
+      {
+        id: 1,
+        name: 'Acme Inc',
+        score: 82,
+        status: 'Healthy',
+        trendDir: 'up',
+        trendChange: +3,
+        deals: 4,
+        lastContact: '2d ago',
+        history: [70, 74, 76, 79, 79, 82],
+        contacts: [
+          { name: 'Sarah Chen', role: 'VP Operations', initials: 'SC', color: '#0091ea' },
+          { name: 'James Wright', role: 'Account Manager', initials: 'JW', color: '#26a69a' }
+        ],
+        risks: [
+          { text: 'Contract renewal in 45 days', severity: 'amber' }
+        ],
+        actions: ['Schedule quarterly review', 'Prepare renewal proposal', 'Send usage report'],
+        activities: [
+          { icon: 'mail', text: 'Email response from Sarah Chen', time: '2 days ago', color: 'var(--accent-blue)' },
+          { icon: 'deal', text: 'Deal #1042 moved to Review', time: '3 days ago', color: 'var(--green)' },
+          { icon: 'call', text: 'Check-in call completed', time: '5 days ago', color: 'var(--teal)' },
+          { icon: 'note', text: 'Internal note added by Otto', time: '1 week ago', color: 'var(--purple)' },
+          { icon: 'deal', text: 'Deal #1038 closed won', time: '2 weeks ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 2,
+        name: 'Ostereo Music Group',
+        score: 71,
+        status: 'Watch',
+        trendDir: 'flat',
+        trendChange: 0,
+        deals: 2,
+        lastContact: '6d ago',
+        history: [68, 72, 73, 71, 70, 71],
+        contacts: [
+          { name: 'Marco Delgado', role: 'Head of Licensing', initials: 'MD', color: '#7b1fa2' },
+          { name: 'Lisa Park', role: 'Legal Counsel', initials: 'LP', color: '#ff9800' }
+        ],
+        risks: [
+          { text: 'No engagement with new features this month', severity: 'amber' },
+          { text: 'Support ticket unresolved for 8 days', severity: 'amber' }
+        ],
+        actions: ['Follow up on support ticket', 'Schedule feature walkthrough', 'Send product update newsletter'],
+        activities: [
+          { icon: 'ticket', text: 'Support ticket #302 opened', time: '6 days ago', color: 'var(--amber)' },
+          { icon: 'mail', text: 'Renewal reminder sent', time: '1 week ago', color: 'var(--accent-blue)' },
+          { icon: 'deal', text: 'Deal #987 moved to Build', time: '2 weeks ago', color: 'var(--green)' },
+          { icon: 'note', text: 'Usage metrics reviewed', time: '3 weeks ago', color: 'var(--purple)' },
+          { icon: 'call', text: 'Quarterly call completed', time: '1 month ago', color: 'var(--teal)' }
+        ]
+      },
+      {
+        id: 3,
+        name: 'Summit Media',
+        score: 88,
+        status: 'Healthy',
+        trendDir: 'up',
+        trendChange: +5,
+        deals: 3,
+        lastContact: '1d ago',
+        history: [75, 78, 80, 83, 83, 88],
+        contacts: [
+          { name: 'Rachel Kim', role: 'CEO', initials: 'RK', color: '#f44336' },
+          { name: 'David Okonkwo', role: 'Director of Partnerships', initials: 'DO', color: '#0091ea' }
+        ],
+        risks: [],
+        actions: ['Explore upsell opportunities', 'Share case study draft', 'Invite to partner event'],
+        activities: [
+          { icon: 'mail', text: 'Email from Rachel about expansion', time: '1 day ago', color: 'var(--accent-blue)' },
+          { icon: 'deal', text: 'Deal #1055 created', time: '2 days ago', color: 'var(--green)' },
+          { icon: 'call', text: 'Strategy call with David', time: '4 days ago', color: 'var(--teal)' },
+          { icon: 'note', text: 'NPS score received: 9/10', time: '1 week ago', color: 'var(--purple)' },
+          { icon: 'deal', text: 'Deal #1050 closed won', time: '1 week ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 4,
+        name: 'Nova Entertainment',
+        score: 45,
+        status: 'At Risk',
+        trendDir: 'down',
+        trendChange: -8,
+        deals: 1,
+        lastContact: '10d ago',
+        history: [62, 60, 58, 55, 53, 45],
+        contacts: [
+          { name: 'Tom Alvarez', role: 'Procurement Lead', initials: 'TA', color: '#ff9800' },
+          { name: 'Nina Patel', role: 'VP Content', initials: 'NP', color: '#26a69a' }
+        ],
+        risks: [
+          { text: 'No response to last 3 messages', severity: 'red' },
+          { text: 'Contract renewal in 15 days', severity: 'amber' },
+          { text: 'Usage declined 20% this quarter', severity: 'amber' }
+        ],
+        actions: ['Schedule check-in call', 'Send renewal reminder', 'Offer usage review meeting'],
+        activities: [
+          { icon: 'mail', text: 'Follow-up email sent (no reply)', time: '3 days ago', color: 'var(--accent-blue)' },
+          { icon: 'mail', text: 'Second follow-up email sent', time: '7 days ago', color: 'var(--accent-blue)' },
+          { icon: 'mail', text: 'Initial outreach email sent', time: '10 days ago', color: 'var(--accent-blue)' },
+          { icon: 'alert', text: 'Health score dropped below 50', time: '2 weeks ago', color: 'var(--red)' },
+          { icon: 'note', text: 'Usage decline flagged by Otto', time: '3 weeks ago', color: 'var(--purple)' }
+        ]
+      },
+      {
+        id: 5,
+        name: 'TechFlow Inc',
+        score: 34,
+        status: 'At Risk',
+        trendDir: 'down',
+        trendChange: -12,
+        deals: 1,
+        lastContact: '14d ago',
+        history: [58, 55, 50, 48, 46, 34],
+        contacts: [
+          { name: 'Alex Morgan', role: 'CTO', initials: 'AM', color: '#f44336' },
+          { name: 'Priya Sharma', role: 'Engineering Manager', initials: 'PS', color: '#7b1fa2' }
+        ],
+        risks: [
+          { text: 'No login activity for 14 days', severity: 'red' },
+          { text: 'Open support tickets: 3 unresolved', severity: 'red' },
+          { text: 'Competitor evaluation detected', severity: 'amber' }
+        ],
+        actions: ['Escalate to account executive', 'Schedule executive sponsor call', 'Prepare retention offer'],
+        activities: [
+          { icon: 'alert', text: 'Churn risk alert triggered', time: '1 day ago', color: 'var(--red)' },
+          { icon: 'ticket', text: 'Support ticket #318 escalated', time: '5 days ago', color: 'var(--amber)' },
+          { icon: 'ticket', text: 'Support ticket #315 opened', time: '8 days ago', color: 'var(--amber)' },
+          { icon: 'mail', text: 'Last email from Alex Morgan', time: '14 days ago', color: 'var(--accent-blue)' },
+          { icon: 'note', text: 'Competitor mention flagged', time: '3 weeks ago', color: 'var(--purple)' }
+        ]
+      },
+      {
+        id: 6,
+        name: 'Drift Audio',
+        score: 58,
+        status: 'Watch',
+        trendDir: 'down',
+        trendChange: -5,
+        deals: 1,
+        lastContact: '4d ago',
+        history: [65, 67, 66, 64, 63, 58],
+        contacts: [
+          { name: 'Mia Torres', role: 'Operations Director', initials: 'MT', color: '#0091ea' },
+          { name: 'Ryan Cole', role: 'Finance Lead', initials: 'RC', color: '#26a69a' }
+        ],
+        risks: [
+          { text: 'Invoice overdue by 12 days', severity: 'red' },
+          { text: 'Feature adoption below target', severity: 'amber' }
+        ],
+        actions: ['Follow up on overdue invoice', 'Schedule training session', 'Share feature adoption guide'],
+        activities: [
+          { icon: 'mail', text: 'Invoice reminder sent to Mia', time: '4 days ago', color: 'var(--accent-blue)' },
+          { icon: 'deal', text: 'Deal #1020 stalled in Review', time: '1 week ago', color: 'var(--amber)' },
+          { icon: 'call', text: 'Onboarding follow-up call', time: '2 weeks ago', color: 'var(--teal)' },
+          { icon: 'note', text: 'Low feature usage flagged', time: '2 weeks ago', color: 'var(--purple)' },
+          { icon: 'deal', text: 'Deal #1020 created', time: '3 weeks ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 7,
+        name: 'Horizon Records',
+        score: 79,
+        status: 'Healthy',
+        trendDir: 'up',
+        trendChange: +2,
+        deals: 2,
+        lastContact: '1d ago',
+        history: [72, 73, 74, 76, 77, 79],
+        contacts: [
+          { name: 'Elena Vasquez', role: 'Head of A&R', initials: 'EV', color: '#7b1fa2' },
+          { name: 'Chris Ngata', role: 'Business Affairs', initials: 'CN', color: '#ff9800' }
+        ],
+        risks: [
+          { text: 'Contract complexity increasing', severity: 'amber' }
+        ],
+        actions: ['Review contract templates', 'Schedule process optimization call', 'Send quarterly summary'],
+        activities: [
+          { icon: 'mail', text: 'Elena confirmed meeting time', time: '1 day ago', color: 'var(--accent-blue)' },
+          { icon: 'deal', text: 'Deal #1048 moved to Ship', time: '3 days ago', color: 'var(--green)' },
+          { icon: 'note', text: 'Satisfaction survey: 8/10', time: '5 days ago', color: 'var(--purple)' },
+          { icon: 'call', text: 'Monthly sync completed', time: '1 week ago', color: 'var(--teal)' },
+          { icon: 'deal', text: 'Deal #1044 closed won', time: '2 weeks ago', color: 'var(--green)' }
+        ]
+      },
+      {
+        id: 8,
+        name: 'Pinnacle Partners',
+        score: 62,
+        status: 'Watch',
+        trendDir: 'flat',
+        trendChange: -1,
+        deals: 1,
+        lastContact: '3d ago',
+        history: [60, 63, 64, 63, 63, 62],
+        contacts: [
+          { name: 'Jordan Lee', role: 'Managing Partner', initials: 'JL', color: '#f44336' },
+          { name: 'Sam Nguyen', role: 'Associate', initials: 'SN', color: '#0091ea' }
+        ],
+        risks: [
+          { text: 'Single-threaded relationship (1 contact)', severity: 'amber' },
+          { text: 'Only using 40% of licensed features', severity: 'amber' }
+        ],
+        actions: ['Identify additional stakeholders', 'Schedule feature discovery session', 'Send ROI analysis report'],
+        activities: [
+          { icon: 'mail', text: 'Jordan replied to check-in', time: '3 days ago', color: 'var(--accent-blue)' },
+          { icon: 'note', text: 'Account plan updated', time: '1 week ago', color: 'var(--purple)' },
+          { icon: 'call', text: 'Introduction call with Sam', time: '2 weeks ago', color: 'var(--teal)' },
+          { icon: 'deal', text: 'Deal #1030 created', time: '3 weeks ago', color: 'var(--green)' },
+          { icon: 'note', text: 'Initial account assessment', time: '1 month ago', color: 'var(--purple)' }
+        ]
+      }
+    ];
+
+    const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
+
+    // ===== Utility Functions =====
+    function scoreColor(score) {
+      if (score < 30) return 'var(--red)';
+      if (score <= 70) return 'var(--amber)';
+      return 'var(--green)';
+    }
+
+    function statusClass(status) {
+      if (status === 'Healthy') return 'status-healthy';
+      if (status === 'Watch') return 'status-watch';
+      return 'status-at-risk';
+    }
+
+    function trendClass(dir) {
+      if (dir === 'up') return 'trend-up';
+      if (dir === 'down') return 'trend-down';
+      return 'trend-flat';
+    }
+
+    function trendArrow(dir) {
+      if (dir === 'up') return '\u2191';
+      if (dir === 'down') return '\u2193';
+      return '\u2192';
+    }
+
+    function trendLabel(change) {
+      if (change > 0) return '+' + change;
+      if (change === 0) return '0';
+      return String(change);
+    }
+
+    function filterKey(status) {
+      if (status === 'Healthy') return 'healthy';
+      if (status === 'Watch') return 'watch';
+      return 'at-risk';
+    }
+
+    function activityIconSvg(type) {
+      switch (type) {
+        case 'mail': return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
+        case 'deal': return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+        case 'call': return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+        case 'note': return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+        case 'ticket': return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 1 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 1 1 0-4V7a2 2 0 0 0-2-2H5z"/></svg>';
+        case 'alert': return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+        default: return '';
+      }
+    }
+
+    // ===== Build Sparkline SVG =====
+    function buildSparkline(history, color) {
+      const w = 80, h = 36;
+      const min = Math.min(...history) - 5;
+      const max = Math.max(...history) + 5;
+      const range = max - min || 1;
+      const points = history.map((v, i) => {
+        const x = (i / (history.length - 1)) * w;
+        const y = h - ((v - min) / range) * h;
+        return { x, y };
+      });
+      const linePoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+      const areaPoints = linePoints + ` ${w},${h} 0,${h}`;
+      return `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <polygon class="sparkline-area" points="${areaPoints}" fill="${color}"/>
+        <polyline class="sparkline-line" points="${linePoints}" stroke="${color}"/>
+      </svg>`;
+    }
+
+    // ===== Render Cards =====
+    let selectedId = null;
+    let activeFilter = 'all';
+
+    function renderCards() {
+      const panel = document.getElementById('list-panel');
+      panel.innerHTML = '';
+      const filtered = activeFilter === 'all'
+        ? customers
+        : customers.filter(c => filterKey(c.status) === activeFilter);
+
+      filtered.forEach(c => {
+        const color = scoreColor(c.score);
+        const card = document.createElement('div');
+        card.className = 'health-card' + (c.id === selectedId ? ' selected' : '');
+        card.dataset.id = c.id;
+        card.innerHTML = `
+          <div class="card-name">${c.name}</div>
+          <div class="card-meta">
+            <span class="status-label ${statusClass(c.status)}">${c.status}</span>
+            <span>${c.deals} deal${c.deals > 1 ? 's' : ''}</span>
+            <span>Last contact: ${c.lastContact}</span>
+          </div>
+          <div class="card-score-area">
+            <div class="card-score" style="color:${color}">${c.score}</div>
+            <div class="card-trend ${trendClass(c.trendDir)}">
+              <span class="trend-arrow">${trendArrow(c.trendDir)}</span>
+              ${trendLabel(c.trendChange)}
+            </div>
+          </div>
+          <div class="card-sparkline">${buildSparkline(c.history, color)}</div>
+        `;
+        card.addEventListener('click', () => selectCustomer(c.id));
+        panel.appendChild(card);
+      });
+    }
+
+    // ===== Render Detail =====
+    function renderDetail(c) {
+      const panel = document.getElementById('detail-panel');
+      if (!c) {
+        panel.innerHTML = `<div class="detail-empty">
+          <svg class="detail-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          <div class="detail-empty-text">Select a customer to view health details</div>
+        </div>`;
+        return;
+      }
+
+      const color = scoreColor(c.score);
+      const maxScore = Math.max(...c.history) + 10;
+
+      panel.innerHTML = `
+        <!-- Header -->
+        <div class="detail-header">
+          <div class="score-circle">
+            <div class="score-circle-bg" style="background:${color}"></div>
+            <div class="score-circle-ring" style="border-color:${color}"></div>
+            <div class="score-circle-value" style="color:${color}">${c.score}</div>
+          </div>
+          <div class="detail-header-info">
+            <div class="detail-name">${c.name}</div>
+            <div class="detail-status">
+              <span class="status-label ${statusClass(c.status)}">${c.status}</span>
+              <span class="detail-trend ${trendClass(c.trendDir)}">
+                ${trendArrow(c.trendDir)} ${trendLabel(c.trendChange)} pts
+              </span>
+            </div>
+            <div class="detail-meta-row">
+              <span>${c.deals} active deal${c.deals > 1 ? 's' : ''}</span>
+              <span>Last contact: ${c.lastContact}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Trend Chart -->
+        <div class="detail-section">
+          <div class="section-title">Score Trend (6 Months)</div>
+          <div class="trend-chart">
+            ${c.history.map((v, i) => {
+              const h = Math.max(4, (v / maxScore) * 70);
+              const barColor = scoreColor(v);
+              return `<div class="trend-bar-col">
+                <div class="trend-bar" style="height:${h}px;background:${barColor}"></div>
+                <div class="trend-bar-label">${months[i]}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Risk Factors -->
+        <div class="detail-section">
+          <div class="section-title">Risk Factors</div>
+          <div class="risk-list">
+            ${c.risks.length === 0
+              ? '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">No active risk factors</div>'
+              : c.risks.map(r => `<div class="risk-item">
+                  <div class="risk-dot" style="background:var(--${r.severity})"></div>
+                  <div>${r.text}</div>
+                </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Recommended Actions -->
+        <div class="detail-section">
+          <div class="section-title">Recommended Actions</div>
+          <div class="action-list">
+            ${c.actions.map((a, i) => `<div class="action-item" data-idx="${i}" onclick="toggleAction(this)">
+              <div class="action-check"></div>
+              <span>${a}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Key Contacts -->
+        <div class="detail-section">
+          <div class="section-title">Key Contacts</div>
+          <div class="contacts-list">
+            ${c.contacts.map(ct => `<div class="contact-row">
+              <div class="contact-avatar" style="background:${ct.color}">${ct.initials}</div>
+              <div class="contact-info">
+                <div class="contact-name">${ct.name}</div>
+                <div class="contact-role">${ct.role}</div>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <!-- Recent Activity -->
+        <div class="detail-section">
+          <div class="section-title">Recent Activity</div>
+          <div class="activity-list">
+            ${c.activities.map(a => `<div class="activity-item">
+              <div class="activity-icon" style="background:${a.color}20;color:${a.color}">
+                ${activityIconSvg(a.icon)}
+              </div>
+              <div class="activity-content">
+                <div class="activity-text">${a.text}</div>
+                <div class="activity-time">${a.time}</div>
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // ===== Interaction =====
+    function selectCustomer(id) {
+      selectedId = id;
+      renderCards();
+      const c = customers.find(c => c.id === id);
+      renderDetail(c);
+    }
+
+    function toggleAction(el) {
+      el.classList.toggle('checked');
+    }
+
+    // Filter chips
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeFilter = chip.dataset.filter;
+        renderCards();
+      });
+    });
+
+    // Initial render
+    renderCards();
+  </script>
+</body>
+</html>

@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airlock — Sync Status</title>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg-darkest: #0d1017; --bg-page: #12161f; --bg-input: #161b28;
+  --bg-panel: #1a1f2e; --bg-card: #1e2436; --bg-card-hover: #242b3d;
+  --text-primary: #e8eaed; --text-secondary: #9aa0a6; --text-muted: #6b7280;
+  --accent-blue: #0091ea; --accent-blue-dim: rgba(0,145,234,0.15);
+  --green: #4caf50; --green-dim: rgba(76,175,80,0.15);
+  --amber: #ff9800; --amber-dim: rgba(255,152,0,0.12);
+  --red: #f44336; --red-dim: rgba(244,67,54,0.12);
+  --teal: #26a69a; --teal-dim: rgba(38,166,154,0.12);
+  --purple: #7b1fa2; --purple-dim: rgba(123,31,162,0.12);
+  --border: #2a3040; --border-light: #333b4f;
+  --mono: 'SF Mono','Cascadia Code','Consolas',monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+}
+html[data-theme="airlock"] {
+  --bg-darkest: #080a0f; --bg-page: #0B0E14; --bg-input: #0F1219;
+  --bg-panel: #0F1219; --bg-card: #151923; --bg-card-hover: #1a2030;
+  --border: #1E2330; --border-light: #2a3040;
+  --accent-blue: #00D1FF; --accent-blue-dim: rgba(0,209,255,0.12);
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--bg-darkest);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+}
+.toolbar-muted {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.toolbar-spacer { flex: 1; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg-card-hover); border-color: var(--border-light); }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+.btn-outline:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn-retry {
+  background: var(--red-dim);
+  border: 1px solid transparent;
+  color: var(--red);
+  font-size: 11px;
+  padding: 3px 10px;
+}
+.btn-retry:hover { background: var(--red); color: #fff; }
+
+/* ── MAIN CONTENT ── */
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ── SECTION HEADER ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.count-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* ── FILTER PILLS ── */
+.filter-pills {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.pill {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.pill.active {
+  color: var(--accent-blue);
+  background: var(--accent-blue-dim);
+  border-color: transparent;
+}
+.pill:hover:not(.active) {
+  color: var(--text-secondary);
+  border-color: var(--border-light);
+}
+
+/* ── CONNECTION CARDS ── */
+.conn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 900px) { .conn-grid { grid-template-columns: 1fr; } }
+
+.conn-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.conn-card:hover {
+  border-color: var(--border-light);
+  background: var(--bg-card-hover);
+}
+.conn-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.conn-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.conn-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.conn-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: dotPulse 2s ease-in-out infinite;
+}
+.status-dot.green { background: var(--green); }
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.conn-status.connected { color: var(--green); }
+
+.conn-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.detail-label { color: var(--text-muted); }
+.detail-value { color: var(--text-secondary); font-weight: 500; }
+
+/* Direction badge */
+.direction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--accent-blue);
+  background: var(--accent-blue-dim);
+}
+
+/* Warning text */
+.warning-text {
+  font-size: 11px;
+  color: var(--amber);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.warning-text::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--amber-dim);
+  color: var(--amber);
+  border-radius: 50%;
+}
+
+/* ── HEALTH BAR ── */
+.health-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.health-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.health-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.health-bar-fill.green { background: var(--green); }
+.health-bar-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── ACTIVITY LOG ── */
+.activity-list {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.activity-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s ease;
+}
+.activity-row:last-child { border-bottom: none; }
+.activity-row:hover { background: var(--bg-card-hover); }
+.activity-row.hidden { display: none; }
+
+.event-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.event-dot.success { background: var(--green); }
+.event-dot.error { background: var(--red); }
+
+.system-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  min-width: 72px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.badge-salesforce { color: #00a1e0; background: rgba(0,161,224,0.12); }
+.badge-drive { color: var(--amber); background: var(--amber-dim); }
+.badge-s3 { color: var(--teal); background: var(--teal-dim); }
+
+.event-desc {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.event-desc strong {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.event-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.event-status.success { color: var(--green); background: var(--green-dim); }
+.event-status.error { color: var(--red); background: var(--red-dim); }
+
+.event-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 56px;
+  text-align: right;
+}
+
+.event-actions { flex-shrink: 0; }
+
+/* ── SYNC RULES ── */
+.rules-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.rules-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  user-select: none;
+}
+.rules-header:hover { background: var(--bg-card-hover); }
+.rules-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rules-chevron {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.rules-chevron.open { transform: rotate(90deg); }
+.rules-body {
+  display: none;
+  padding: 0 18px 18px;
+}
+.rules-body.open { display: block; }
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 700px) { .rules-grid { grid-template-columns: 1fr; } }
+
+.rule-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.rule-content { flex: 1; }
+.rule-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.rule-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ── TOGGLE SWITCH ── */
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  top: 2px;
+  left: 2px;
+  transition: all 0.2s ease;
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--accent-blue-dim);
+  border-color: var(--accent-blue);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  background: var(--accent-blue);
+  transform: translateX(16px);
+}
+
+/* ── FLASH ANIMATION ── */
+@keyframes refreshFlash {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+.flash { animation: refreshFlash 0.4s ease; }
+
+/* ── TOAST ── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  font-size: 13px;
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastIn 0.25s ease-out;
+  min-width: 260px;
+}
+.toast.exit { animation: toastOut 0.2s ease-in forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
+.toast-icon { font-size: 16px; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-title">Sync Status</div>
+  <div class="toolbar-sep"></div>
+  <span class="toolbar-muted" id="lastRefresh">Last refresh: 2m ago</span>
+  <div class="toolbar-spacer"></div>
+  <button class="btn btn-outline" id="refreshBtn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    Refresh
+  </button>
+  <button class="btn btn-outline">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Sync Settings
+  </button>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+  <!-- ROW 1: CONNECTION STATUS CARDS -->
+  <section>
+    <div class="section-header">
+      <span class="section-title">Connections</span>
+      <span class="count-badge">3 active</span>
+    </div>
+    <div class="conn-grid" id="connCards">
+      <!-- Salesforce -->
+      <div class="conn-card">
+        <div class="conn-card-header">
+          <div class="conn-icon">&#9729;</div>
+          <div>
+            <div class="conn-name">Salesforce</div>
+            <div class="conn-status connected"><span class="status-dot green"></span> Connected</div>
+          </div>
+        </div>
+        <div class="conn-details">
+          <div class="detail-row">
+            <span class="detail-label">Last Sync</span>
+            <span class="detail-value">12m ago</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Records synced</span>
+            <span class="detail-value">342 / 342</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Direction</span>
+            <span class="direction-badge">Bidirectional &#8596;</span>
+          </div>
+        </div>
+        <div class="health-bar-container">
+          <div class="health-bar"><div class="health-bar-fill green" style="width:100%"></div></div>
+          <span class="health-bar-pct">100%</span>
+        </div>
+      </div>
+
+      <!-- Google Drive -->
+      <div class="conn-card">
+        <div class="conn-card-header">
+          <div class="conn-icon">&#128193;</div>
+          <div>
+            <div class="conn-name">Google Drive</div>
+            <div class="conn-status connected"><span class="status-dot green"></span> Connected</div>
+          </div>
+        </div>
+        <div class="conn-details">
+          <div class="detail-row">
+            <span class="detail-label">Last Sync</span>
+            <span class="detail-value">5m ago</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Files synced</span>
+            <span class="detail-value">128 / 130</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Direction</span>
+            <span class="direction-badge">Pull &#8592;</span>
+          </div>
+        </div>
+        <div class="health-bar-container">
+          <div class="health-bar"><div class="health-bar-fill green" style="width:98%"></div></div>
+          <span class="health-bar-pct">98%</span>
+        </div>
+        <div class="warning-text">2 files pending re-upload</div>
+      </div>
+
+      <!-- Amazon S3 -->
+      <div class="conn-card">
+        <div class="conn-card-header">
+          <div class="conn-icon">&#128452;</div>
+          <div>
+            <div class="conn-name">Amazon S3</div>
+            <div class="conn-status connected"><span class="status-dot green"></span> Connected</div>
+          </div>
+        </div>
+        <div class="conn-details">
+          <div class="detail-row">
+            <span class="detail-label">Last Sync</span>
+            <span class="detail-value">1h ago</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Objects synced</span>
+            <span class="detail-value">89 / 89</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Direction</span>
+            <span class="direction-badge">Push &#8594;</span>
+          </div>
+        </div>
+        <div class="health-bar-container">
+          <div class="health-bar"><div class="health-bar-fill green" style="width:100%"></div></div>
+          <span class="health-bar-pct">100%</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROW 2: SYNC ACTIVITY LOG -->
+  <section>
+    <div class="section-header">
+      <span class="section-title">Sync Activity</span>
+      <div class="filter-pills">
+        <span class="pill active" data-filter="all">All</span>
+        <span class="pill" data-filter="salesforce">Salesforce</span>
+        <span class="pill" data-filter="drive">Drive</span>
+        <span class="pill" data-filter="s3">S3</span>
+      </div>
+    </div>
+    <div class="activity-list" id="activityLog">
+      <!-- Row 1 -->
+      <div class="activity-row" data-system="salesforce">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-salesforce">Salesforce</span>
+        <span class="event-desc">Synced <strong>henderson-msa</strong> fields (14 fields)</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">2m ago</span>
+        <span class="event-actions"></span>
+      </div>
+      <!-- Row 2 -->
+      <div class="activity-row" data-system="drive">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-drive">Drive</span>
+        <span class="event-desc">Pulled <strong>sony-dist-2024.pdf</strong> (2.4 MB)</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">5m ago</span>
+        <span class="event-actions"></span>
+      </div>
+      <!-- Row 3 -->
+      <div class="activity-row" data-system="salesforce">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-salesforce">Salesforce</span>
+        <span class="event-desc">Synced <strong>warner-amendment</strong> fields (8 fields)</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">12m ago</span>
+        <span class="event-actions"></span>
+      </div>
+      <!-- Row 4: ERROR -->
+      <div class="activity-row" data-system="drive">
+        <span class="event-dot error"></span>
+        <span class="system-badge badge-drive">Drive</span>
+        <span class="event-desc">Pull failed: <strong>the-theorist-v2.pdf</strong></span>
+        <span class="event-status error">&#10007; Error (retry in 5m)</span>
+        <span class="event-time">18m ago</span>
+        <span class="event-actions">
+          <button class="btn-retry" onclick="retrySync(this)">Retry</button>
+        </span>
+      </div>
+      <!-- Row 5 -->
+      <div class="activity-row" data-system="s3">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-s3">S3</span>
+        <span class="event-desc">Pushed <strong>atlantic-mgmt</strong> export (3.1 MB)</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">25m ago</span>
+        <span class="event-actions"></span>
+      </div>
+      <!-- Row 6 -->
+      <div class="activity-row" data-system="salesforce">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-salesforce">Salesforce</span>
+        <span class="event-desc">Bulk sync: 12 vaults, 168 fields</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">1h ago</span>
+        <span class="event-actions"></span>
+      </div>
+      <!-- Row 7 -->
+      <div class="activity-row" data-system="s3">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-s3">S3</span>
+        <span class="event-desc">Pushed <strong>henderson-msa</strong> export (2.8 MB)</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">1h 15m</span>
+        <span class="event-actions"></span>
+      </div>
+      <!-- Row 8 -->
+      <div class="activity-row" data-system="drive">
+        <span class="event-dot success"></span>
+        <span class="system-badge badge-drive">Drive</span>
+        <span class="event-desc">Pulled 4 new documents</span>
+        <span class="event-status success">&#10003; Success</span>
+        <span class="event-time">2h ago</span>
+        <span class="event-actions"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROW 3: SYNC RULES -->
+  <section>
+    <div class="rules-section">
+      <div class="rules-header" id="rulesToggle">
+        <div class="rules-header-left">
+          <span class="rules-chevron open" id="rulesChevron">&#9654;</span>
+          <span class="section-title" style="margin-bottom:0">Active Sync Rules</span>
+          <span class="count-badge">4 rules</span>
+        </div>
+      </div>
+      <div class="rules-body open" id="rulesBody">
+        <div class="rules-grid">
+          <!-- Rule 1 -->
+          <div class="rule-card">
+            <div class="rule-content">
+              <div class="rule-title">Auto-sync on vault ship</div>
+              <div class="rule-desc">When vault reaches SHIP chamber, push to Salesforce</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <!-- Rule 2 -->
+          <div class="rule-card">
+            <div class="rule-content">
+              <div class="rule-title">Daily document pull</div>
+              <div class="rule-desc">Pull new docs from Drive every 24h</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <!-- Rule 3 -->
+          <div class="rule-card">
+            <div class="rule-content">
+              <div class="rule-title">Export to S3 on approval</div>
+              <div class="rule-desc">Push exports to S3 when admin-approved</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <!-- Rule 4 -->
+          <div class="rule-card">
+            <div class="rule-content">
+              <div class="rule-title">Field update sync</div>
+              <div class="rule-desc">Sync field changes to Salesforce within 15m</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ── THEME SUPPORT ── */
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('theme') === 'airlock') {
+    document.documentElement.setAttribute('data-theme', 'airlock');
+  }
+})();
+
+/* ── FILTER PILLS ── */
+document.querySelectorAll('.pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    const filter = pill.dataset.filter;
+    document.querySelectorAll('.activity-row').forEach(row => {
+      if (filter === 'all' || row.dataset.system === filter) {
+        row.classList.remove('hidden');
+      } else {
+        row.classList.add('hidden');
+      }
+    });
+  });
+});
+
+/* ── REFRESH BUTTON ── */
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  const cards = document.getElementById('connCards');
+  const log = document.getElementById('activityLog');
+  cards.classList.add('flash');
+  log.classList.add('flash');
+  document.getElementById('lastRefresh').textContent = 'Last refresh: just now';
+  showToast('Sync status refreshed', 'check');
+  setTimeout(() => {
+    cards.classList.remove('flash');
+    log.classList.remove('flash');
+  }, 400);
+});
+
+/* ── RULES COLLAPSE ── */
+document.getElementById('rulesToggle').addEventListener('click', () => {
+  const body = document.getElementById('rulesBody');
+  const chevron = document.getElementById('rulesChevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+});
+
+/* ── RETRY SYNC ── */
+function retrySync(btn) {
+  const row = btn.closest('.activity-row');
+  const dot = row.querySelector('.event-dot');
+  const statusEl = row.querySelector('.event-status');
+  btn.textContent = 'Retrying...';
+  btn.disabled = true;
+  setTimeout(() => {
+    dot.classList.remove('error');
+    dot.classList.add('success');
+    statusEl.classList.remove('error');
+    statusEl.classList.add('success');
+    statusEl.innerHTML = '&#10003; Success';
+    btn.remove();
+    showToast('Retry successful: the-theorist-v2.pdf synced', 'check');
+  }, 1500);
+}
+
+/* ── TOGGLE SWITCHES ── */
+document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+  toggle.addEventListener('change', () => {
+    const ruleTitle = toggle.closest('.rule-card').querySelector('.rule-title').textContent;
+    const state = toggle.checked ? 'enabled' : 'disabled';
+    showToast('Rule ' + state + ': ' + ruleTitle, toggle.checked ? 'check' : 'info');
+  });
+});
+
+/* ── TOASTS ── */
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  let icon = '';
+  if (type === 'check') icon = '<span class="toast-icon" style="color:var(--green)">&#10003;</span>';
+  else if (type === 'info') icon = '<span class="toast-icon" style="color:var(--text-muted)">&#9679;</span>';
+  toast.innerHTML = icon + '<span>' + message + '</span>';
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('exit');
+    setTimeout(() => toast.remove(), 200);
+  }, 3000);
+}
+</script>
+</body>
+</html>

@@ -251,9 +251,9 @@ For fuzzy matching: `pg_trgm` extension with `similarity()` function.
 
 ---
 
-## Search Indexing Engine — Brainstorm
+## Search Indexing Engine
 
-> **Status:** BRAINSTORM — Evaluating a dedicated search index engine to replace client-side Fuse.js and server-side pg_trgm for cross-platform search.
+> MeiliSearch as a dedicated search index for cross-module instant search with badges, typo tolerance, and federated multi-index queries. PostgreSQL remains source of truth; MeiliSearch syncs via BullMQ on INSERT/UPDATE triggers.
 
 ### Why Upgrade Beyond pg_trgm
 
@@ -369,6 +369,174 @@ GET /api/search
 }
 ```
 
+### MeiliSearch Deployment
+
+| Property | Value |
+|----------|-------|
+| **Deployment model** | Docker sidecar alongside Airlock API (single instance) |
+| **Docker image** | `getmeili/meilisearch:v1.x` (latest stable) |
+| **Port** | 7700 (internal only, not exposed to public) |
+| **Storage** | Persistent volume for index data (`meili_data:/meili_data`) |
+| **Memory** | 128 MB minimum, 512 MB recommended for <100K docs |
+| **Master key** | `MEILI_MASTER_KEY` env var (required in production) |
+| **API key scoping** | Search-only key for frontend, admin key for indexing worker |
+
+**Docker Compose addition:**
+
+```yaml
+meilisearch:
+  image: getmeili/meilisearch:v1.12
+  ports:
+    - "7700:7700"
+  volumes:
+    - meili_data:/meili_data
+  environment:
+    MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+    MEILI_ENV: ${MEILI_ENV:-development}
+    MEILI_DB_PATH: /meili_data
+    MEILI_MAX_INDEXING_MEMORY: 256MiB
+```
+
+**Scaling:** Single instance handles <1M documents. If Airlock grows beyond that, evaluate Typesense (better clustering) or Elasticsearch. Current architecture abstracts MeiliSearch behind the `/api/search` endpoint — swapping engines only changes the backend adapter, not the frontend.
+
+---
+
+### Sync Latency & Consistency
+
+| Scenario | Target Latency | Mechanism |
+|----------|---------------|-----------|
+| **New vault created** | < 2 seconds | pg_notify → BullMQ → MeiliSearch push |
+| **Vault renamed** | < 2 seconds | Same pipeline |
+| **Task updated** | < 2 seconds | Same pipeline |
+| **Document text extracted** | < 5 seconds | Extraction complete event → indexing job |
+| **Bulk import (100+ vaults)** | < 30 seconds | Batch indexing job (1,000 docs/batch) |
+| **Full reindex** | < 5 minutes (100K docs) | Background job, non-blocking |
+
+**Consistency model:** Eventually consistent. MeiliSearch is a read replica — PostgreSQL is always the source of truth. If a search result links to a deleted record, the API returns a 404 and the search index removes the stale entry.
+
+**Stale result handling:**
+- Search results include `indexed_at` timestamp
+- Results older than 10 minutes show a subtle "may be outdated" indicator
+- Click on stale result → API re-fetches from PostgreSQL → updates MeiliSearch → returns fresh data
+
+---
+
+### Bulk Reindex Job
+
+For initial setup, recovery, or schema changes:
+
+```python
+async def bulk_reindex(index_name: str, batch_size: int = 1000):
+    """Reindex all records for a given index from PostgreSQL."""
+    table = INDEX_TO_TABLE[index_name]
+    offset = 0
+    total = 0
+
+    while True:
+        rows = await db.fetch(
+            f"SELECT * FROM {table} ORDER BY id LIMIT $1 OFFSET $2",
+            batch_size, offset
+        )
+        if not rows:
+            break
+
+        documents = [transform_for_index(index_name, row) for row in rows]
+        await meilisearch.index(index_name).add_documents(documents)
+        total += len(documents)
+        offset += batch_size
+
+    return {"index": index_name, "total_indexed": total}
+```
+
+**Triggers for bulk reindex:**
+- First deployment (no index exists)
+- Index schema change (new fields added to index)
+- Data recovery after MeiliSearch restart with empty volume
+- Admin action from Feature Control Plane
+
+**Progress tracking:** BullMQ job emits progress events → Admin module shows "Reindexing: 45,000 / 100,000 docs (45%)" in Feature Control Plane.
+
+---
+
+### Role-Based Search Visibility
+
+Search results are filtered by the user's effective permissions. MeiliSearch does not enforce RBAC — the API filters results after fetching.
+
+| Permission Required | What It Unlocks in Search |
+|--------------------|--------------------------|
+| `view_vaults` | Vault results for that module |
+| `view_tasks` | Task results |
+| `view_extraction` | Document and extraction result snippets |
+| `view_audit_log` | Event results |
+| `manage_members` | Full member search (non-admins see limited member info) |
+
+**Implementation:**
+
+```python
+async def search(query, user, workspace_id, module=None):
+    # 1. Get user's effective permissions
+    perms = compute_effective_permissions(user.id, workspace_id)
+
+    # 2. Determine which indices to query
+    allowed_indices = []
+    if 'view_vaults' in perms:
+        allowed_indices.append('vaults')
+    if 'view_tasks' in perms:
+        allowed_indices.append('tasks')
+    # ... etc.
+
+    # 3. Query MeiliSearch with federated search
+    results = await meilisearch.multi_search(
+        queries=[{"indexUid": idx, "q": query, "limit": 5}
+                 for idx in allowed_indices]
+    )
+
+    # 4. Post-filter: remove vaults user doesn't have channel access to
+    filtered = filter_by_channel_access(results, user, workspace_id)
+
+    return format_with_badges(filtered)
+```
+
+**Channel-level filtering:** Even if a user has `view_vaults`, they may not have access to specific vaults (channel-level deny overrides). The API checks channel membership before returning results.
+
+---
+
+### Graceful Degradation
+
+| MeiliSearch State | Behavior |
+|-------------------|----------|
+| **Healthy** | Full federated search across all indices |
+| **Slow (>500ms)** | Log warning, continue with results |
+| **Down** | Fall back to PostgreSQL `tsvector` + `pg_trgm` search |
+| **Empty index** | Fall back to PostgreSQL, trigger background reindex job |
+| **Disabled via feature flag** | Always use PostgreSQL fallback |
+
+**Fallback detection:** Health check every 30 seconds via `GET /health` on MeiliSearch. If 3 consecutive failures, switch to fallback mode. Auto-recovery: resume MeiliSearch when health check succeeds.
+
+**Feature Control Plane integration:**
+
+| Capability | Parameter |
+|------------|-----------|
+| Toggle | `search.meilisearch.enabled` (disable falls back to pg_trgm) |
+| Health endpoint | `search.meilisearch.health_url` (default: `http://meilisearch:7700/health`) |
+| Reindex trigger | `search.meilisearch.reindex` (admin action button) |
+| Sync lag alert | `search.meilisearch.max_sync_lag_seconds` (default: 10, alerts in FCP) |
+
+---
+
+### Search Quality Monitoring
+
+| Metric | How Measured | Alert Threshold |
+|--------|-------------|-----------------|
+| **Query latency (p50)** | MeiliSearch response time | > 100ms |
+| **Query latency (p99)** | MeiliSearch response time | > 500ms |
+| **Index sync lag** | Time between pg_notify and MeiliSearch document update | > 10 seconds |
+| **Zero-result rate** | % of queries returning 0 results | > 30% |
+| **Click-through rate** | % of search results that user navigates to | < 20% (indicates poor relevance) |
+| **Index size** | Total documents across all indices | Informational |
+
+**Improvement loop:** High zero-result rate or low CTR triggers review of index field configuration (add more fields, adjust search weights, update synonyms).
+
 ---
 
 ## Related Specs
@@ -376,3 +544,5 @@ GET /api/search
 - **[Shell / Naming](../Shell/naming-and-hierarchy.md)** — Cmd+K is a shell-level feature, not module-specific.
 - **[Universal Task System](../TaskSystem/overview.md)** — Tasks are a searchable category.
 - **[Roles & Permissions](../Roles/overview.md)** — Search results filtered by role.
+- **[Feature Control Plane](../FeatureControlPlane/overview.md)** — MeiliSearch health, toggle, reindex controls.
+- **[Toolbar Actions](../Shell/toolbar-actions.md)** — New Cmd+K slash commands for meetings, events, contacts, deals.

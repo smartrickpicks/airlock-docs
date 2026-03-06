@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — My Tasks</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .mine-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+      background: var(--bg-panel);
+    }
+
+    .toolbar-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--border-light);
+      flex-shrink: 0;
+    }
+
+    .user-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px 4px 4px;
+      border-radius: 20px;
+      background: var(--accent-blue-dim);
+      border: 1px solid rgba(0,145,234,0.25);
+    }
+
+    .user-indicator .avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .user-indicator .user-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-blue);
+      white-space: nowrap;
+    }
+
+    .viewing-as-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .viewing-as-pill .va-label {
+      font-weight: 400;
+    }
+
+    .viewing-as-pill .va-name {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-dropdown {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .toolbar-dropdown:hover {
+      border-color: var(--accent-blue);
+      color: var(--text-primary);
+    }
+
+    .toolbar-dropdown .label {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .toolbar-dropdown .value {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .toolbar-dropdown svg {
+      width: 12px;
+      height: 12px;
+      opacity: 0.5;
+    }
+
+    .btn-new-task {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+
+    .btn-new-task:hover {
+      opacity: 0.85;
+    }
+
+    .btn-new-task svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ===== Stats Strip ===== */
+    .stats-strip {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-darkest);
+      flex-shrink: 0;
+    }
+
+    .stat-item {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-item .stat-value {
+      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .stat-item.assigned .stat-value { color: var(--accent-blue); }
+    .stat-item.blocker .stat-value { color: var(--red); }
+    .stat-item.in-review .stat-value { color: var(--purple); }
+
+    .stat-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--border-light);
+      margin: 0 6px;
+    }
+
+    /* ===== Section Header ===== */
+    .section-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      gap: 8px;
+      background: var(--bg-darkest);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .section-header .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+
+    .section-header .section-count {
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 1px 7px;
+      border-radius: 10px;
+    }
+
+    /* ===== Table Container ===== */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: auto;
+    }
+
+    .table-container::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .table-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .table-container::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* ===== Task Table ===== */
+    .task-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+
+    .task-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .task-table th {
+      padding: 8px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      text-align: left;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      transition: color 0.15s;
+    }
+
+    .task-table th:hover {
+      color: var(--text-secondary);
+    }
+
+    .task-table th.sorted {
+      color: var(--accent-blue);
+    }
+
+    .task-table th .sort-icon {
+      display: inline-block;
+      margin-left: 4px;
+      opacity: 0;
+      font-size: 10px;
+      transition: opacity 0.15s;
+    }
+
+    .task-table th:hover .sort-icon,
+    .task-table th.sorted .sort-icon {
+      opacity: 1;
+    }
+
+    .task-table th:first-child { padding-left: 20px; width: 60px; }
+    .task-table td:first-child { padding-left: 20px; }
+
+    .task-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s ease;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .task-table tbody tr:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .task-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .task-table td {
+      padding: 10px 16px;
+      font-size: 13px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    /* Priority Column */
+    .priority-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .priority-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .priority-dot.blocker {
+      background: var(--red);
+      box-shadow: 0 0 6px rgba(244,67,54,0.5);
+    }
+
+    .priority-dot.warning {
+      background: var(--amber);
+      box-shadow: 0 0 6px rgba(255,152,0,0.35);
+    }
+
+    .priority-dot.info {
+      background: var(--accent-blue);
+    }
+
+    /* Title Column */
+    .task-title {
+      font-weight: 500;
+      color: var(--text-primary);
+      max-width: 380px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-table tbody tr:hover .task-title {
+      color: var(--accent-blue);
+    }
+
+    /* Module Badge */
+    .module-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .module-badge.contracts {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .module-badge.crm {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .module-badge.tasks {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    .module-badge.calendar {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    /* Vault */
+    .vault-text {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .status-badge.open {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .status-badge.in-progress {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .status-badge.in-review {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    .status-badge.resolved {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    /* Due */
+    .due-text {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .due-text.overdue {
+      color: var(--red);
+      font-weight: 600;
+    }
+
+    .due-text.soon {
+      color: var(--amber);
+    }
+
+    .due-text.normal {
+      color: var(--text-muted);
+    }
+
+    .due-text.none {
+      color: var(--text-muted);
+      font-family: inherit;
+      font-style: italic;
+    }
+
+    /* ===== Resolved Section ===== */
+    .resolved-section {
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .resolved-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      gap: 8px;
+      background: var(--bg-darkest);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.1s;
+    }
+
+    .resolved-header:hover {
+      background: var(--bg-card);
+    }
+
+    .resolved-toggle {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .resolved-toggle.expanded {
+      transform: rotate(90deg);
+    }
+
+    .resolved-toggle svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .resolved-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+
+    .resolved-count {
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--green);
+      background: var(--green-dim);
+      padding: 1px 7px;
+      border-radius: 10px;
+    }
+
+    .resolved-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s ease;
+    }
+
+    .resolved-body.expanded {
+      max-height: 400px;
+    }
+
+    .resolved-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+
+    .resolved-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s ease;
+      border-bottom: 1px solid var(--border);
+      opacity: 0.7;
+    }
+
+    .resolved-table tbody tr:hover {
+      background: var(--bg-card-hover);
+      opacity: 1;
+    }
+
+    .resolved-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .resolved-table td {
+      padding: 9px 16px;
+      font-size: 13px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .resolved-table td:first-child { padding-left: 20px; width: 60px; }
+
+    .resolved-table .task-title {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .resolved-table tbody tr:hover .task-title {
+      color: var(--accent-blue);
+      text-decoration: line-through;
+    }
+
+    /* ===== Completed Check ===== */
+    .check-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+    }
+
+    .check-icon svg {
+      width: 10px;
+      height: 10px;
+      color: var(--green);
+    }
+
+    /* ===== Footer ===== */
+    .table-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-darkest);
+      flex-shrink: 0;
+    }
+
+    .footer-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer-text .highlight {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* ===== Row Severity Accent ===== */
+    .task-table tbody tr.severity-blocker {
+      border-left: 2px solid var(--red);
+    }
+
+    /* ===== Empty State (for completeness) ===== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+
+    .empty-state svg {
+      width: 40px;
+      height: 40px;
+      opacity: 0.3;
+    }
+
+    .empty-state .empty-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .empty-state .empty-sub {
+      font-size: 12px;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 1100px) {
+      .task-title { max-width: 240px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mine-layout">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 8v4l3 3"/>
+      </svg>
+      <span class="toolbar-title">My Tasks</span>
+      <div class="toolbar-sep"></div>
+      <div class="user-indicator">
+        <div class="avatar" style="background:#0091ea">AC</div>
+        <span class="user-label">Ana Chen</span>
+      </div>
+      <div class="viewing-as-pill">
+        <span class="va-label">Viewing as:</span>
+        <span class="va-name">Ana Chen</span>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div class="toolbar-dropdown">
+        <span class="label">Group:</span>
+        <span class="value">Status</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <button class="btn-new-task">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New Task
+      </button>
+    </div>
+
+    <!-- Stats Strip -->
+    <div class="stats-strip">
+      <span class="stat-item assigned"><span class="stat-value">3</span> assigned</span>
+      <span class="stat-dot"></span>
+      <span class="stat-item blocker"><span class="stat-value">0</span> blockers</span>
+      <span class="stat-dot"></span>
+      <span class="stat-item in-review"><span class="stat-value">0</span> in review</span>
+    </div>
+
+    <!-- Active Tasks Section Header -->
+    <div class="section-header">
+      <span class="section-label">Active Tasks</span>
+      <span class="section-count">2</span>
+    </div>
+
+    <!-- Active Tasks Table -->
+    <div class="table-container">
+      <table class="task-table">
+        <thead>
+          <tr>
+            <th class="sorted">Priority <span class="sort-icon">&#9660;</span></th>
+            <th>Title <span class="sort-icon">&#9650;</span></th>
+            <th>Module <span class="sort-icon">&#9650;</span></th>
+            <th>Vault <span class="sort-icon">&#9650;</span></th>
+            <th>Status <span class="sort-icon">&#9650;</span></th>
+            <th>Due <span class="sort-icon">&#9650;</span></th>
+          </tr>
+        </thead>
+        <tbody id="activeTasksBody">
+          <!-- Rendered by JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Recently Completed (Collapsible) -->
+    <div class="resolved-section">
+      <div class="resolved-header" id="resolvedHeader">
+        <div class="resolved-toggle" id="resolvedToggle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <span class="resolved-label">Recently Completed</span>
+        <span class="resolved-count" id="resolvedCount">1</span>
+      </div>
+      <div class="resolved-body" id="resolvedBody">
+        <table class="resolved-table">
+          <tbody id="resolvedTasksBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="table-footer">
+      <span class="footer-text">Showing <span class="highlight">3</span> tasks assigned to <span class="highlight">Ana Chen</span></span>
+    </div>
+
+  </div>
+
+  <script>
+    /* ===== Theme Support ===== */
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') document.documentElement.setAttribute('data-theme', 'airlock');
+
+    /* ===== Ana Chen's Tasks ===== */
+    var ACTIVE_TASKS = [
+      { id: 't4',  title: 'OCR misread on page 4 of the-theorist',       module: 'contracts', severity: 'warning', status: 'open',        due: null,   dueClass: 'none',   vault: 'the-theorist' },
+      { id: 't9',  title: 'Entity disambiguation for warner-amendment',   module: 'contracts', severity: 'warning', status: 'in-progress', due: '6h',   dueClass: 'normal', vault: 'warner-amendment' }
+    ];
+
+    var RESOLVED_TASKS = [
+      { id: 't15', title: 'Sony Amendment #1 shipped successfully',       module: 'contracts', severity: 'info',    status: 'resolved',    due: null,   dueClass: 'none',   vault: 'sony-amendment-1' }
+    ];
+
+    /* ===== Render Helpers ===== */
+    function statusLabel(s) {
+      if (s === 'open') return 'Open';
+      if (s === 'in-progress') return 'In Progress';
+      if (s === 'in-review') return 'In Review';
+      if (s === 'resolved') return 'Resolved';
+      return s;
+    }
+
+    function moduleLabel(m) {
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    }
+
+    function renderDue(task) {
+      if (!task.due) return '<span class="due-text none">&mdash;</span>';
+      return '<span class="due-text ' + task.dueClass + '">' + task.due + '</span>';
+    }
+
+    function renderActiveRow(task) {
+      var severityRow = task.severity === 'blocker' ? 'severity-blocker' : '';
+      return '<tr class="' + severityRow + '" data-id="' + task.id + '">' +
+        '<td><div class="priority-cell"><span class="priority-dot ' + task.severity + '"></span></div></td>' +
+        '<td><span class="task-title">' + task.title + '</span></td>' +
+        '<td><span class="module-badge ' + task.module + '">' + moduleLabel(task.module) + '</span></td>' +
+        '<td><span class="vault-text">' + task.vault + '</span></td>' +
+        '<td><span class="status-badge ' + task.status + '">' + statusLabel(task.status) + '</span></td>' +
+        '<td>' + renderDue(task) + '</td>' +
+      '</tr>';
+    }
+
+    function renderResolvedRow(task) {
+      return '<tr data-id="' + task.id + '">' +
+        '<td><div class="check-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div></td>' +
+        '<td><span class="task-title">' + task.title + '</span></td>' +
+        '<td><span class="module-badge ' + task.module + '">' + moduleLabel(task.module) + '</span></td>' +
+        '<td><span class="vault-text">' + task.vault + '</span></td>' +
+        '<td><span class="status-badge resolved">' + statusLabel(task.status) + '</span></td>' +
+        '<td><span class="due-text none">&mdash;</span></td>' +
+      '</tr>';
+    }
+
+    /* ===== Render ===== */
+    function render() {
+      document.getElementById('activeTasksBody').innerHTML = ACTIVE_TASKS.map(renderActiveRow).join('');
+      document.getElementById('resolvedTasksBody').innerHTML = RESOLVED_TASKS.map(renderResolvedRow).join('');
+      document.getElementById('resolvedCount').textContent = RESOLVED_TASKS.length;
+    }
+
+    /* ===== Collapsible Resolved Section ===== */
+    var resolvedHeader = document.getElementById('resolvedHeader');
+    var resolvedBody = document.getElementById('resolvedBody');
+    var resolvedToggle = document.getElementById('resolvedToggle');
+
+    resolvedHeader.addEventListener('click', function() {
+      var isExpanded = resolvedBody.classList.contains('expanded');
+      if (isExpanded) {
+        resolvedBody.classList.remove('expanded');
+        resolvedToggle.classList.remove('expanded');
+      } else {
+        resolvedBody.classList.add('expanded');
+        resolvedToggle.classList.add('expanded');
+      }
+    });
+
+    /* ===== Column Sort (visual indicator) ===== */
+    var ths = document.querySelectorAll('.task-table th');
+    ths.forEach(function(th) {
+      th.addEventListener('click', function() {
+        ths.forEach(function(t) { t.classList.remove('sorted'); });
+        th.classList.add('sorted');
+      });
+    });
+
+    /* ===== Init ===== */
+    render();
+  </script>
+</body>
+</html>

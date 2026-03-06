@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM Expansion Opportunities</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .expansion-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .expansion-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-icon {
+      font-size: 18px;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toolbar-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-btn {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-blue);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.12s;
+    }
+
+    .toolbar-btn:hover { opacity: 0.9; }
+
+    /* ===== Summary Cards ===== */
+    .summary-strip {
+      display: flex;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .summary-card {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+
+    .summary-card:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .summary-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: var(--mono);
+    }
+
+    .summary-value.blue { color: var(--accent-blue); }
+    .summary-value.green { color: var(--green); }
+    .summary-value.amber { color: var(--amber); }
+    .summary-value.teal { color: var(--teal); }
+    .summary-value.purple { color: var(--purple); }
+
+    .summary-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Table ===== */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    th {
+      padding: 8px 16px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th:first-child { padding-left: 20px; }
+    th:last-child { padding-right: 20px; }
+
+    td {
+      padding: 12px 16px;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    td:first-child { padding-left: 20px; }
+    td:last-child { padding-right: 20px; }
+
+    tr.table-row {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    tr.table-row:hover {
+      background: var(--bg-card-hover);
+    }
+
+    tr.table-row.selected {
+      background: var(--bg-card);
+    }
+
+    .account-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .account-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .account-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Type badges */
+    .type-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .type-badge.upsell {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .type-badge.cross-sell {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .type-badge.upgrade {
+      background: var(--purple-dim);
+      color: var(--purple);
+    }
+
+    /* Value column */
+    .value-cell {
+      font-family: var(--mono);
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    /* Stage badges */
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .stage-badge.identified {
+      background: rgba(158,158,158,0.12);
+      color: #9e9e9e;
+    }
+
+    .stage-badge.proposed {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .stage-badge.negotiating {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .stage-badge.won {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .stage-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Owner */
+    .owner-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .owner-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .owner-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Actions */
+    .action-btn {
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.12s;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-secondary);
+      border-color: var(--border-light);
+    }
+
+    /* ===== Detail Panel (Slide-in) ===== */
+    .detail-overlay {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 400px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      z-index: 100;
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -8px 0 30px rgba(0,0,0,0.3);
+    }
+
+    .detail-overlay.open {
+      transform: translateX(0);
+    }
+
+    .detail-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 99;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .detail-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .detail-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .detail-close {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.12s;
+    }
+
+    .detail-close:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .detail-title {
+      font-size: 14px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .detail-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .detail-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .detail-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+    }
+
+    .detail-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .detail-value.mono {
+      font-family: var(--mono);
+    }
+
+    .detail-notes {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .detail-progress-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .detail-progress-bar {
+      height: 6px;
+      background: var(--bg-darkest);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .detail-progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    .detail-progress-labels {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .detail-progress-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: var(--text-muted);
+    }
+
+    .detail-progress-label.current {
+      color: var(--accent-blue);
+    }
+
+    .detail-actions {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .detail-btn-primary {
+      flex: 1;
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-blue);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .detail-btn-primary:hover { opacity: 0.9; }
+
+    .detail-btn-ghost {
+      padding: 8px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .detail-btn-ghost:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    /* ===== Scrollbar ===== */
+    .table-container::-webkit-scrollbar,
+    .detail-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .table-container::-webkit-scrollbar-track,
+    .detail-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .table-container::-webkit-scrollbar-thumb,
+    .detail-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .table-container::-webkit-scrollbar-thumb:hover,
+    .detail-body::-webkit-scrollbar-thumb:hover {
+      background: var(--border-light);
+    }
+  </style>
+</head>
+<body>
+  <div class="expansion-layout">
+    <!-- Toolbar -->
+    <div class="expansion-toolbar">
+      <span class="toolbar-icon">&#128200;</span>
+      <div>
+        <div class="toolbar-title">Expansion Opportunities</div>
+        <div class="toolbar-subtitle">Track upsell, cross-sell, and upgrade opportunities</div>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <button class="toolbar-btn">+ New Opportunity</button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-strip">
+      <div class="summary-card">
+        <div class="summary-label">Total Pipeline</div>
+        <div class="summary-value blue">$520K</div>
+        <div class="summary-sub">Active expansion value</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Active Opportunities</div>
+        <div class="summary-value amber">6</div>
+        <div class="summary-sub">Across all accounts</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Avg Expansion Value</div>
+        <div class="summary-value teal">$87K</div>
+        <div class="summary-sub">Per opportunity</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Success Rate</div>
+        <div class="summary-value green">45%</div>
+        <div class="summary-sub">Expansion close rate</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Stage</th>
+            <th>Owner</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- Rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="detail-backdrop" id="detailBackdrop"></div>
+  <div class="detail-overlay" id="detailPanel">
+    <div class="detail-header">
+      <button class="detail-close" id="detailClose">&times;</button>
+      <div class="detail-title" id="detailTitle">Opportunity Detail</div>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <!-- Filled by JS -->
+    </div>
+    <div class="detail-actions">
+      <button class="detail-btn-primary">Advance Stage</button>
+      <button class="detail-btn-ghost">Edit</button>
+      <button class="detail-btn-ghost">Activity Log</button>
+    </div>
+  </div>
+
+  <script>
+    // ===== Theme =====
+    (function applyTheme() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('theme') === 'airlock') {
+        document.documentElement.setAttribute('data-theme', 'airlock');
+      }
+    })();
+
+    // ===== Data =====
+    const opportunities = [
+      {
+        id: 1,
+        account: 'Acme Inc',
+        accountSub: 'Enterprise customer since 2024',
+        type: 'upsell',
+        typeLabel: 'Upsell',
+        value: 85000,
+        stage: 'proposed',
+        stageLabel: 'Proposed',
+        owner: 'Ana Chen',
+        ownerInitials: 'AC',
+        created: 'Feb 15, 2026',
+        notes: 'Acme is interested in expanding their current distribution agreement to include digital-first territories. They are evaluating budget allocation for Q2.',
+        stageProgress: 50
+      },
+      {
+        id: 2,
+        account: 'Summit Media',
+        accountSub: 'Licensing client, 3 active vaults',
+        type: 'cross-sell',
+        typeLabel: 'Cross-sell',
+        value: 120000,
+        stage: 'negotiating',
+        stageLabel: 'Negotiating',
+        owner: 'Sarah Miller',
+        ownerInitials: 'SM',
+        created: 'Jan 20, 2026',
+        notes: 'Summit currently uses licensing services only. Proposal to add sync licensing and publishing management submitted. Active negotiation on bundled pricing.',
+        stageProgress: 75
+      },
+      {
+        id: 3,
+        account: 'Ostereo Music Group',
+        accountSub: 'Won distribution deal in Q1',
+        type: 'upgrade',
+        typeLabel: 'Upgrade',
+        value: 65000,
+        stage: 'identified',
+        stageLabel: 'Identified',
+        owner: 'David Park',
+        ownerInitials: 'DP',
+        created: 'Mar 1, 2026',
+        notes: 'Recently closed distribution agreement. Opportunity to upgrade to premium tier with analytics dashboard and priority support. Needs champion alignment.',
+        stageProgress: 25
+      },
+      {
+        id: 4,
+        account: 'Nova Entertainment',
+        accountSub: 'Film division, 2 master agreements',
+        type: 'upsell',
+        typeLabel: 'Upsell',
+        value: 95000,
+        stage: 'proposed',
+        stageLabel: 'Proposed',
+        owner: 'Sarah Miller',
+        ownerInitials: 'SM',
+        created: 'Feb 28, 2026',
+        notes: 'Nova wants to extend their master agreements to cover international territories. Proposal sent for review by their legal team. Follow-up scheduled March 12.',
+        stageProgress: 50
+      },
+      {
+        id: 5,
+        account: 'Horizon Records',
+        accountSub: 'New account, onboarded Jan 2026',
+        type: 'cross-sell',
+        typeLabel: 'Cross-sell',
+        value: 75000,
+        stage: 'identified',
+        stageLabel: 'Identified',
+        owner: 'Marcus Webb',
+        ownerInitials: 'MW',
+        created: 'Mar 3, 2026',
+        notes: 'Horizon currently uses contract management only. Early-stage exploration for adding CRM and workflow automation. Initial discovery call completed.',
+        stageProgress: 25
+      },
+      {
+        id: 6,
+        account: 'TechFlow Inc',
+        accountSub: 'Cross-entertainment portfolio',
+        type: 'upgrade',
+        typeLabel: 'Upgrade',
+        value: 80000,
+        stage: 'won',
+        stageLabel: 'Won',
+        owner: 'Ana Chen',
+        ownerInitials: 'AC',
+        created: 'Jan 10, 2026',
+        notes: 'Successfully upgraded from Standard to Enterprise tier. Includes advanced workflow automation, priority support, and dedicated account management. Closed Jan 28.',
+        stageProgress: 100
+      }
+    ];
+
+    // ===== Formatting =====
+    function formatValue(v) {
+      if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
+      if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
+      return '$' + v;
+    }
+
+    // ===== Render Table =====
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = opportunities.map(opp => `
+        <tr class="table-row" data-id="${opp.id}">
+          <td>
+            <div class="account-cell">
+              <div class="account-name">${opp.account}</div>
+              <div class="account-sub">${opp.accountSub}</div>
+            </div>
+          </td>
+          <td><span class="type-badge ${opp.type}">${opp.typeLabel}</span></td>
+          <td><span class="value-cell">${formatValue(opp.value)}</span></td>
+          <td><span class="stage-badge ${opp.stage}"><span class="stage-dot"></span>${opp.stageLabel}</span></td>
+          <td>
+            <div class="owner-cell">
+              <div class="owner-avatar">${opp.ownerInitials}</div>
+              <div class="owner-name">${opp.owner}</div>
+            </div>
+          </td>
+          <td style="color:var(--text-secondary); font-size:12px;">${opp.created}</td>
+          <td><button class="action-btn" onclick="event.stopPropagation(); openDetail(${opp.id})">View</button></td>
+        </tr>
+      `).join('');
+
+      // Row click
+      tbody.querySelectorAll('.table-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const id = parseInt(row.dataset.id);
+          openDetail(id);
+        });
+      });
+    }
+
+    // ===== Detail Panel =====
+    const stages = ['identified', 'proposed', 'negotiating', 'won'];
+    const stageLabels = ['Identified', 'Proposed', 'Negotiating', 'Won'];
+
+    function getStageColor(stage) {
+      switch(stage) {
+        case 'identified': return '#9e9e9e';
+        case 'proposed': return 'var(--accent-blue)';
+        case 'negotiating': return 'var(--amber)';
+        case 'won': return 'var(--green)';
+        default: return 'var(--text-muted)';
+      }
+    }
+
+    function openDetail(id) {
+      const opp = opportunities.find(o => o.id === id);
+      if (!opp) return;
+
+      // Highlight selected row
+      document.querySelectorAll('.table-row').forEach(r => r.classList.remove('selected'));
+      const row = document.querySelector(`.table-row[data-id="${id}"]`);
+      if (row) row.classList.add('selected');
+
+      document.getElementById('detailTitle').textContent = opp.account + ' - ' + opp.typeLabel;
+
+      const currentIdx = stages.indexOf(opp.stage);
+
+      document.getElementById('detailBody').innerHTML = `
+        <div class="detail-section">
+          <div class="detail-section-title">Overview</div>
+          <div class="detail-row">
+            <span class="detail-label">Account</span>
+            <span class="detail-value">${opp.account}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Type</span>
+            <span class="type-badge ${opp.type}">${opp.typeLabel}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Value</span>
+            <span class="detail-value mono" style="color:var(--green)">${formatValue(opp.value)}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Owner</span>
+            <span class="detail-value">${opp.owner}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Created</span>
+            <span class="detail-value">${opp.created}</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">Stage Progress</div>
+          <div class="detail-progress-wrap">
+            <div class="detail-progress-bar">
+              <div class="detail-progress-fill" style="width:${opp.stageProgress}%; background:${getStageColor(opp.stage)}"></div>
+            </div>
+            <div class="detail-progress-labels">
+              ${stageLabels.map((label, i) => `
+                <span class="detail-progress-label ${i === currentIdx ? 'current' : ''}" style="${i <= currentIdx ? 'color:' + getStageColor(opp.stage) : ''}">${label}</span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">Notes</div>
+          <div class="detail-notes">${opp.notes}</div>
+        </div>
+      `;
+
+      document.getElementById('detailPanel').classList.add('open');
+      document.getElementById('detailBackdrop').classList.add('open');
+    }
+
+    function closeDetail() {
+      document.getElementById('detailPanel').classList.remove('open');
+      document.getElementById('detailBackdrop').classList.remove('open');
+      document.querySelectorAll('.table-row').forEach(r => r.classList.remove('selected'));
+    }
+
+    document.getElementById('detailClose').addEventListener('click', closeDetail);
+    document.getElementById('detailBackdrop').addEventListener('click', closeDetail);
+
+    // Escape key closes panel
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeDetail();
+    });
+
+    // ===== Init =====
+    renderTable();
+  </script>
+</body>
+</html>

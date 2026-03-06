@@ -2610,17 +2610,17 @@
             + '<div class="chamber-section">'
             + '<div class="nav-item active" data-view="home-inbox"><span class="nav-item-icon">&#128229;</span> Inbox <span class="nav-item-badge red">7</span></div>'
             + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#9733;</span> Favorites <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128276;</span> Notifications <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="home-notifications" data-src="../Features/Notifications/notification-center-demo.html"><span class="nav-item-icon">&#128276;</span> Notifications <span class="nav-item-badge red">12</span></div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             // Synced module links
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">MODULES</div>'
             + '<div class="nav-item" data-jump-module="contracts"><span class="nav-item-icon">&#128196;</span> Contracts <span class="nav-item-badge">60</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128101;</span> CRM <span class="nav-item-badge">24</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#9745;</span> Tasks <span class="nav-item-badge">18</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128197;</span> Calendar <span class="nav-item-badge">5</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128462;</span> Documents <span class="nav-item-badge">42</span></div>'
+            + '<div class="nav-item" data-jump-module="crm"><span class="nav-item-icon">&#128101;</span> CRM <span class="nav-item-badge">24</span></div>'
+            + '<div class="nav-item" data-jump-module="tasks"><span class="nav-item-icon">&#9745;</span> Tasks <span class="nav-item-badge">18</span></div>'
+            + '<div class="nav-item" data-jump-module="calendar"><span class="nav-item-icon">&#128197;</span> Calendar <span class="nav-item-badge">5</span></div>'
+            + '<div class="nav-item" data-jump-module="documents"><span class="nav-item-icon">&#128462;</span> Documents <span class="nav-item-badge">42</span></div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             + '<div class="chamber-section">'
@@ -2663,19 +2663,19 @@
             + '<div class="chamber-label build"><span class="chamber-dot"></span> BUILD</div>'
             + '<div class="nav-item" data-view="record-inspector" data-src="../Features/Record Inspector/dossier-demo.html"><span class="nav-item-icon">&#128269;</span> Record Inspector</div>'
             + '<div class="nav-item" data-view="contract-generator" data-src="../Features/ContractGenerator/contract-generator-demo.html"><span class="nav-item-icon">&#128196;</span> Contract Generator</div>'
-            + '<div class="nav-item" data-view="otto-agent" data-src="../Features/AIAgent/otto-agent-demo.html"><span class="nav-item-icon">&#9733;</span> Otto AI Agent <span class="nav-item-badge green">NEW</span></div>'
+            + '<div class="nav-item" data-view="otto-agent" data-src="../Features/AIAgent/otto-agent-demo.html"><span class="nav-item-icon">&#9733;</span> Otto AI Agent</div>'
             + '</div>'
             // Review
             + '<div class="chamber-section">'
             + '<div class="chamber-label review"><span class="chamber-dot"></span> REVIEW</div>'
             + '<div class="nav-item" data-view="org-overview" data-src="../Features/OrgOverview/org-overview-demo.html"><span class="nav-item-icon">&#128101;</span> Review Queue <span class="nav-item-badge">3</span></div>'
-            + '<div class="nav-item" data-view="patch-workflow" data-src="../Features/PatchWorkflow/patch-workflow-demo.html"><span class="nav-item-icon">&#128274;</span> Patch Workflow <span class="nav-item-badge green">NEW</span></div>'
+            + '<div class="nav-item" data-view="patch-workflow" data-src="../Features/PatchWorkflow/patch-workflow-demo.html"><span class="nav-item-icon">&#128274;</span> Patch Workflow</div>'
             + '</div>'
             // Ship
             + '<div class="chamber-section">'
             + '<div class="chamber-label ship"><span class="chamber-dot"></span> SHIP</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128230;</span> Export Center <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128259;</span> Sync Status <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="contracts-export" data-src="../Features/Contracts/contracts-export-demo.html"><span class="nav-item-icon">&#128230;</span> Export Center</div>'
+            + '<div class="nav-item" data-view="contracts-sync" data-src="../Features/Contracts/contracts-sync-demo.html"><span class="nav-item-icon">&#128259;</span> Sync Status</div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             // Active Vaults
@@ -2702,48 +2702,51 @@
             + '<span class="sub-panel-title">CRM</span>'
             + '<span class="sub-panel-badge">MODULE</span>'
             + '</div>'
-            // Quick Stats
+            // Quick Stats (business metrics, not chamber-based)
             + '<div class="chamber-stats">'
-            + '<div class="chamber-stat discover"><span class="chamber-stat-count">6</span><span class="chamber-stat-label">Accts</span></div>'
+            + '<div class="chamber-stat discover"><span class="chamber-stat-count">42</span><span class="chamber-stat-label">Accounts</span></div>'
             + '<div class="chamber-stat build"><span class="chamber-stat-count">8</span><span class="chamber-stat-label">Leads</span></div>'
-            + '<div class="chamber-stat review"><span class="chamber-stat-count">7</span><span class="chamber-stat-label">Deals</span></div>'
-            + '<div class="chamber-stat ship"><span class="chamber-stat-count">2</span><span class="chamber-stat-label">Risk</span></div>'
+            + '<div class="chamber-stat review"><span class="chamber-stat-count">12</span><span class="chamber-stat-label">Deals</span></div>'
+            + '<div class="chamber-stat ship"><span class="chamber-stat-count">3</span><span class="chamber-stat-label">At Risk</span></div>'
             + '</div>'
-            // Discover (Lead Lifecycle)
+            // Discover (Lead capture, inbox triage, qualification funnel)
             + '<div class="chamber-section">'
             + '<div class="chamber-label discover"><span class="chamber-dot"></span> DISCOVER</div>'
-            + '<div class="nav-item" data-view="crm-inbox" data-src="../Features/CRM/crm-inbox-demo.html"><span class="nav-item-icon">&#128229;</span> CRM Inbox <span class="nav-item-badge red">5</span></div>'
-            + '<div class="nav-item" data-view="crm-widget" data-src="../Features/CRM/web-widget-demo.html"><span class="nav-item-icon">&#9889;</span> Smart Widget <span class="nav-item-badge green">NEW</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#9733;</span> New Leads <span class="nav-item-badge">3</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#9888;</span> Qualify <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="crm-inbox" data-src="../Features/CRM/crm-inbox-demo.html"><span class="nav-item-icon">&#128229;</span> Inbox <span class="nav-item-badge red">5</span></div>'
+            + '<div class="nav-item" data-view="crm-leads" data-src="../Features/CRM/crm-leads-demo.html"><span class="nav-item-icon">&#9733;</span> New Leads <span class="nav-item-badge">8</span></div>'
+            + '<div class="nav-item" data-view="crm-qualify" data-src="../Features/CRM/crm-qualify-demo.html"><span class="nav-item-icon">&#9888;</span> Qualify <span class="nav-item-badge">3</span></div>'
             + '</div>'
-            // Deals (Opportunity Pipeline)
+            // Deals (Pipeline management, deal progression)
             + '<div class="chamber-section">'
             + '<div class="chamber-label build"><span class="chamber-dot"></span> DEALS</div>'
-            + '<div class="nav-item" data-view="crm-pipeline" data-src="../Features/CRM/crm-pipeline-demo.html"><span class="nav-item-icon">&#128202;</span> Pipeline <span class="nav-item-badge">7</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128270;</span> Deal Review <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="crm-pipeline" data-src="../Features/CRM/crm-pipeline-demo.html"><span class="nav-item-icon">&#128202;</span> Pipeline <span class="nav-item-badge">9</span></div>'
+            + '<div class="nav-item" data-view="crm-deal-review" data-src="../Features/CRM/crm-deal-review-demo.html"><span class="nav-item-icon">&#128270;</span> Deal Review <span class="nav-item-badge">2</span></div>'
+            + '<div class="nav-item" data-view="crm-won" data-src="../Features/CRM/crm-won-demo.html"><span class="nav-item-icon">&#127942;</span> Won Deals</div>'
             + '</div>'
-            // Accounts
+            // Accounts (Customer relationship data, contacts, activity)
             + '<div class="chamber-section">'
             + '<div class="chamber-label review"><span class="chamber-dot"></span> ACCOUNTS</div>'
-            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html"><span class="nav-item-icon">&#127970;</span> Vault Hierarchy</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128101;</span> Contacts <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128196;</span> Activity Feed <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html"><span class="nav-item-icon">&#127970;</span> Accounts</div>'
+            + '<div class="nav-item" data-view="crm-contacts" data-src="../Features/CRM/crm-contacts-demo.html"><span class="nav-item-icon">&#128101;</span> Contacts</div>'
+            + '<div class="nav-item" data-view="crm-activity" data-src="../Features/CRM/crm-activity-demo.html"><span class="nav-item-icon">&#128196;</span> Activity Feed</div>'
             + '</div>'
-            // Customers (Post-Sale)
+            // Customers (Post-sale: onboarding, health, renewals, expansion)
             + '<div class="chamber-section">'
             + '<div class="chamber-label ship"><span class="chamber-dot"></span> CUSTOMERS</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128640;</span> Onboarding <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128154;</span> Health Monitor <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128260;</span> Renewals <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="crm-onboarding" data-src="../Features/CRM/crm-onboarding-demo.html"><span class="nav-item-icon">&#128640;</span> Onboarding <span class="nav-item-badge">1</span></div>'
+            + '<div class="nav-item" data-view="crm-health" data-src="../Features/CRM/crm-health-demo.html"><span class="nav-item-icon">&#128154;</span> Health Monitor</div>'
+            + '<div class="nav-item" data-view="crm-renewals" data-src="../Features/CRM/crm-renewals-demo.html"><span class="nav-item-icon">&#128260;</span> Renewals <span class="nav-item-badge">4</span></div>'
+            + '<div class="nav-item" data-view="crm-expansion" data-src="../Features/CRM/crm-expansion-demo.html"><span class="nav-item-icon">&#128200;</span> Expansion</div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
-            // Active Vaults
+            // Active Vaults (clickable, recent relationship vaults)
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">ACTIVE VAULTS</div>'
-            + '<div class="nav-item" style="opacity:0.5;font-size:11px;padding-left:26px;cursor:default"><span style="color:var(--teal);margin-right:4px">&#9679;</span> Acme Inc</div>'
-            + '<div class="nav-item" style="opacity:0.5;font-size:11px;padding-left:26px;cursor:default"><span style="color:var(--green);margin-right:4px">&#9679;</span> Ostereo Music Group</div>'
-            + '<div class="nav-item" style="opacity:0.5;font-size:11px;padding-left:26px;cursor:default"><span style="color:var(--amber);margin-right:4px">&#9679;</span> Summit Media</div>'
+            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html" style="font-size:12px;padding-left:26px"><span style="color:var(--teal);margin-right:6px">&#9679;</span> Acme Inc</div>'
+            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html" style="font-size:12px;padding-left:26px"><span style="color:var(--green);margin-right:6px">&#9679;</span> Ostereo Music Group</div>'
+            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html" style="font-size:12px;padding-left:26px"><span style="color:var(--amber);margin-right:6px">&#9679;</span> Summit Media</div>'
+            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html" style="font-size:12px;padding-left:26px"><span style="color:var(--red);margin-right:6px">&#9679;</span> Nova Entertainment</div>'
+            + '<div class="nav-item" data-view="crm-accounts" data-src="../Features/CRM/crm-demo.html" style="font-size:12px;padding-left:26px"><span style="color:var(--green);margin-right:6px">&#9679;</span> Horizon Records</div>'
             + '</div>'
             + '<div class="sub-panel-footer">'
             + '<div class="theme-label">Theme</div>'
@@ -2772,25 +2775,25 @@
             // Discover
             + '<div class="chamber-section">'
             + '<div class="chamber-label discover"><span class="chamber-dot"></span> DISCOVER</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128229;</span> Inbox <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128100;</span> My Tasks <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="tasks-inbox" data-src="../Features/Tasks/tasks-inbox-demo.html"><span class="nav-item-icon">&#128229;</span> Inbox <span class="nav-item-badge red">3</span></div>'
+            + '<div class="nav-item" data-view="tasks-mine" data-src="../Features/Tasks/tasks-mine-demo.html"><span class="nav-item-icon">&#128100;</span> My Tasks <span class="nav-item-badge">5</span></div>'
             + '</div>'
             // Build
             + '<div class="chamber-section">'
             + '<div class="chamber-label build"><span class="chamber-dot"></span> BUILD</div>'
             + '<div class="nav-item" data-view="tasks-kanban" data-src="../Features/Tasks/tasks-demo.html"><span class="nav-item-icon">&#9776;</span> Kanban Board</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128270;</span> Focus Mode <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="tasks-focus" data-src="../Features/Tasks/tasks-focus-demo.html"><span class="nav-item-icon">&#128270;</span> Focus Mode</div>'
             + '</div>'
             // Review
             + '<div class="chamber-section">'
             + '<div class="chamber-label review"><span class="chamber-dot"></span> REVIEW</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128269;</span> Pending Review <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="tasks-review" data-src="../Features/Tasks/tasks-review-demo.html"><span class="nav-item-icon">&#128269;</span> Pending Review <span class="nav-item-badge">3</span></div>'
             + '</div>'
             // Ship
             + '<div class="chamber-section">'
             + '<div class="chamber-label ship"><span class="chamber-dot"></span> SHIP</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#9989;</span> Done <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128202;</span> Reports <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="tasks-done" data-src="../Features/Tasks/tasks-done-demo.html"><span class="nav-item-icon">&#9989;</span> Done <span class="nav-item-badge">4</span></div>'
+            + '<div class="nav-item" data-view="tasks-reports" data-src="../Features/Tasks/tasks-reports-demo.html"><span class="nav-item-icon">&#128202;</span> Reports</div>'
             + '</div>'
             + '<div class="sub-panel-footer">'
             + '<div class="theme-label">Theme</div>'
@@ -2819,8 +2822,8 @@
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">VIEWS</div>'
             + '<div class="nav-item" data-view="calendar-month" data-src="../Features/Calendar/calendar-demo.html"><span class="nav-item-icon">&#128197;</span> Month View</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128198;</span> Week View <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128203;</span> Agenda <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="calendar-week" data-src="../Features/Calendar/calendar-week-demo.html"><span class="nav-item-icon">&#128198;</span> Week View</div>'
+            + '<div class="nav-item" data-view="calendar-agenda" data-src="../Features/Calendar/calendar-demo.html"><span class="nav-item-icon">&#128203;</span> Agenda</div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             // Upcoming
@@ -2851,27 +2854,27 @@
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">WORKSPACE ADMIN</div>'
             + '<div class="nav-item" data-view="admin" data-src="../Features/Admin/admin-demo.html"><span class="nav-item-icon">&#9881;</span> Dashboard</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128101;</span> Members <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128272;</span> Roles &amp; Permissions <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" data-view="feature-control-plane" data-src="../Features/Admin/feature-control-plane-demo.html"><span class="nav-item-icon">&#9889;</span> Feature Control Plane <span class="nav-item-badge green">NEW</span></div>'
-            + '<div class="nav-item" data-view="notification-center" data-src="../Features/Notifications/notification-center-demo.html"><span class="nav-item-icon">&#128276;</span> Notification Center <span class="nav-item-badge green">NEW</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128209;</span> Audit Log <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="admin-members" data-src="../Features/Admin/admin-demo.html"><span class="nav-item-icon">&#128101;</span> Members</div>'
+            + '<div class="nav-item" data-view="admin-roles" data-src="../Features/Admin/admin-demo.html"><span class="nav-item-icon">&#128272;</span> Roles &amp; Permissions</div>'
+            + '<div class="nav-item" data-view="feature-control-plane" data-src="../Features/Admin/feature-control-plane-demo.html"><span class="nav-item-icon">&#9889;</span> Feature Control Plane</div>'
+            + '<div class="nav-item" data-view="notification-center" data-src="../Features/Notifications/notification-center-demo.html"><span class="nav-item-icon">&#128276;</span> Notification Center</div>'
+            + '<div class="nav-item" data-view="admin-audit" data-src="../Features/Admin/admin-demo.html"><span class="nav-item-icon">&#128209;</span> Audit Log</div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             // Automations
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">AUTOMATIONS</div>'
-            + '<div class="nav-item" data-view="workflow-builder" data-src="../Features/WorkflowEngine/workflow-builder-demo.html"><span class="nav-item-icon">&#128268;</span> Workflow Builder <span class="nav-item-badge green">NEW</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128203;</span> Templates <span class="nav-item-badge">6</span></div>'
+            + '<div class="nav-item" data-view="workflow-builder" data-src="../Features/WorkflowEngine/workflow-builder-demo.html"><span class="nav-item-icon">&#128268;</span> Workflow Builder</div>'
+            + '<div class="nav-item" data-view="workflow-templates" data-src="../Features/WorkflowEngine/workflow-builder-demo.html"><span class="nav-item-icon">&#128203;</span> Templates <span class="nav-item-badge">6</span></div>'
             + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128202;</span> Run History <span class="nav-item-badge">TBD</span></div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             // Personal Settings
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">PERSONAL</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128100;</span> Profile <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128276;</span> Notifications <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#127912;</span> Appearance <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="admin-profile" data-src="../Features/Admin/admin-demo.html"><span class="nav-item-icon">&#128100;</span> Profile</div>'
+            + '<div class="nav-item" data-view="admin-notifications" data-src="../Features/Notifications/notification-center-demo.html"><span class="nav-item-icon">&#128276;</span> Notifications</div>'
+            + '<div class="nav-item" data-view="admin-appearance" data-src="../Features/Admin/admin-demo.html"><span class="nav-item-icon">&#127912;</span> Appearance</div>'
             + '</div>'
             + '<div class="sub-panel-footer">'
             + '<div class="theme-label">Theme</div>'
@@ -2903,8 +2906,8 @@
             + '<div class="chamber-section">'
             + '<div class="chamber-label" style="color:var(--text-muted)">VIEWS</div>'
             + '<div class="nav-item active" data-view="doc-suite" data-src="../Features/DocumentSuite/document-suite-demo.html"><span class="nav-item-icon">&#128462;</span> Document Suite</div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128203;</span> Templates <span class="nav-item-badge">TBD</span></div>'
-            + '<div class="nav-item" style="opacity:0.4;pointer-events:none"><span class="nav-item-icon">&#128196;</span> Recent Files <span class="nav-item-badge">TBD</span></div>'
+            + '<div class="nav-item" data-view="doc-templates" data-src="../Features/DocumentSuite/document-suite-demo.html"><span class="nav-item-icon">&#128203;</span> Templates <span class="nav-item-badge">8</span></div>'
+            + '<div class="nav-item" data-view="doc-recent" data-src="../Features/DocumentSuite/document-suite-demo.html"><span class="nav-item-icon">&#128196;</span> Recent Files <span class="nav-item-badge">12</span></div>'
             + '</div>'
             + '<div class="nav-divider"></div>'
             // Sources
@@ -3003,8 +3006,21 @@
           + '</ul>'
       },
       'crm-pipeline': {
+        title: 'Deal Pipeline',
+        subtitle: 'CRM &rarr; Deals',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Kanban board with 5 stages: Prospecting, Discovery, Proposal, Negotiation, Close</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Each deal card shows vault link, value, owner, task progress, gate lock indicators</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Drag-and-drop between stages (gated deals cannot advance)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Detail slide-over: deal info, stage tasks, recent activity, contacts, advance/task actions</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Probability badges per stage (10% &rarr; 25% &rarr; 50% &rarr; 75% &rarr; 90%)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Owner filter pills + weighted pipeline summary</li>'
+          + '</ul>'
+      },
+      'crm-accounts': {
         title: 'Vault Hierarchy',
-        subtitle: 'CRM &rarr; All Levels',
+        subtitle: 'CRM &rarr; Accounts',
         notes: '<h4>Architecture Decisions</h4>'
           + '<ul>'
           + '<li><span class="notes-decision">DECIDED</span> The vault tree IS the CRM &mdash; no separate CRM tables</li>'
@@ -3015,6 +3031,126 @@
           + '<li><span class="notes-decision">DECIDED</span> Click item vault &rarr; jumps to Contracts module</li>'
           + '<li>Tree browser with collapsible hierarchy + detail panel</li>'
           + '<li>Chamber distribution bar shows pipeline progress per account</li>'
+          + '</ul>'
+      },
+      'crm-deal-review': {
+        title: 'Deal Review',
+        subtitle: 'CRM &rarr; Deals',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Triage table: Deal | Value | Reviewer | Status | SLA</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Filters: Pending | Approved | Rejected</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Row click opens deal in triptych-style review view with approval chain</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Gate lock indicators prevent advancing deals with unresolved blockers</li>'
+          + '</ul>'
+      },
+      'crm-leads': {
+        title: 'New Leads',
+        subtitle: 'CRM &rarr; Discover',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Triage table: Lead | Source | Score | Stage | Assigned | Age</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Score 0&ndash;100, color-coded: red &lt;40, amber 40&ndash;70, green &gt;70</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Stage badges: New | MQL | SAL | SQL</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Row click opens detail slide-in: contact info, comms history, source details</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Actions: Qualify as MQL | Assign | Create Task | Convert to Deal</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Quick filters: All | Unworked | Mine</li>'
+          + '</ul>'
+      },
+      'crm-qualify': {
+        title: 'Qualification Funnel',
+        subtitle: 'CRM &rarr; Discover',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 4-column Kanban: MQL (teal) | SAL (blue) | SQL (green) | Converted (gray)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Drag-and-drop between columns to advance/retreat leads</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Cards show: score pill, source, assigned rep, age, Accept/Reject buttons</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Moving to Converted column creates a Deal in the pipeline</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Detail slide-over with score breakdown, notes, activity timeline</li>'
+          + '</ul>'
+      },
+      'crm-contacts': {
+        title: 'Contacts',
+        subtitle: 'CRM &rarr; Accounts',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 50/50 split: directory list (left) + org tree visualization (right)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Directory grouped by account with contact counts</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Contact source icons: manual (person), inbound (phone), entity resolution (robot)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Org tree nodes sized by interaction frequency</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Click directory contact &rarr; highlights in tree + shows detail card</li>'
+          + '</ul>'
+      },
+      'crm-activity': {
+        title: 'Activity Feed',
+        subtitle: 'CRM &rarr; Accounts',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Chronological cross-account event stream (like Signal panel)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Grouped by date: TODAY, YESTERDAY, LAST WEEK</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Event types: iMessage (blue), Email (gray), Call (purple), Deal change (teal), Task (green), Lead (amber), Health alert (red)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Channel filter chips: All | Texts | Emails | Calls | Deals | Tasks</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Each event shows: timestamp, icon, description, sub-detail, account tag</li>'
+          + '</ul>'
+      },
+      'crm-onboarding': {
+        title: 'Customer Onboarding',
+        subtitle: 'CRM &rarr; Customers',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Checklist cards per customer (like batch progress cards)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Each card: customer name, start date, progress bar, checklist with assignees + due dates</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Overdue items highlighted red, completed items strikethrough</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Actions: Assign All | Send Reminder</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Status filter: Active | Completed | All</li>'
+          + '</ul>'
+      },
+      'crm-health': {
+        title: 'Health Monitor',
+        subtitle: 'CRM &rarr; Customers',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Two-panel: scrollable health cards (60%) + detail panel (40%)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Score color-coded: red &lt;30, amber 30&ndash;70, green &gt;70</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Trend arrows + sparkline showing 6-month score history</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Detail panel: risk factors list, recommended actions (checkboxes), contacts, recent activity</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Filters: All | At Risk | Declining | Healthy</li>'
+          + '</ul>'
+      },
+      'crm-renewals': {
+        title: 'Renewals',
+        subtitle: 'CRM &rarr; Customers',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Timeline/table: Due Date | Account | Contract | Value | Owner | Status</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Row color: red &lt;7 days, amber &lt;30 days, green &gt;30 days</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Period filters: 30 Days | 90 Days | All</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Summary cards: Total Value, Due This Month, Overdue, Renewed This Quarter</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Detail panel: renewal history, contract terms, actions (Send Reminder, Schedule Call, Auto-Renew)</li>'
+          + '</ul>'
+      },
+      'crm-expansion': {
+        title: 'Expansion Opportunities',
+        subtitle: 'CRM &rarr; Customers',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Track upsell, cross-sell, and upgrade opportunities</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Type badges: Upsell (blue), Cross-sell (teal), Upgrade (purple)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Stage flow: Identified &rarr; Proposed &rarr; Negotiating &rarr; Won</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Summary cards: Total Pipeline, Active Opportunities, Avg Value, Success Rate</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Detail panel: stage progress bar, notes, action buttons</li>'
+          + '</ul>'
+      },
+      'crm-won': {
+        title: 'Won Deals',
+        subtitle: 'CRM &rarr; Deals',
+        notes: '<h4>Architecture Decisions</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Celebration view: card grid with green success accent + trophy icons</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Summary: Total Won, This Quarter, Win Rate, Avg Cycle</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Each card: deal name, account, value, close date, owner, cycle timeline, milestones</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Period filters: This Quarter | This Year | All Time</li>'
+          + '<li><span class="notes-decision">DECIDED</span> View Contract action links to Contracts module</li>'
           + '</ul>'
       },
       'workflow-builder': {
@@ -3094,7 +3230,7 @@
           + '<li><span class="notes-decision">DECIDED</span> Color-coded by type: green=start, red=deadline, amber=renewal, blue=contracts, teal=CRM, purple=tasks</li>'
           + '<li><span class="notes-decision">DECIDED</span> Auto-generated advance warnings: -90d/-30d/-7d for terminations</li>'
           + '<li><span class="notes-decision">DECIDED</span> Click event &rarr; navigate to source vault in module</li>'
-          + '<li>Month + Agenda views (Week TBD)</li>'
+          + '<li>Three views: Month (default), Week (time grid), Agenda (flat list)</li>'
           + '<li>Sub-panel shows UPCOMING events instead of chambers</li>'
           + '</ul>'
       },
@@ -3171,6 +3307,258 @@
           + '<li><span class="notes-decision">DECIDED</span> Split: Workspace Admin (members, roles, features, audit) + Personal Settings (profile, notifications, theme)</li>'
           + '<li><span class="notes-decision">DECIDED</span> Feature Control Plane: toggle, calibrate, audit, failure flag per engine</li>'
           + '<li><span class="notes-decision">DECIDED</span> Members Page with ad-hoc permission overrides (Discord-style)</li>'
+          + '</ul>'
+      },
+      'admin-members': {
+        title: 'Members',
+        subtitle: 'Settings &rarr; Members',
+        notes: '<h4>Member Management</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Discord-style member list with role badges, status indicators, and ad-hoc permission overrides</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Invite via email with role pre-assignment</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Per-member permission overrides visible as chips (like Discord)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Deactivation = soft delete (preserves audit trail), not hard delete</li>'
+          + '<li>See the People tab in the Admin Dashboard for this view</li>'
+          + '</ul>'
+      },
+      'admin-roles': {
+        title: 'Roles & Permissions',
+        subtitle: 'Settings &rarr; Roles',
+        notes: '<h4>Discord-Style Role System</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 5 base roles: Builder, Gatekeeper, Owner, Designer, Viewer</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Admins can create unlimited custom roles with granular permission checkboxes</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Drag-to-reorder hierarchy &mdash; higher roles inherit lower permissions</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Multiple roles per user (additive, like Discord)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Permission catalog: ~30 individual permissions across modules</li>'
+          + '<li>See Roles/overview.md for full permission model</li>'
+          + '</ul>'
+      },
+      'admin-profile': {
+        title: 'Profile',
+        subtitle: 'Settings &rarr; Personal',
+        notes: '<h4>Personal Settings</h4>'
+          + '<ul>'
+          + '<li>Display name, avatar, email, timezone preferences</li>'
+          + '<li>Notification delivery preferences (in-app, email digest, browser push)</li>'
+          + '<li>Default module + view on login</li>'
+          + '<li>See the Personal Settings section in the Admin Dashboard</li>'
+          + '</ul>'
+      },
+      'admin-notifications': {
+        title: 'Notification Preferences',
+        subtitle: 'Settings &rarr; Notifications',
+        notes: '<h4>Notification Configuration</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 4 priority tiers: URGENT, ACTION, INFO, AI</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Per-module mute/unmute controls</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Vault-level subscription toggles</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Delivery channel preferences (in-app, email, browser)</li>'
+          + '<li>Notification Center with feed + preferences tabs</li>'
+          + '</ul>'
+      },
+      'admin-appearance': {
+        title: 'Appearance',
+        subtitle: 'Settings &rarr; Personal',
+        notes: '<h4>Theme &amp; Display</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Option B tokenized: shared theme.base.css with OLED dark variant</li>'
+          + '<li>Theme switcher: OrcestrateOS (light) vs Airlock (OLED dark)</li>'
+          + '<li>Font size, density, sidebar width preferences</li>'
+          + '<li>See the Appearance section in the Admin Dashboard</li>'
+          + '</ul>'
+      },
+      'admin-audit': {
+        title: 'Audit Log',
+        subtitle: 'Settings &rarr; Audit',
+        notes: '<h4>Expanded Audit Log</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Every engine action logged with timing, inputs, outputs, status</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Filterable by: feature, time range, user, status, severity</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Exportable as CSV/JSON</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Shows timing data (duration per action) for performance analysis</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Append-only table &mdash; triggers prevent UPDATE and DELETE</li>'
+          + '<li>See the Audit Log tab in the Admin Dashboard for this view</li>'
+          + '</ul>'
+      },
+      'home-notifications': {
+        title: 'Notifications',
+        subtitle: 'Home &rarr; Notifications',
+        notes: '<h4>Notification Center</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 4 priority tiers: URGENT (red pulse), ACTION (amber), INFO (blue), AI (cyan glow)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Two levels: vault-level (Signal panel) + module-level (triage + module badge)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Novu self-hosted for delivery infrastructure</li>'
+          + '<li><span class="notes-decision">DECIDED</span> In-app only for POC; email digest + browser push for V2</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Module badge = sum of unread ACTION + URGENT events</li>'
+          + '<li>Same view as Settings &rarr; Notification Center, accessed from Home for convenience</li>'
+          + '</ul>'
+      },
+      'tasks-inbox': {
+        title: 'Task Inbox',
+        subtitle: 'Tasks &rarr; Discover',
+        notes: '<h4>Chamber: Discover</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Universal inbox showing ALL tasks across ALL modules, sorted by priority</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Triage entry point &mdash; blockers first, then overdue, then by due date</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Full-width sortable table: Priority, Title, Module, Vault, Status, Assigned, Due</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Filter pills by module (Contracts, CRM, Manual)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Stats strip: active count, blockers, overdue, unassigned</li>'
+          + '</ul>'
+      },
+      'tasks-mine': {
+        title: 'My Tasks',
+        subtitle: 'Tasks &rarr; Discover',
+        notes: '<h4>Personal Task View</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Filtered view of tasks assigned to current user</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Table layout with same columns as Inbox, pre-filtered to assignee=me</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Groups by: status (default), module, priority, vault</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Collapsible "Recently Completed" section for resolved tasks</li>'
+          + '</ul>'
+      },
+      'tasks-focus': {
+        title: 'Focus Mode',
+        subtitle: 'Tasks &rarr; Build',
+        notes: '<h4>Chamber: Build</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Deep work mode &mdash; single task at a time, eliminates distraction</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Centered focus card (max 640px): severity, title, description, context, actions</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Context section: vault link, source rule, extraction confidence, created timestamp</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Actions: Start Working &rarr; Mark Complete + Pause, Assign to Me, Skip</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Up Next queue below with 3 preview cards</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Keyboard shortcuts: J/K (next/prev), Enter (start), S (skip), C (toggle context)</li>'
+          + '</ul>'
+      },
+      'tasks-review': {
+        title: 'Pending Review',
+        subtitle: 'Tasks &rarr; Review',
+        notes: '<h4>Chamber: Review</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Tasks in "In Review" status, waiting for verification</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Card layout with Approve (green) and Return (amber) action buttons</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Gatekeepers see tasks they need to approve/reject</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Filter by module (Contracts, CRM)</li>'
+          + '</ul>'
+      },
+      'tasks-done': {
+        title: 'Completed Tasks',
+        subtitle: 'Tasks &rarr; Ship',
+        notes: '<h4>Chamber: Ship</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Archive of resolved tasks with completion metadata</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Table: checkmark, title, module, vault, completed by, date, duration</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Time period filters: This Week / This Month / All</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Stats: total completed, avg resolution time, fastest resolution</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Green-tinted left border for archive feel</li>'
+          + '</ul>'
+      },
+      'tasks-reports': {
+        title: 'Task Reports',
+        subtitle: 'Tasks &rarr; Ship',
+        notes: '<h4>Analytics Dashboard</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 4 metric cards: Total Tasks, Resolved, Avg Resolution, SLA Compliance</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Tasks by Module horizontal bar chart (CSS-only)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Resolution by Severity breakdown (Blocker, Warning, Info)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Team Performance table: member, assigned, resolved, in progress, avg time, SLA %</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Daily Throughput sparkline (14-day bars)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Time range selector: 7 / 30 / 90 days</li>'
+          + '</ul>'
+      },
+      'calendar-week': {
+        title: 'Week View',
+        subtitle: 'Calendar &rarr; Week',
+        notes: '<h4>7-Day Time Grid</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 7-column grid (Mon&ndash;Sun) with hour time slots (8:00&ndash;20:00)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> All-day events strip at top for vault dates (renewals, deadlines, effective dates)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Timed event blocks positioned by start time + duration</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Today column highlighted with blue tint + red current time indicator</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Module filter pills: All / Contracts / CRM / Tasks</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Week navigation buttons with title display</li>'
+          + '</ul>'
+      },
+      'calendar-agenda': {
+        title: 'Agenda',
+        subtitle: 'Calendar &rarr; Agenda',
+        notes: '<h4>Date List View</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Chronological list of all upcoming dates from vaults + tasks</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Grouped by date with TODAY highlight</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Color-coded: green=start, red=deadline, amber=renewal, blue=contracts, teal=CRM, purple=tasks</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Advance warnings: -90d/-30d/-7d for terminations</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Click event &rarr; navigate to source vault in module</li>'
+          + '</ul>'
+      },
+      'contracts-export': {
+        title: 'Export Center',
+        subtitle: 'Contracts &rarr; Ship',
+        notes: '<h4>Chamber: Ship</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Export hub for shipping approved contracts</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Ready to Ship cards: vaults that passed all gates with health scores + approver</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Export Queue: processing + queued exports with progress bars</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Recent Exports: archive with download buttons, format badges, file sizes</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Export dialog: vault selector, format checkboxes (PDF/DOCX/JSON/CSV), include options</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Formats: PDF, DOCX, JSON, CSV &mdash; with optional extraction data, audit trail, patch history</li>'
+          + '</ul>'
+      },
+      'contracts-sync': {
+        title: 'Sync Status',
+        subtitle: 'Contracts &rarr; Ship',
+        notes: '<h4>Chamber: Ship</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Real-time sync dashboard: Airlock &harr; external systems</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Connection cards: Salesforce (bidirectional), Google Drive (pull), Amazon S3 (push)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Health bars + sync counts + direction badges per connection</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Activity log: reverse-chronological sync events with success/error status</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Sync Rules: auto-sync on vault ship, daily doc pull, export to S3 on approval, field update sync</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Retry button for failed syncs, toggle switches for sync rules</li>'
+          + '</ul>'
+      },
+      'doc-templates': {
+        title: 'Templates',
+        subtitle: 'Documents &rarr; Templates',
+        notes: '<h4>Template Library</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> TipTap-based template editor with custom blocks (Clause, Financial Table, Signature)</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Template variable system: &#123;&#123;VAR&#125;&#125; syntax with live data binding</li>'
+          + '<li><span class="notes-decision">DECIDED</span> 8 contract type templates + custom templates per workspace</li>'
+          + '<li>Same Document Suite view &mdash; template gallery is a tab within it</li>'
+          + '</ul>'
+      },
+      'doc-recent': {
+        title: 'Recent Files',
+        subtitle: 'Documents &rarr; Recent',
+        notes: '<h4>Recently Accessed Documents</h4>'
+          + '<ul>'
+          + '<li>Chronological list of recently opened/edited documents</li>'
+          + '<li>Sources: Google Drive, S3, Local Files, Internal DB</li>'
+          + '<li>Quick actions: open, share, move, delete</li>'
+          + '<li>Same Document Suite view &mdash; file browser shows recent by default</li>'
+          + '</ul>'
+      },
+      'crm-leads': {
+        title: 'New Leads',
+        subtitle: 'CRM &rarr; Discover',
+        notes: '<h4>Lead Queue</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> Unqualified inbound contacts from Smart Widget, Smart Line, and manual entry</li>'
+          + '<li><span class="notes-decision">DECIDED</span> AI-scored lead temperature: hot/warm/cold based on intent analysis</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Workflow Engine automates qualification via Conversational Ask nodes</li>'
+          + '<li>Same Pipeline view filtered to earliest stage</li>'
+          + '</ul>'
+      },
+      'workflow-templates': {
+        title: 'Workflow Templates',
+        subtitle: 'Settings &rarr; Templates',
+        notes: '<h4>Pre-Built Automation Templates</h4>'
+          + '<ul>'
+          + '<li><span class="notes-decision">DECIDED</span> 6 templates: Lead Qualification, Smart Line Router, Attachment Handler, Deal Stage, Customer Onboarding, Notification</li>'
+          + '<li><span class="notes-decision">DECIDED</span> One-click deploy to create a new workflow from template</li>'
+          + '<li><span class="notes-decision">DECIDED</span> Templates are read-only; deploying creates an editable copy</li>'
+          + '<li>Same Workflow Builder view &mdash; template gallery is a sidebar panel</li>'
           + '</ul>'
       },
       'otto-agent': {
@@ -3286,38 +3674,77 @@
 
     // ===== Footer context data per module/view =====
     var FOOTER_INFO = {
-      home: { context: 'Home', file: '', stats: '' },
+      home: {
+        'home-inbox': { context: 'Home', file: '', stats: '' },
+        'home-notifications': { context: 'Notification Center', file: 'notification-center-demo.html', stats: '18 notifications · 4 priority tiers' }
+      },
       contracts: {
         'triage-board': { context: 'Triage Dashboard', file: 'triage-demo.html', stats: '24 contracts · 7 open issues' },
         'record-inspector': { context: 'Record Inspector', file: 'dossier-demo.html', stats: '82 fields · 45% ready · 2/5 sections' },
         'contract-generator': { context: 'Contract Generator', file: 'contract-generator-demo.html', stats: '8 templates · 93 clause rules' },
         'otto-agent': { context: 'Otto AI Agent', file: 'otto-agent-demo.html', stats: '9 enrichment sources · 6 skills · multi-turn chat' },
         'patch-workflow': { context: 'Patch Workflow', file: 'patch-workflow-demo.html', stats: '12 states · 20 transitions · evidence pack' },
-        'review-queue': { context: 'Review Queue', file: '', stats: '3 pending reviews' },
-        'focus-mode': { context: 'Focus Mode', file: 'dossier-demo.html', stats: '' },
-        'export-center': { context: 'Export Center', file: '', stats: '' },
-        'sync-status': { context: 'Sync Status', file: '', stats: '' }
+        'review-queue': { context: 'Review Queue', file: 'org-overview-demo.html', stats: '3 pending reviews' },
+        'contracts-export': { context: 'Export Center', file: 'contracts-export-demo.html', stats: '4 ready to ship · 2 queued · 4 recent exports' },
+        'contracts-sync': { context: 'Sync Status', file: 'contracts-sync-demo.html', stats: '3 connections · Salesforce + Drive + S3 · 4 sync rules' }
       },
       crm: {
         'crm-inbox': { context: 'CRM Inbox', file: 'crm-inbox-demo.html', stats: '12 conversations · 5 unread · 3 channels' },
-        'crm-widget': { context: 'Smart Widget', file: 'web-widget-demo.html', stats: '5 states · 8-step handoff flow' },
-        'crm-pipeline': { context: 'Pipeline', file: 'crm-pipeline-demo.html', stats: '7 deals · 3 stages' },
-        'crm-accounts': { context: 'Vault Hierarchy', file: 'crm-demo.html', stats: '3 accounts · 12 contacts' }
+        'crm-pipeline': { context: 'Pipeline', file: 'crm-pipeline-demo.html', stats: '9 deals · 5 stages · drag-and-drop' },
+        'crm-accounts': { context: 'Accounts', file: 'crm-demo.html', stats: '42 accounts · 4-level vault tree' },
+        'crm-leads': { context: 'New Leads', file: 'crm-leads-demo.html', stats: '8 leads · score 0-100 · 4 stages' },
+        'crm-qualify': { context: 'Qualify', file: 'crm-qualify-demo.html', stats: '4-column Kanban · MQL/SAL/SQL/Converted' },
+        'crm-contacts': { context: 'Contacts', file: 'crm-contacts-demo.html', stats: '12 contacts · 4 accounts · org tree' },
+        'crm-activity': { context: 'Activity Feed', file: 'crm-activity-demo.html', stats: '20 events · 8 event types · cross-account' },
+        'crm-deal-review': { context: 'Deal Review', file: 'crm-deal-review-demo.html', stats: '2 pending · approval chain' },
+        'crm-won': { context: 'Won Deals', file: 'crm-won-demo.html', stats: '5 won · $2.1M total · 68% win rate' },
+        'crm-onboarding': { context: 'Onboarding', file: 'crm-onboarding-demo.html', stats: '2 active · checklist cards' },
+        'crm-health': { context: 'Health Monitor', file: 'crm-health-demo.html', stats: '8 customers · 2 at risk · sparklines' },
+        'crm-renewals': { context: 'Renewals', file: 'crm-renewals-demo.html', stats: '8 renewals · 1 overdue · $1.2M total' },
+        'crm-expansion': { context: 'Expansion', file: 'crm-expansion-demo.html', stats: '6 opportunities · $520K pipeline' }
       },
       tasks: {
-        'kanban-board': { context: 'Kanban Board', file: 'tasks-kanban-demo.html', stats: '7 open · 4 in progress · 3 in review' },
-        'focus-mode': { context: 'Focus Mode', file: '', stats: '' },
-        'pending-review': { context: 'Pending Review', file: '', stats: '' },
-        'done': { context: 'Done', file: '', stats: '' },
-        'reports': { context: 'Reports', file: '', stats: '' }
+        'tasks-kanban': { context: 'Kanban Board', file: 'tasks-demo.html', stats: '7 open · 4 in progress · 3 in review' },
+        'tasks-inbox': { context: 'Inbox', file: 'tasks-inbox-demo.html', stats: '14 active · 2 blockers · 1 overdue · 7 unassigned' },
+        'tasks-mine': { context: 'My Tasks', file: 'tasks-mine-demo.html', stats: '3 assigned to Ana Chen · 1 in review' },
+        'tasks-focus': { context: 'Focus Mode', file: 'tasks-focus-demo.html', stats: 'Deep work · 1 task at a time · keyboard shortcuts' },
+        'tasks-review': { context: 'Pending Review', file: 'tasks-review-demo.html', stats: '3 awaiting review · Approve/Return actions' },
+        'tasks-done': { context: 'Done', file: 'tasks-done-demo.html', stats: '4 completed · avg 2.3d resolution · fastest 4h' },
+        'tasks-reports': { context: 'Reports', file: 'tasks-reports-demo.html', stats: '47 tasks · 94% SLA · team performance' }
       },
-      calendar: { context: 'Calendar', file: '', stats: '' },
-      documents: { context: 'Documents', file: '', stats: '' },
+      calendar: {
+        'calendar-month': { context: 'Month View', file: 'calendar-demo.html', stats: '20 events · computed from vault dates + task dues' },
+        'calendar-week': { context: 'Week View', file: 'calendar-week-demo.html', stats: '7-day grid · all-day + timed events · today highlight' },
+        'calendar-agenda': { context: 'Agenda', file: 'calendar-demo.html', stats: 'Chronological list · grouped by date · color-coded' }
+      },
+      documents: {
+        'doc-suite': { context: 'Document Suite', file: 'document-suite-demo.html', stats: 'TipTap editor + PDF.js viewer' },
+        'doc-templates': { context: 'Templates', file: 'document-suite-demo.html', stats: '8 templates · TipTap editor + PDF.js' },
+        'doc-recent': { context: 'Recent Files', file: 'document-suite-demo.html', stats: '12 files · multi-format support' }
+      },
       admin: {
         'overview': { context: 'Admin Overview', file: 'admin-demo.html', stats: '6 features · 3 healthy' },
         'feature-flags': { context: 'Feature Flags', file: 'admin-demo.html', stats: '24 flags' },
         'audit-log': { context: 'Audit Log', file: 'admin-demo.html', stats: '' },
         'members': { context: 'Members', file: 'admin-demo.html', stats: '4 users' },
+        'admin-members': { context: 'Members', file: 'admin-demo.html', stats: '4 users · Builder/Gatekeeper/Owner roles' },
+        'admin-roles': { context: 'Roles & Permissions', file: 'admin-demo.html', stats: '5 base roles · Discord-style permission model' },
+        'admin-audit': { context: 'Audit Log', file: 'admin-demo.html', stats: 'Append-only · per-feature filtering' },
+        'admin-profile': { context: 'Profile', file: 'admin-demo.html', stats: 'Personal settings' },
+        'admin-notifications': { context: 'Notifications', file: 'notification-center-demo.html', stats: '4 priority tiers · per-module mute' },
+        'admin-appearance': { context: 'Appearance', file: 'admin-demo.html', stats: 'Theme tokens · OLED dark variant' },
+        'crm-deal-review': { context: 'Deal Review', file: 'crm-deal-review-demo.html', stats: '2 pending · approval chain' },
+        'crm-accounts': { context: 'Accounts', file: 'crm-demo.html', stats: '42 accounts · 4-level vault tree' },
+        'crm-leads': { context: 'New Leads', file: 'crm-leads-demo.html', stats: '8 leads · score 0-100' },
+        'crm-qualify': { context: 'Qualify', file: 'crm-qualify-demo.html', stats: '4-column funnel Kanban' },
+        'crm-contacts': { context: 'Contacts', file: 'crm-contacts-demo.html', stats: '12 contacts · org tree' },
+        'crm-activity': { context: 'Activity Feed', file: 'crm-activity-demo.html', stats: '20 events · cross-account' },
+        'crm-won': { context: 'Won Deals', file: 'crm-won-demo.html', stats: '5 won · $2.1M total' },
+        'crm-onboarding': { context: 'Onboarding', file: 'crm-onboarding-demo.html', stats: '2 active workflows' },
+        'crm-health': { context: 'Health Monitor', file: 'crm-health-demo.html', stats: '8 customers · sparklines' },
+        'crm-renewals': { context: 'Renewals', file: 'crm-renewals-demo.html', stats: '8 renewals · $1.2M' },
+        'crm-expansion': { context: 'Expansion', file: 'crm-expansion-demo.html', stats: '6 opportunities · $520K' },
+        'workflow-templates': { context: 'Workflow Templates', file: 'workflow-builder-demo.html', stats: '6 templates · React Flow canvas' },
         'workflow-builder': { context: 'Workflow Builder', file: 'workflow-builder-demo.html', stats: '14 nodes · 31 node types · 6 templates' },
         'feature-control-plane': { context: 'Feature Control Plane', file: 'feature-control-plane-demo.html', stats: '14 engines · 27 flags · 32 calibration params · AI config' },
         'notification-center': { context: 'Notification Center', file: 'notification-center-demo.html', stats: '18 notifications · 4 priority tiers · 3 delivery channels' }

@@ -1,5 +1,7 @@
-# CRM + Smart Communications Brainstorm
+# CRM + Smart Communications
 
+> **Status:** SPECCED
+>
 > **Context:** Expanding the CRM module beyond its current "vault lens" spec to include live deal flow, communications routing, and a progressive user journey. This document synthesizes existing Airlock specs, industry CRM patterns, and the iMessage/phone-first communications vision.
 
 > **Stats that drive this thinking:**
@@ -763,7 +765,7 @@ The iMessage bridge handles Apple-to-Apple messages at zero marginal cost (only 
 
 ---
 
-## Google Meet SDK Integration — Brainstorm
+## Google Meet SDK Integration
 
 > **Added:** 2026-03-04 — Video calling built into CRM with AI-powered meeting intelligence.
 
@@ -915,6 +917,140 @@ CREATE INDEX idx_meetings_vault ON meetings(vault_id, started_at DESC);
 
 ---
 
+## iMessage Bridge Provider Lock — DECIDED: imsg (Swift)
+
+After evaluating all 4 open-source options, **imsg (steipete)** is the locked provider choice:
+
+| Criterion | imsg | iMessage-API | imessage-rs | textingblue |
+|-----------|------|-------------|------------|-------------|
+| Language | Swift | Python/Flask | Rust | iPhone Shortcuts |
+| Private APIs | No | No | Optional (risky) | No |
+| Attachment support | Full | Partial | Full | Limited |
+| Reply threading | Yes | No | Yes | No |
+| E.164 normalization | Yes | Manual | Yes | Manual |
+| Active maintenance | Yes (2026) | Stale (2024) | Active | Active |
+| Group chats | Yes | No | Yes | No |
+| Reactions (read) | Yes | No | Yes | No |
+
+**Why imsg wins:**
+1. Swift = native macOS, best Messages.app integration
+2. No private APIs = safe from Apple lockdowns
+3. Reply threading = enables proper conversation mapping to communications table
+4. E.164 normalization = clean phone number matching against vault_contacts
+5. Active maintenance = steipete is a known iOS/macOS developer
+
+**Deployment:**
+```bash
+# On Mac mini bridge server
+brew install imsg
+imsg serve --port 8765 --webhook-url https://api.airlock.app/webhooks/imessage
+```
+
+**Airlock integration:**
+- FastAPI route `/webhooks/imessage` receives inbound messages
+- Outbound: POST to `http://bridge-mac:8765/api/send`
+- Health check: GET `http://bridge-mac:8765/api/health` every 30s
+- Feature Control Plane shows bridge status (green/amber/red)
+
+---
+
+## Agent Presence System
+
+Real-time presence tracking for pool assignment and collision prevention.
+
+### Architecture
+
+Uses Redis pub/sub for real-time status broadcasting. No polling.
+
+```
+Agent opens CRM Inbox → WebSocket connects → presence published to Redis
+    |
+    +-- Redis channel: `presence:{workspace_id}`
+    +-- Payload: { user_id, status, pool_ids, active_count, last_seen }
+    |
+Other agents' browsers receive presence updates via their WebSocket
+    |
+    +-- UI shows: green dot (online), yellow (busy), gray (away/offline)
+```
+
+### Presence States
+
+| State | Indicator | Assignment Eligible | Trigger |
+|-------|-----------|-------------------|---------|
+| **Online** | Green dot | Yes | CRM Inbox tab is active |
+| **Busy** | Yellow dot | Reduced priority | active_count >= max_concurrent |
+| **Away** | Gray dot | No | Tab inactive > 5 minutes, or manual toggle |
+| **Offline** | No dot | No | WebSocket disconnected |
+| **Do Not Disturb** | Red dot | No | Manual toggle |
+
+### Collision Prevention
+
+When two agents view the same unclaimed conversation:
+
+1. **Viewing indicator**: "Sarah is viewing" badge appears on conversation card
+2. **Composing indicator**: "Sarah is typing..." shows in the conversation thread
+3. **Claim lock**: When agent clicks "Claim", optimistic lock check:
+   - If conversation is still unclaimed → claim succeeds
+   - If another agent claimed in the last 2 seconds → show "Alex already claimed this. View their response?"
+4. **Reply lock**: On reply submit, check if another reply was submitted since the agent opened the conversation
+   - If yes → show "Alex sent a reply while you were composing. [View their reply] [Send anyway]"
+
+### Redis Schema
+
+```
+# Presence hash (per user, per workspace)
+HSET presence:{workspace_id}:{user_id} status "online" pools "pool1,pool2" active_count 3 last_seen 1709640000
+
+# Presence channel (broadcasts)
+PUBLISH presence:{workspace_id} '{"user_id":"uuid","status":"online","active_count":3}'
+
+# Conversation viewers (TTL: 30s, refreshed while viewing)
+SETEX conversation_viewer:{conversation_id}:{user_id} 30 "1"
+
+# Composing indicator (TTL: 5s, refreshed while typing)
+SETEX composing:{conversation_id}:{user_id} 5 "1"
+```
+
+---
+
+## Feature Control Plane Integration
+
+### Communication Toggles
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `comms.imessage_bridge_enabled` | true | iMessage bridge integration |
+| `comms.sms_enabled` | false | Twilio SMS fallback |
+| `comms.email_enabled` | false | Email inbound/outbound |
+| `comms.web_chat_enabled` | false | Web chat widget |
+| `comms.google_meet_enabled` | false | Google Meet integration |
+| `comms.ai_auto_response_enabled` | true | Otto auto-responds to read-only queries |
+| `comms.ai_intent_classification` | true | AI classifies message intent |
+
+### Calibration
+
+| Key | Default | Range | Description |
+|-----|---------|-------|-------------|
+| `comms.max_outbound_per_day` | 100 | 10-500 | Per-bridge iMessage daily limit |
+| `comms.max_simultaneous_sends` | 5 | 1-10 | Concurrent Messages.app sends |
+| `comms.chat_db_poll_interval_ms` | 2000 | 500-5000 | chat.db polling frequency |
+| `comms.follow_up_delay_hours` | 24 | 1-72 | Wait before auto follow-up |
+| `comms.max_follow_ups` | 2 | 0-5 | Max outbound without reply |
+| `comms.inactivity_timeout_minutes` | 5 | 1-30 | Presence "away" threshold |
+| `comms.conversation_window_hours` | 24 | 1-72 | Inactivity before new thread |
+
+### Health Monitoring
+
+| Metric | Alert Threshold | Description |
+|--------|----------------|-------------|
+| Bridge connectivity | > 60s disconnected | iMessage bridge health check failed |
+| Message delivery rate | < 90% in 1hr window | Too many delivery failures |
+| Avg response time (pool) | > SLA duration | Pool agents not responding fast enough |
+| Queue depth | > 20 unclaimed | Too many conversations waiting for agents |
+| AI classification accuracy | < 80% human-override rate | AI intent classification unreliable |
+
+---
+
 ## Related Specs
 
 - **[CRM Module](./overview.md)** — Current CRM spec (vault lens model)
@@ -923,6 +1059,8 @@ CREATE INDEX idx_meetings_vault ON meetings(vault_id, started_at DESC);
 - **[Tasks Module](../Tasks/overview.md)** — Universal work queue
 - **[Notifications](../Notifications/overview.md)** — Alert system
 - **[Event Bus](../EventBus/overview.md)** — Cross-module event propagation
+- **[Meeting Intelligence](../MeetingIntelligence/overview.md)** — Full meeting lifecycle spec (builds on Google Meet SDK section above)
+- **[Video Call Integration](../Messenger/video-call-integration.md)** — Initiating calls from Messenger conversations
 
 ---
 

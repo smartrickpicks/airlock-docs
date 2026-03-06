@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM New Leads</title>
+  <style>
+    /* ===== Base Tokens (shared with demo shell) ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    /* Airlock OLED overrides */
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .leads-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .leads-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+      background: var(--bg-panel);
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .toolbar-count {
+      font-size: 11px;
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--accent-blue);
+      background: var(--accent-blue-dim);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+
+    .toolbar-filters {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-chip {
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+
+    .filter-chip:hover {
+      border-color: var(--border-light);
+      color: var(--text-secondary);
+    }
+
+    .filter-chip.active {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-search {
+      padding: 5px 10px;
+      font-size: 11px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      outline: none;
+      width: 180px;
+      font-family: inherit;
+    }
+
+    .toolbar-search:focus { border-color: var(--accent-blue); }
+    .toolbar-search::placeholder { color: var(--text-muted); }
+
+    /* ===== Main Content Area ===== */
+    .leads-main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ===== Table Container ===== */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .table-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .table-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .table-container::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 3px;
+    }
+
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* ===== Leads Table ===== */
+    .leads-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .leads-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .leads-table th {
+      padding: 8px 16px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .leads-table th:last-child {
+      text-align: right;
+    }
+
+    .leads-table tbody tr {
+      cursor: pointer;
+      transition: background 0.1s;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .leads-table tbody tr:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .leads-table tbody tr.selected {
+      background: var(--accent-blue-dim);
+    }
+
+    .leads-table td {
+      padding: 10px 16px;
+      font-size: 12px;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    /* ===== Lead Cell ===== */
+    .lead-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lead-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #fff;
+    }
+
+    .lead-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .lead-name {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .lead-company {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Source Cell ===== */
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .source-icon {
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    /* ===== Score Cell ===== */
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .score-high {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .score-mid {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .score-low {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    /* ===== Stage Badges ===== */
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .stage-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+
+    .stage-new {
+      background: rgba(107,114,128,0.15);
+      color: #9ca3af;
+    }
+
+    .stage-new .stage-dot {
+      background: #9ca3af;
+    }
+
+    .stage-mql {
+      background: var(--teal-dim);
+      color: var(--teal);
+    }
+
+    .stage-mql .stage-dot {
+      background: var(--teal);
+    }
+
+    .stage-sal {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .stage-sal .stage-dot {
+      background: var(--accent-blue);
+    }
+
+    .stage-sql {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .stage-sql .stage-dot {
+      background: var(--green);
+    }
+
+    /* ===== Assigned Cell ===== */
+    .assigned-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .assigned-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .assigned-name {
+      color: var(--text-secondary);
+    }
+
+    .unassigned {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ===== Age Cell ===== */
+    .age-cell {
+      text-align: right;
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+    }
+
+    .age-warn {
+      color: var(--amber);
+    }
+
+    .age-stale {
+      color: var(--red);
+    }
+
+    /* ===== Detail Panel ===== */
+    .detail-panel {
+      width: 0;
+      min-width: 0;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: width 0.2s ease, min-width 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .detail-panel.open {
+      width: 40%;
+      min-width: 380px;
+    }
+
+    .detail-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .detail-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .detail-panel::-webkit-scrollbar-thumb {
+      background: var(--border-light);
+      border-radius: 2px;
+    }
+
+    .detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-panel);
+      z-index: 2;
+    }
+
+    .detail-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .detail-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .detail-name {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .detail-company {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .detail-close {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.12s;
+    }
+
+    .detail-close:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border-color: var(--border-light);
+    }
+
+    /* Detail Sections */
+    .detail-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .detail-field {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detail-field.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .detail-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .detail-value {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    .detail-value a {
+      color: var(--accent-blue);
+      text-decoration: none;
+    }
+
+    .detail-value a:hover {
+      text-decoration: underline;
+    }
+
+    /* Communication History */
+    .comm-item {
+      display: flex;
+      gap: 10px;
+      padding: 8px 0;
+    }
+
+    .comm-item + .comm-item {
+      border-top: 1px solid var(--border);
+    }
+
+    .comm-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    .comm-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .comm-text {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .comm-meta {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Action Buttons */
+    .detail-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 14px 16px;
+    }
+
+    .action-btn {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+      text-align: center;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+      border-color: var(--border-light);
+    }
+
+    .action-btn.primary {
+      background: var(--accent-blue);
+      color: #fff;
+      border-color: var(--accent-blue);
+    }
+
+    .action-btn.primary:hover {
+      filter: brightness(1.15);
+    }
+
+    /* ===== Empty state for detail panel ===== */
+    .detail-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .detail-empty-icon {
+      font-size: 28px;
+      opacity: 0.4;
+    }
+
+    .detail-empty-text {
+      font-size: 12px;
+    }
+
+    /* ===== Score Bar (detail panel) ===== */
+    .score-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .score-bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-card);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .score-bar-value {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--mono);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* ===== Source Details (detail panel) ===== */
+    .source-detail-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    /* ===== Tags ===== */
+    .detail-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .detail-tag {
+      padding: 2px 7px;
+      font-size: 9px;
+      font-weight: 600;
+      border-radius: 8px;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="leads-layout">
+
+    <!-- Toolbar -->
+    <div class="leads-toolbar">
+      <span class="toolbar-title">New Leads</span>
+      <span class="toolbar-count" id="leadCount">8</span>
+      <span class="toolbar-sep"></span>
+      <div class="toolbar-filters">
+        <button class="filter-chip active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="unworked">Unworked</button>
+        <button class="filter-chip" data-filter="mine">Mine</button>
+      </div>
+      <span class="toolbar-spacer"></span>
+      <input type="text" class="toolbar-search" placeholder="Search leads..." id="searchInput">
+    </div>
+
+    <!-- Main: Table + Detail Panel -->
+    <div class="leads-main">
+      <div class="table-container">
+        <table class="leads-table">
+          <thead>
+            <tr>
+              <th>Lead</th>
+              <th>Source</th>
+              <th>Score</th>
+              <th>Stage</th>
+              <th>Assigned</th>
+              <th style="text-align:right">Age</th>
+            </tr>
+          </thead>
+          <tbody id="leadsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="detail-panel" id="detailPanel">
+        <div id="detailContent"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ===== Data =====
+    const leads = [
+      {
+        id: 1,
+        name: 'Emma Thompson',
+        company: 'Vertex Media Group',
+        email: 'ethompson@vertexmedia.com',
+        phone: '+1 (415) 555-0182',
+        source: 'Web Form',
+        sourceIcon: '\u{1F310}',
+        score: 82,
+        stage: 'MQL',
+        assigned: 'Sarah Miller',
+        assignedColor: '#7e57c2',
+        ageDays: 2,
+        title: 'VP of Content Partnerships',
+        tags: ['Enterprise', 'Music', 'High Priority'],
+        sourceDetail: 'Pricing page form submission',
+        comms: [
+          { icon: '\u{1F4E7}', text: 'Downloaded whitepaper: "Royalty Automation Guide"', time: '2d ago' },
+          { icon: '\u{1F310}', text: 'Visited pricing page 3 times', time: '2d ago' },
+          { icon: '\u{1F4E7}', text: 'Opened intro email sequence (3/5)', time: '1d ago' }
+        ]
+      },
+      {
+        id: 2,
+        name: 'James Lin',
+        company: 'Pacific Records',
+        email: 'jlin@pacificrecords.com',
+        phone: '+1 (310) 555-0294',
+        source: 'Smart Line',
+        sourceIcon: '\u{1F4DE}',
+        score: 71,
+        stage: 'SAL',
+        assigned: 'Ana Chen',
+        assignedColor: '#26a69a',
+        ageDays: 5,
+        title: 'Head of Catalog Operations',
+        tags: ['Music', 'Mid-Market'],
+        sourceDetail: 'Inbound call via Smart Line',
+        comms: [
+          { icon: '\u{1F4DE}', text: 'Inbound call: 8 min, asked about contract extraction', time: '5d ago' },
+          { icon: '\u{1F4E7}', text: 'Sent follow-up with product deck', time: '4d ago' },
+          { icon: '\u{1F4AC}', text: 'Replied requesting a demo session', time: '3d ago' }
+        ]
+      },
+      {
+        id: 3,
+        name: 'David Kim',
+        company: 'Resonance Audio',
+        email: 'dkim@resonanceaudio.io',
+        phone: '+1 (212) 555-0331',
+        source: 'Referral',
+        sourceIcon: '\u{1F91D}',
+        score: 45,
+        stage: 'New',
+        assigned: null,
+        assignedColor: null,
+        ageDays: 1,
+        title: 'CEO',
+        tags: ['Music', 'Startup'],
+        sourceDetail: 'Referred by Marcus Webb (existing customer)',
+        comms: [
+          { icon: '\u{1F91D}', text: 'Referral submitted by Marcus Webb', time: '1d ago' }
+        ]
+      },
+      {
+        id: 4,
+        name: 'Rachel Torres',
+        company: 'Luminar Films',
+        email: 'rtorres@luminarfilms.com',
+        phone: '+1 (323) 555-0417',
+        source: 'LinkedIn',
+        sourceIcon: '\u{1F4BC}',
+        score: 38,
+        stage: 'New',
+        assigned: null,
+        assignedColor: null,
+        ageDays: 3,
+        title: 'Director of Business Affairs',
+        tags: ['Film', 'Enterprise'],
+        sourceDetail: 'LinkedIn ad click: "Automate Your Contracts"',
+        comms: [
+          { icon: '\u{1F4BC}', text: 'Clicked LinkedIn ad and visited landing page', time: '3d ago' },
+          { icon: '\u{1F310}', text: 'Browsed features page, bounced after 45s', time: '3d ago' }
+        ]
+      },
+      {
+        id: 5,
+        name: 'Mike Chen',
+        company: 'NovaBeat Distribution',
+        email: 'mchen@novabeat.com',
+        phone: '+1 (718) 555-0502',
+        source: 'Cold Outbound',
+        sourceIcon: '\u{1F4E8}',
+        score: 56,
+        stage: 'New',
+        assigned: 'Marcus Webb',
+        assignedColor: '#ef6c00',
+        ageDays: 7,
+        title: 'Operations Manager',
+        tags: ['Music', 'Distribution', 'SMB'],
+        sourceDetail: 'Cold email sequence (batch #34)',
+        comms: [
+          { icon: '\u{1F4E8}', text: 'Cold email sent: "Streamline Contract Ops"', time: '7d ago' },
+          { icon: '\u{1F4E7}', text: 'Opened email 2x, clicked CTA link', time: '5d ago' },
+          { icon: '\u{1F310}', text: 'Visited product overview page', time: '5d ago' }
+        ]
+      },
+      {
+        id: 6,
+        name: 'Lisa Park',
+        company: 'Crescendo Label Services',
+        email: 'lpark@crescendols.com',
+        phone: '+1 (615) 555-0688',
+        source: 'Web Form',
+        sourceIcon: '\u{1F310}',
+        score: 91,
+        stage: 'SQL',
+        assigned: 'Sarah Miller',
+        assignedColor: '#7e57c2',
+        ageDays: 12,
+        title: 'SVP of Global Rights',
+        tags: ['Music', 'Enterprise', 'Hot Lead'],
+        sourceDetail: 'Demo request form submission',
+        comms: [
+          { icon: '\u{1F310}', text: 'Submitted demo request form', time: '12d ago' },
+          { icon: '\u{1F4DE}', text: 'Discovery call: 32 min, strong buying signals', time: '10d ago' },
+          { icon: '\u{1F4E7}', text: 'Sent proposal with pricing breakdown', time: '8d ago' },
+          { icon: '\u{1F4AC}', text: 'Confirmed exec buy-in, scheduling pilot', time: '3d ago' }
+        ]
+      },
+      {
+        id: 7,
+        name: 'Tom Bradley',
+        company: 'Anthem Media Corp',
+        email: 'tbradley@anthemmedia.com',
+        phone: '+1 (404) 555-0774',
+        source: 'Smart Line',
+        sourceIcon: '\u{1F4DE}',
+        score: 63,
+        stage: 'MQL',
+        assigned: 'David Park',
+        assignedColor: '#0288d1',
+        ageDays: 4,
+        title: 'Contract Administrator',
+        tags: ['TV', 'Mid-Market'],
+        sourceDetail: 'Inbound call via Smart Line',
+        comms: [
+          { icon: '\u{1F4DE}', text: 'Inbound call: 5 min, general inquiry', time: '4d ago' },
+          { icon: '\u{1F4E7}', text: 'Auto-enrolled in nurture sequence', time: '3d ago' }
+        ]
+      },
+      {
+        id: 8,
+        name: 'Claire Wu',
+        company: 'Indie Harmony',
+        email: 'cwu@indieharmony.co',
+        phone: '+1 (503) 555-0819',
+        source: 'Referral',
+        sourceIcon: '\u{1F91D}',
+        score: 29,
+        stage: 'New',
+        assigned: null,
+        assignedColor: null,
+        ageDays: 1,
+        title: 'Founder',
+        tags: ['Music', 'Startup', 'Indie'],
+        sourceDetail: 'Referred by Ana Chen (internal)',
+        comms: [
+          { icon: '\u{1F91D}', text: 'Internal referral from Ana Chen', time: '1d ago' }
+        ]
+      }
+    ];
+
+    // ===== Avatar color generator =====
+    function avatarColor(name) {
+      const colors = ['#5c6bc0','#26a69a','#ef6c00','#8e24aa','#0288d1','#c62828','#00897b','#6d4c41'];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    function initials(name) {
+      return name.split(' ').map(w => w[0]).join('').toUpperCase();
+    }
+
+    // ===== Score helpers =====
+    function scoreClass(score) {
+      if (score >= 70) return 'score-high';
+      if (score >= 40) return 'score-mid';
+      return 'score-low';
+    }
+
+    function scoreColor(score) {
+      if (score >= 70) return 'var(--green)';
+      if (score >= 40) return 'var(--amber)';
+      return 'var(--red)';
+    }
+
+    // ===== Stage helpers =====
+    function stageClass(stage) {
+      return 'stage-' + stage.toLowerCase();
+    }
+
+    // ===== Age helpers =====
+    function ageClass(days) {
+      if (days >= 10) return 'age-stale';
+      if (days >= 7) return 'age-warn';
+      return '';
+    }
+
+    // ===== Render Table =====
+    let selectedId = null;
+    let currentFilter = 'all';
+
+    function renderTable(data) {
+      const tbody = document.getElementById('leadsBody');
+      tbody.innerHTML = '';
+
+      data.forEach(lead => {
+        const tr = document.createElement('tr');
+        if (lead.id === selectedId) tr.classList.add('selected');
+        tr.onclick = () => selectLead(lead.id);
+
+        tr.innerHTML = `
+          <td>
+            <div class="lead-cell">
+              <div class="lead-avatar" style="background:${avatarColor(lead.name)}">${initials(lead.name)}</div>
+              <div class="lead-info">
+                <span class="lead-name">${lead.name}</span>
+                <span class="lead-company">${lead.company}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="source-badge"><span class="source-icon">${lead.sourceIcon}</span>${lead.source}</span>
+          </td>
+          <td>
+            <span class="score-pill ${scoreClass(lead.score)}">${lead.score}</span>
+          </td>
+          <td>
+            <span class="stage-badge ${stageClass(lead.stage)}"><span class="stage-dot"></span>${lead.stage}</span>
+          </td>
+          <td>
+            ${lead.assigned
+              ? `<div class="assigned-cell">
+                  <div class="assigned-avatar" style="background:${lead.assignedColor || avatarColor(lead.assigned)}">${initials(lead.assigned)}</div>
+                  <span class="assigned-name">${lead.assigned}</span>
+                </div>`
+              : `<span class="unassigned">Unassigned</span>`
+            }
+          </td>
+          <td class="age-cell ${ageClass(lead.ageDays)}">${lead.ageDays}d</td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('leadCount').textContent = data.length;
+    }
+
+    // ===== Filter Logic =====
+    function getFilteredLeads() {
+      let filtered = [...leads];
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      if (currentFilter === 'unworked') {
+        filtered = filtered.filter(l => !l.assigned);
+      } else if (currentFilter === 'mine') {
+        filtered = filtered.filter(l => l.assigned === 'Sarah Miller');
+      }
+
+      if (query) {
+        filtered = filtered.filter(l =>
+          l.name.toLowerCase().includes(query) ||
+          l.company.toLowerCase().includes(query) ||
+          l.source.toLowerCase().includes(query) ||
+          l.stage.toLowerCase().includes(query) ||
+          (l.assigned && l.assigned.toLowerCase().includes(query))
+        );
+      }
+
+      return filtered;
+    }
+
+    // ===== Filter Chip Handlers =====
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.dataset.filter;
+        renderTable(getFilteredLeads());
+      });
+    });
+
+    document.getElementById('searchInput').addEventListener('input', () => {
+      renderTable(getFilteredLeads());
+    });
+
+    // ===== Select Lead & Detail Panel =====
+    function selectLead(id) {
+      if (selectedId === id) {
+        closeDetail();
+        return;
+      }
+      selectedId = id;
+      const lead = leads.find(l => l.id === id);
+      if (!lead) return;
+      renderDetail(lead);
+      document.getElementById('detailPanel').classList.add('open');
+      renderTable(getFilteredLeads());
+    }
+
+    function closeDetail() {
+      selectedId = null;
+      document.getElementById('detailPanel').classList.remove('open');
+      renderTable(getFilteredLeads());
+    }
+
+    function renderDetail(lead) {
+      const panel = document.getElementById('detailContent');
+      panel.innerHTML = `
+        <!-- Header -->
+        <div class="detail-header">
+          <div class="detail-header-left">
+            <div class="detail-avatar" style="background:${avatarColor(lead.name)}">${initials(lead.name)}</div>
+            <div>
+              <div class="detail-name">${lead.name}</div>
+              <div class="detail-company">${lead.title} &middot; ${lead.company}</div>
+            </div>
+          </div>
+          <button class="detail-close" onclick="closeDetail()" title="Close">&times;</button>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="detail-section">
+          <div class="detail-section-title">Contact Information</div>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <span class="detail-label">Email</span>
+              <span class="detail-value"><a href="mailto:${lead.email}">${lead.email}</a></span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Phone</span>
+              <span class="detail-value">${lead.phone}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Title</span>
+              <span class="detail-value">${lead.title}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Company</span>
+              <span class="detail-value">${lead.company}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lead Score -->
+        <div class="detail-section">
+          <div class="detail-section-title">Lead Score</div>
+          <div class="score-bar-container">
+            <div class="score-bar-track">
+              <div class="score-bar-fill" style="width:${lead.score}%;background:${scoreColor(lead.score)}"></div>
+            </div>
+            <span class="score-bar-value" style="color:${scoreColor(lead.score)}">${lead.score}</span>
+          </div>
+        </div>
+
+        <!-- Source & Stage -->
+        <div class="detail-section">
+          <div class="detail-section-title">Source Details</div>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <span class="detail-label">Source</span>
+              <span class="detail-value">
+                <span class="source-detail-badge"><span class="source-icon">${lead.sourceIcon}</span>${lead.source}</span>
+              </span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Stage</span>
+              <span class="detail-value">
+                <span class="stage-badge ${stageClass(lead.stage)}"><span class="stage-dot"></span>${lead.stage}</span>
+              </span>
+            </div>
+            <div class="detail-field full-width">
+              <span class="detail-label">Source Context</span>
+              <span class="detail-value">${lead.sourceDetail}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Assigned To</span>
+              <span class="detail-value">${lead.assigned || '<span class="unassigned">Unassigned</span>'}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Age</span>
+              <span class="detail-value"><span class="${ageClass(lead.ageDays)}">${lead.ageDays} day${lead.ageDays !== 1 ? 's' : ''}</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="detail-section">
+          <div class="detail-section-title">Tags</div>
+          <div class="detail-tags">
+            ${lead.tags.map(t => `<span class="detail-tag">${t}</span>`).join('')}
+          </div>
+        </div>
+
+        <!-- Communication History -->
+        <div class="detail-section">
+          <div class="detail-section-title">Communication History</div>
+          ${lead.comms.map(c => `
+            <div class="comm-item">
+              <div class="comm-icon">${c.icon}</div>
+              <div class="comm-content">
+                <div class="comm-text">${c.text}</div>
+                <div class="comm-meta">${c.time}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Actions -->
+        <div class="detail-actions">
+          <button class="action-btn primary" onclick="actionClick('qualify')">Qualify as MQL</button>
+          <button class="action-btn" onclick="actionClick('assign')">Assign</button>
+          <button class="action-btn" onclick="actionClick('task')">Create Task</button>
+          <button class="action-btn" onclick="actionClick('convert')">Convert to Deal</button>
+        </div>
+      `;
+    }
+
+    function actionClick(action) {
+      const lead = leads.find(l => l.id === selectedId);
+      if (!lead) return;
+      const labels = {
+        qualify: 'Qualify as MQL',
+        assign: 'Assign',
+        task: 'Create Task',
+        convert: 'Convert to Deal'
+      };
+      console.log(`[Airlock] Action: ${labels[action]} for lead "${lead.name}" (id: ${lead.id})`);
+    }
+
+    // ===== Theme from URL =====
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('theme') === 'airlock') {
+        document.documentElement.setAttribute('data-theme', 'airlock');
+      }
+    })();
+
+    // ===== Initial Render =====
+    renderTable(leads);
+  </script>
+</body>
+</html>

@@ -6,6 +6,18 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "5173"],
       "port": 5173
+    },
+    {
+      "name": "airlock-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@airlock/web", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "airlock-docker",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "/Users/zacharyholwerda/Desktop/airlock-app/docker-compose.yml", "up"],
+      "port": 8000
     }
   ]
 }

@@ -688,7 +688,7 @@
     // ===== Deals =====
     var DEALS = [
       {
-        id: 'd1', name: 'Nova Entertainment', vault: 'henderson-msa', stage: 'prospecting',
+        id: 'd1', name: 'Nova Entertainment', vault: 'nova-ent-msa', stage: 'prospecting',
         value: 120000, owner: 'sarah', daysInStage: 5, closeDate: 'Apr 15',
         tasks: [
           { text: 'Research account background', done: true, due: 'Mar 1' },
@@ -777,6 +777,42 @@
           { date: 'Feb 28', text: 'Discovery completed' }
         ],
         gated: true, gateMsg: 'Pricing approval required'
+      },
+      {
+        id: 'd8', name: 'Horizon Records', vault: 'horizon-dist', stage: 'negotiation',
+        value: 310000, owner: 'sarah', daysInStage: 6, closeDate: 'Mar 25',
+        tasks: [
+          { text: 'Send revised pricing tier', done: true, due: 'Feb 28' },
+          { text: 'Review counterparty redlines', done: true, due: 'Mar 3' },
+          { text: 'Finalize territory scope', done: false, due: 'Mar 8' },
+          { text: 'Get legal sign-off on exclusivity clause', done: false, due: 'Mar 10' }
+        ],
+        contacts: [
+          { name: 'Ben Torres', role: 'VP Business Affairs', last: '1d ago' },
+          { name: 'Claire Wu', role: 'In-House Counsel', last: '3d ago' }
+        ],
+        events: [
+          { date: 'Mar 4', text: 'Redlines received (7 marked clauses)' },
+          { date: 'Mar 1', text: 'Revised pricing sent' },
+          { date: 'Feb 25', text: 'Verbal agreement on base terms' }
+        ],
+        gated: true, gateMsg: 'Territory scope unresolved'
+      },
+      {
+        id: 'd9', name: 'Bluewave Digital', vault: 'bluewave-msa', stage: 'negotiation',
+        value: 95000, owner: 'ana', daysInStage: 2, closeDate: 'Apr 5',
+        tasks: [
+          { text: 'Counter-propose royalty rate', done: true, due: 'Mar 3' },
+          { text: 'Await buyer response', done: false, due: 'Mar 7' }
+        ],
+        contacts: [
+          { name: 'James Lin', role: 'COO', last: '2d ago' }
+        ],
+        events: [
+          { date: 'Mar 3', text: 'Counter-proposal sent via Smart Line' },
+          { date: 'Mar 1', text: 'Buyer requested lower royalty rate' }
+        ],
+        gated: false, gateMsg: ''
       },
       {
         id: 'd6', name: 'Ostereo Music Group', vault: 'ostereo-msa', stage: 'close',
@@ -1126,10 +1162,20 @@
       alert('New Deal dialog — will open Task Builder modal');
     }
 
-    // ===== Theme =====
+    // ===== URL Params =====
     var params = new URLSearchParams(window.location.search);
     if (params.get('theme') === 'airlock') {
       document.documentElement.setAttribute('data-theme', 'airlock');
+    }
+
+    // ?filter=new → show only Prospecting stage deals
+    var filterParam = params.get('filter');
+    if (filterParam === 'new') {
+      DEALS = DEALS.filter(function(d) { return d.stage === 'prospecting'; });
+      document.querySelector('.pipeline-toolbar').insertAdjacentHTML('beforeend',
+        '<span style="margin-left:auto;font-size:12px;color:var(--text-muted);padding:4px 10px;'
+        + 'background:var(--accent-blue-dim);border-radius:var(--radius-sm);">'
+        + '&#x1F50D; Filtered: New Leads only</span>');
     }
 
     // ===== Init =====

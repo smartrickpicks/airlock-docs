@@ -120,6 +120,7 @@ Configurable AI agent personalities with different system prompts, skills, and m
 |---|---|
 | [Toggle System](./toggle-system.md) | DB-backed flags, HTTP toggle, per-workspace targeting, rollout % |
 | [Calibration](./calibration.md) | Thresholds, weights, confidence scores as admin-editable parameters |
+| [Failure Detection](./failure-detection.md) | Health states, error pipeline, circuit breaker logic, Admin UI, graceful degradation |
 
 ---
 

@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM Qualification Funnel</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      /* Funnel stage colors */
+      --stage-mql: #26a69a;
+      --stage-sal: #0091ea;
+      --stage-sql: #4caf50;
+      --stage-converted: #6b7280;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .funnel-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .funnel-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toolbar-subtitle {
+      font-size: 11px;
+      color: var(--amber);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .toolbar-subtitle-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-filter {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-pill {
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+
+    .filter-pill:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    .filter-pill.active {
+      background: var(--accent-blue-dim);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .toolbar-btn {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--accent-blue);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toolbar-btn:hover { opacity: 0.9; }
+
+    .toolbar-btn-ghost {
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toolbar-btn-ghost:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    /* ===== Kanban Board ===== */
+    .kanban-board {
+      flex: 1;
+      display: flex;
+      gap: 12px;
+      padding: 14px 20px;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .kanban-column {
+      flex: 1;
+      min-width: 240px;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .column-header {
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .column-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .column-name {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex: 1;
+    }
+
+    .column-count {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: var(--bg-card);
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    .column-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .column-body:empty::after {
+      content: 'No leads';
+      display: block;
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    /* Drop target */
+    .kanban-column.drag-over .column-body {
+      background: var(--accent-blue-dim);
+      border-radius: var(--radius-md);
+    }
+
+    /* ===== Lead Card ===== */
+    .lead-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      cursor: grab;
+      transition: all 0.12s;
+    }
+
+    .lead-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-light);
+    }
+
+    .lead-card.dragging {
+      opacity: 0.6;
+      transform: rotate(2deg);
+    }
+
+    .lead-card.converted {
+      opacity: 0.55;
+    }
+
+    .lead-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .lead-card-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .lead-score-pill {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--mono);
+      padding: 2px 7px;
+      border-radius: 10px;
+      line-height: 1.2;
+    }
+
+    .lead-score-high {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .lead-score-mid {
+      background: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .lead-score-low {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    .lead-card-source {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .source-icon {
+      font-size: 10px;
+    }
+
+    .lead-card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .lead-card-assignee {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .lead-avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      font-size: 8px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .lead-assignee-name {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .lead-age {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .lead-card-actions {
+      display: flex;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .lead-btn {
+      flex: 1;
+      padding: 5px 0;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.12s;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .lead-btn-accept {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+
+    .lead-btn-accept:hover {
+      background: rgba(76,175,80,0.25);
+    }
+
+    .lead-btn-reject {
+      background: var(--red-dim);
+      color: var(--red);
+    }
+
+    .lead-btn-reject:hover {
+      background: rgba(244,67,54,0.2);
+    }
+
+    .lead-btn-convert {
+      background: var(--accent-blue-dim);
+      color: var(--accent-blue);
+    }
+
+    .lead-btn-convert:hover {
+      background: rgba(0,145,234,0.25);
+    }
+
+    .lead-converted-stamp {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .lead-converted-check {
+      color: var(--green);
+    }
+
+    /* ===== Detail Panel (slide-in) ===== */
+    .detail-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+    }
+
+    .detail-overlay.open { display: flex; justify-content: flex-end; }
+
+    .detail-panel {
+      width: 420px;
+      max-width: 90vw;
+      height: 100vh;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+
+    .detail-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .detail-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+
+    .detail-close:hover { color: var(--text-primary); }
+
+    .detail-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .detail-stage-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .detail-section {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .detail-field-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .detail-field-value {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .detail-event {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 11px;
+    }
+
+    .detail-event-date {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      min-width: 44px;
+    }
+
+    .detail-event-text {
+      color: var(--text-secondary);
+    }
+
+    .detail-score-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-darkest);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+      margin-bottom: 4px;
+    }
+
+    .detail-score-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .detail-score-breakdown {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .detail-score-item {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .detail-score-item span {
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+
+    .detail-actions {
+      padding: 14px 20px;
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ===== Summary Strip ===== */
+    .funnel-summary {
+      display: flex;
+      align-items: center;
+      padding: 8px 20px;
+      border-top: 1px solid var(--border);
+      gap: 16px;
+      flex-shrink: 0;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .summary-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .summary-num {
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--text-secondary);
+    }
+
+    /* ===== Scrollbar ===== */
+    .column-body::-webkit-scrollbar { width: 4px; }
+    .column-body::-webkit-scrollbar-track { background: transparent; }
+    .column-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .detail-panel::-webkit-scrollbar { width: 4px; }
+    .detail-panel::-webkit-scrollbar-track { background: transparent; }
+    .detail-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div class="funnel-layout">
+    <!-- Toolbar -->
+    <div class="funnel-toolbar">
+      <span class="toolbar-title">Qualification Funnel</span>
+      <span class="toolbar-sep"></span>
+      <span class="toolbar-subtitle">
+        <span class="toolbar-subtitle-dot"></span>
+        <span id="actionCount">3 requiring action</span>
+      </span>
+      <span class="toolbar-spacer"></span>
+      <div class="toolbar-filter">
+        <button class="filter-pill active" onclick="setSource('all',this)" data-filter-group="source">All Sources</button>
+        <button class="filter-pill" onclick="setSource('Web Form',this)" data-filter-group="source">Web Form</button>
+        <button class="filter-pill" onclick="setSource('Smart Line',this)" data-filter-group="source">Smart Line</button>
+        <button class="filter-pill" onclick="setSource('Cold',this)" data-filter-group="source">Cold</button>
+      </div>
+      <button class="toolbar-btn" onclick="alert('Import Lead dialog (TBD)')">+ Import Lead</button>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-board" id="kanbanBoard"></div>
+
+    <!-- Summary -->
+    <div class="funnel-summary">
+      <div class="summary-stat"><span class="summary-num" id="totalLeads">0</span> total leads</div>
+      <div class="summary-stat">Avg score: <span class="summary-num" id="avgScore">0</span></div>
+      <div class="summary-stat">Conversion rate: <span class="summary-num" id="convRate">0%</span></div>
+      <div style="flex:1"></div>
+      <div class="summary-stat">Avg age: <span class="summary-num" id="avgAge">0</span> days</div>
+      <div class="summary-stat">This week: <span class="summary-num" id="weekCount">0</span> new</div>
+    </div>
+  </div>
+
+  <!-- Detail Panel -->
+  <div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+    <div class="detail-panel" id="detailPanel" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script>
+    // ===== People =====
+    var PEOPLE = {
+      sarah: { name: 'Sarah Miller', color: '#7b1fa2', initials: 'SM' },
+      ana: { name: 'Ana Chen', color: '#0091ea', initials: 'AC' },
+      david: { name: 'David Park', color: '#26a69a', initials: 'DP' },
+      marcus: { name: 'Marcus Webb', color: '#ff9800', initials: 'MW' }
+    };
+
+    // ===== Funnel Stages =====
+    var STAGES = [
+      { id: 'mql', label: 'MQL', color: 'var(--stage-mql)', desc: 'Marketing Qualified Lead' },
+      { id: 'sal', label: 'SAL', color: 'var(--stage-sal)', desc: 'Sales Accepted Lead' },
+      { id: 'sql', label: 'SQL', color: 'var(--stage-sql)', desc: 'Sales Qualified Lead' },
+      { id: 'converted', label: 'Converted', color: 'var(--stage-converted)', desc: 'Converted to Deal' }
+    ];
+
+    // ===== Leads =====
+    var LEADS = [
+      // MQL column (3)
+      {
+        id: 'l1', name: 'Emma Thompson', stage: 'mql',
+        score: 82, source: 'Web Form', owner: 'sarah', age: 2,
+        company: 'Meridian Studios', title: 'VP Licensing',
+        email: 'emma.t@meridian.com', phone: '+1 (555) 234-8910',
+        scoreBreakdown: { engagement: 28, fit: 30, behavior: 24 },
+        events: [
+          { date: 'Mar 4', text: 'Downloaded pricing guide (3rd visit this week)' },
+          { date: 'Mar 3', text: 'Submitted contact form requesting demo' },
+          { date: 'Mar 3', text: 'Visited product pages (8 pages, 12 min)' }
+        ],
+        notes: 'High-intent signals: downloaded pricing + requested demo. Fast-track candidate.'
+      },
+      {
+        id: 'l2', name: 'Tom Bradley', stage: 'mql',
+        score: 63, source: 'Smart Line', owner: 'ana', age: 4,
+        company: 'Apex Records', title: 'Business Affairs Manager',
+        email: 'tom.b@apexrecords.com', phone: '+1 (555) 876-4321',
+        scoreBreakdown: { engagement: 18, fit: 25, behavior: 20 },
+        events: [
+          { date: 'Mar 2', text: 'Inbound call via Smart Line (4 min)' },
+          { date: 'Mar 1', text: 'Referred by James Lin (existing contact)' }
+        ],
+        notes: 'Referral from James Lin. Interested in distribution deal terms.'
+      },
+      {
+        id: 'l3', name: 'Mike Chen', stage: 'mql',
+        score: 56, source: 'Cold', owner: 'david', age: 7,
+        company: 'Drift Audio', title: 'Founder',
+        email: 'mike@driftaudio.co', phone: '+1 (555) 111-2233',
+        scoreBreakdown: { engagement: 12, fit: 28, behavior: 16 },
+        events: [
+          { date: 'Feb 28', text: 'Responded to cold outreach email' },
+          { date: 'Feb 27', text: 'Outreach email sent by David' },
+          { date: 'Feb 26', text: 'Lead imported from LinkedIn prospecting list' }
+        ],
+        notes: 'Small indie label. Good ICP fit but engagement still low. Needs nurturing.'
+      },
+
+      // SAL column (2)
+      {
+        id: 'l4', name: 'James Lin', stage: 'sal',
+        score: 71, source: 'Smart Line', owner: 'sarah', age: 5,
+        company: 'Pinnacle Partners', title: 'COO',
+        email: 'james.l@pinnacle.io', phone: '+1 (555) 443-9900',
+        scoreBreakdown: { engagement: 22, fit: 27, behavior: 22 },
+        events: [
+          { date: 'Mar 3', text: 'SAL accepted by Sarah after review' },
+          { date: 'Mar 1', text: 'Follow-up Smart Line call (9 min)' },
+          { date: 'Feb 28', text: 'Initial Smart Line inquiry about licensing' }
+        ],
+        notes: 'Strong interest in multi-territory licensing. Budget confirmed over phone.'
+      },
+      {
+        id: 'l5', name: 'Priya Sharma', stage: 'sal',
+        score: 68, source: 'Web Form', owner: 'marcus', age: 6,
+        company: 'Vantage Media Group', title: 'Director of Partnerships',
+        email: 'priya.s@vantagemedia.com', phone: '+1 (555) 667-3344',
+        scoreBreakdown: { engagement: 20, fit: 26, behavior: 22 },
+        events: [
+          { date: 'Mar 2', text: 'SAL accepted after scoring review' },
+          { date: 'Mar 1', text: 'Attended webinar on distribution trends' },
+          { date: 'Feb 27', text: 'Submitted web form with detailed requirements' }
+        ],
+        notes: 'Expressed interest in Film distribution. Currently evaluating multiple vendors.'
+      },
+
+      // SQL column (1)
+      {
+        id: 'l6', name: 'Lisa Park', stage: 'sql',
+        score: 91, source: 'Web Form', owner: 'ana', age: 12,
+        company: 'Summit Media', title: 'VP Business Development',
+        email: 'lisa.p@summitmedia.com', phone: '+1 (555) 890-1122',
+        scoreBreakdown: { engagement: 32, fit: 30, behavior: 29 },
+        events: [
+          { date: 'Mar 4', text: 'Qualification call completed (budget + timeline confirmed)' },
+          { date: 'Mar 1', text: 'Sent detailed requirements document' },
+          { date: 'Feb 28', text: 'Discovery call completed (22 min)' },
+          { date: 'Feb 22', text: 'Demo scheduled and attended' },
+          { date: 'Feb 21', text: 'Web form submitted with high-intent signals' }
+        ],
+        notes: 'Enterprise prospect. Budget approved, timeline Q2. Decision maker engaged. Ready for conversion.'
+      },
+
+      // Converted column (2)
+      {
+        id: 'l7', name: 'Alex Rivera', stage: 'converted',
+        score: 88, source: 'Smart Line', owner: 'david', age: 18,
+        company: 'Ostereo Music Group', title: 'CEO',
+        email: 'alex.r@ostereo.com', phone: '+1 (555) 223-4567',
+        scoreBreakdown: { engagement: 30, fit: 28, behavior: 30 },
+        events: [
+          { date: 'Feb 28', text: 'Converted to deal: $180K MSA (vault: ostereo-msa)' },
+          { date: 'Feb 25', text: 'Final qualification complete' },
+          { date: 'Feb 20', text: 'Budget and authority confirmed' }
+        ],
+        notes: 'Converted to pipeline deal. Now in Negotiation stage.'
+      },
+      {
+        id: 'l8', name: 'Rachel Torres', stage: 'converted',
+        score: 79, source: 'Web Form', owner: 'sarah', age: 22,
+        company: 'Horizon Records', title: 'Director BD',
+        email: 'rachel.t@horizonrec.com', phone: '+1 (555) 334-7788',
+        scoreBreakdown: { engagement: 26, fit: 27, behavior: 26 },
+        events: [
+          { date: 'Feb 24', text: 'Converted to deal: $310K Distribution (vault: horizon-dist)' },
+          { date: 'Feb 20', text: 'SQL qualification complete' },
+          { date: 'Feb 15', text: 'Discovery and demo completed' }
+        ],
+        notes: 'Converted to pipeline deal. Now in Close stage.'
+      }
+    ];
+
+    var currentSource = 'all';
+
+    // ===== Score color =====
+    function scoreClass(s) {
+      if (s >= 75) return 'lead-score-high';
+      if (s >= 60) return 'lead-score-mid';
+      return 'lead-score-low';
+    }
+
+    function scoreColor(s) {
+      if (s >= 75) return 'var(--green)';
+      if (s >= 60) return 'var(--amber)';
+      return 'var(--red)';
+    }
+
+    function sourceIcon(src) {
+      if (src === 'Web Form') return '&#127760;';
+      if (src === 'Smart Line') return '&#128222;';
+      if (src === 'Cold') return '&#10052;';
+      return '&#128204;';
+    }
+
+    // ===== Rendering =====
+    function renderBoard() {
+      var board = document.getElementById('kanbanBoard');
+      var filtered = currentSource === 'all'
+        ? LEADS
+        : LEADS.filter(function(l) { return l.source === currentSource; });
+
+      var html = '';
+      var totalAge = 0;
+      var totalScore = 0;
+      var activeLeads = 0;
+      var convertedCount = 0;
+      var weekNew = 0;
+
+      STAGES.forEach(function(stage) {
+        var stageLeads = filtered.filter(function(l) { return l.stage === stage.id; });
+
+        html += '<div class="kanban-column" data-stage="' + stage.id + '"'
+          + ' ondragover="onDragOver(event)"'
+          + ' ondrop="onDrop(event,\'' + stage.id + '\')"'
+          + ' ondragenter="onDragEnter(event)"'
+          + ' ondragleave="onDragLeave(event)">';
+
+        // Header
+        html += '<div class="column-header">';
+        html += '<div class="column-dot" style="background:' + stage.color + '"></div>';
+        html += '<span class="column-name">' + stage.label + '</span>';
+        html += '<span class="column-count">' + stageLeads.length + '</span>';
+        html += '</div>';
+
+        // Body
+        html += '<div class="column-body">';
+        stageLeads.forEach(function(lead) {
+          html += renderLeadCard(lead, stage);
+          totalAge += lead.age;
+          totalScore += lead.score;
+          if (stage.id === 'converted') {
+            convertedCount++;
+          }
+          if (lead.age <= 7) weekNew++;
+        });
+        html += '</div>';
+
+        html += '</div>';
+
+        activeLeads += stageLeads.length;
+      });
+
+      board.innerHTML = html;
+
+      // Update summary
+      document.getElementById('totalLeads').textContent = filtered.length;
+      document.getElementById('avgScore').textContent = filtered.length ? Math.round(totalScore / filtered.length) : 0;
+      document.getElementById('avgAge').textContent = filtered.length ? Math.round(totalAge / filtered.length) : 0;
+      document.getElementById('weekCount').textContent = weekNew;
+
+      var totalAll = filtered.length || 1;
+      var rate = Math.round((convertedCount / totalAll) * 100);
+      document.getElementById('convRate').textContent = rate + '%';
+
+      // Update action count
+      var actionable = filtered.filter(function(l) {
+        return l.stage === 'mql' || l.stage === 'sal';
+      }).length;
+      document.getElementById('actionCount').textContent = actionable + ' requiring action';
+    }
+
+    function renderLeadCard(lead, stage) {
+      var p = lead.owner ? PEOPLE[lead.owner] : { name: 'Unassigned', color: '#6b7280', initials: '?' };
+      var isConverted = stage.id === 'converted';
+
+      var html = '<div class="lead-card' + (isConverted ? ' converted' : '') + '" draggable="true" data-lead-id="' + lead.id + '"'
+        + ' ondragstart="onDragStart(event,\'' + lead.id + '\')"'
+        + ' ondragend="onDragEnd(event)"'
+        + ' onclick="openDetail(\'' + lead.id + '\')">';
+
+      // Top: Name + Score
+      html += '<div class="lead-card-top">';
+      html += '<span class="lead-card-name">' + lead.name + '</span>';
+      html += '<span class="lead-score-pill ' + scoreClass(lead.score) + '">' + lead.score + '</span>';
+      html += '</div>';
+
+      // Source
+      html += '<div class="lead-card-source">';
+      html += '<span class="source-icon">' + sourceIcon(lead.source) + '</span>';
+      html += lead.source + ' &middot; ' + lead.company;
+      html += '</div>';
+
+      // Assignee + Age
+      html += '<div class="lead-card-row">';
+      html += '<div class="lead-card-assignee">';
+      html += '<div class="lead-avatar" style="background:' + p.color + '">' + p.initials + '</div>';
+      html += '<span class="lead-assignee-name">' + p.name + '</span>';
+      html += '</div>';
+      html += '<span class="lead-age">' + lead.age + 'd</span>';
+      html += '</div>';
+
+      // Actions or Converted stamp
+      if (isConverted) {
+        html += '<div class="lead-converted-stamp">';
+        html += '<span class="lead-converted-check">&#10003;</span> Converted to Deal';
+        html += '</div>';
+      } else if (stage.id === 'sql') {
+        html += '<div class="lead-card-actions">';
+        html += '<button class="lead-btn lead-btn-convert" onclick="event.stopPropagation();convertLead(\'' + lead.id + '\')">Convert to Deal</button>';
+        html += '<button class="lead-btn lead-btn-reject" onclick="event.stopPropagation();rejectLead(\'' + lead.id + '\')">Reject</button>';
+        html += '</div>';
+      } else {
+        html += '<div class="lead-card-actions">';
+        html += '<button class="lead-btn lead-btn-accept" onclick="event.stopPropagation();acceptLead(\'' + lead.id + '\')">Accept</button>';
+        html += '<button class="lead-btn lead-btn-reject" onclick="event.stopPropagation();rejectLead(\'' + lead.id + '\')">Reject</button>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
+    }
+
+    // ===== Lead Actions =====
+    function acceptLead(leadId) {
+      var lead = LEADS.find(function(l) { return l.id === leadId; });
+      if (!lead) return;
+      var idx = STAGES.findIndex(function(s) { return s.id === lead.stage; });
+      if (idx < STAGES.length - 1) {
+        var nextStage = STAGES[idx + 1];
+        lead.stage = nextStage.id;
+        lead.age = 0;
+        lead.events.unshift({
+          date: 'Mar 5',
+          text: 'Accepted to ' + nextStage.label + ' by ' + (lead.owner ? PEOPLE[lead.owner].name : 'rep')
+        });
+        renderBoard();
+      }
+    }
+
+    function rejectLead(leadId) {
+      var lead = LEADS.find(function(l) { return l.id === leadId; });
+      if (!lead) return;
+      LEADS = LEADS.filter(function(l) { return l.id !== leadId; });
+      renderBoard();
+    }
+
+    function convertLead(leadId) {
+      var lead = LEADS.find(function(l) { return l.id === leadId; });
+      if (!lead) return;
+      lead.stage = 'converted';
+      lead.events.unshift({
+        date: 'Mar 5',
+        text: 'Converted to deal by ' + (lead.owner ? PEOPLE[lead.owner].name : 'rep')
+      });
+      renderBoard();
+    }
+
+    // ===== Detail Panel =====
+    function openDetail(leadId) {
+      var lead = LEADS.find(function(l) { return l.id === leadId; });
+      if (!lead) return;
+      var p = lead.owner ? PEOPLE[lead.owner] : { name: 'Unassigned', color: '#6b7280', initials: '?' };
+      var stage = STAGES.find(function(s) { return s.id === lead.stage; });
+
+      var html = '';
+
+      // Header
+      html += '<div class="detail-header">';
+      html += '<div>';
+      html += '<div class="detail-name">' + lead.name + '</div>';
+      html += '<span class="detail-stage-badge" style="background:' + stage.color + '22;color:' + stage.color + '">' + stage.label + '</span>';
+      html += '</div>';
+      html += '<button class="detail-close" onclick="closeDetail()">&times;</button>';
+      html += '</div>';
+
+      // Lead info
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Contact Info</div>';
+      html += '<div class="detail-grid">';
+      html += '<div><div class="detail-field-label">Company</div><div class="detail-field-value">' + lead.company + '</div></div>';
+      html += '<div><div class="detail-field-label">Title</div><div class="detail-field-value">' + lead.title + '</div></div>';
+      html += '<div><div class="detail-field-label">Email</div><div class="detail-field-value" style="font-size:11px">' + lead.email + '</div></div>';
+      html += '<div><div class="detail-field-label">Phone</div><div class="detail-field-value" style="font-size:11px">' + lead.phone + '</div></div>';
+      html += '<div><div class="detail-field-label">Source</div><div class="detail-field-value">' + sourceIcon(lead.source) + ' ' + lead.source + '</div></div>';
+      html += '<div><div class="detail-field-label">Age</div><div class="detail-field-value">' + lead.age + ' days</div></div>';
+      html += '<div><div class="detail-field-label">Owner</div><div class="detail-field-value">' + p.name + '</div></div>';
+      html += '<div><div class="detail-field-label">Stage</div><div class="detail-field-value" style="color:' + stage.color + '">' + stage.desc + '</div></div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Lead Score
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Lead Score</div>';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">';
+      html += '<span style="font-size:24px;font-weight:700;font-family:var(--mono);color:' + scoreColor(lead.score) + '">' + lead.score + '</span>';
+      html += '<span class="lead-score-pill ' + scoreClass(lead.score) + '" style="font-size:9px">' + (lead.score >= 75 ? 'HOT' : lead.score >= 60 ? 'WARM' : 'COLD') + '</span>';
+      html += '</div>';
+      html += '<div class="detail-score-bar">';
+      html += '<div class="detail-score-fill" style="width:' + lead.score + '%;background:' + scoreColor(lead.score) + '"></div>';
+      html += '</div>';
+      html += '<div class="detail-score-breakdown">';
+      html += '<div class="detail-score-item">Engagement: <span>' + lead.scoreBreakdown.engagement + '</span></div>';
+      html += '<div class="detail-score-item">Fit: <span>' + lead.scoreBreakdown.fit + '</span></div>';
+      html += '<div class="detail-score-item">Behavior: <span>' + lead.scoreBreakdown.behavior + '</span></div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Notes
+      if (lead.notes) {
+        html += '<div class="detail-section">';
+        html += '<div class="detail-section-title">Notes</div>';
+        html += '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5">' + lead.notes + '</div>';
+        html += '</div>';
+      }
+
+      // Activity
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Activity Timeline</div>';
+      lead.events.forEach(function(ev) {
+        html += '<div class="detail-event">';
+        html += '<span class="detail-event-date">' + ev.date + '</span>';
+        html += '<span class="detail-event-text">' + ev.text + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Actions
+      html += '<div class="detail-actions">';
+      if (lead.stage === 'converted') {
+        html += '<button class="toolbar-btn-ghost" style="flex:1" onclick="alert(\'Open vault: ' + lead.company.toLowerCase().replace(/\s+/g, '-') + ' (TBD)\')">Open Deal Vault</button>';
+      } else if (lead.stage === 'sql') {
+        html += '<button class="toolbar-btn" onclick="convertLead(\'' + lead.id + '\');closeDetail()">Convert to Deal</button>';
+        html += '<button class="toolbar-btn-ghost" onclick="rejectLead(\'' + lead.id + '\');closeDetail()">Reject</button>';
+      } else {
+        html += '<button class="toolbar-btn" onclick="acceptLead(\'' + lead.id + '\');closeDetail()">Accept to Next Stage</button>';
+        html += '<button class="toolbar-btn-ghost" onclick="rejectLead(\'' + lead.id + '\');closeDetail()">Reject</button>';
+      }
+      html += '<button class="toolbar-btn-ghost" onclick="alert(\'Add note (TBD)\')">Add Note</button>';
+      html += '</div>';
+
+      document.getElementById('detailPanel').innerHTML = html;
+      document.getElementById('detailOverlay').classList.add('open');
+    }
+
+    function closeDetail(e) {
+      if (e && e.target !== document.getElementById('detailOverlay')) return;
+      document.getElementById('detailOverlay').classList.remove('open');
+    }
+
+    // ===== Drag & Drop =====
+    var draggedLeadId = null;
+
+    function onDragStart(e, leadId) {
+      draggedLeadId = leadId;
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function onDragEnd(e) {
+      e.target.classList.remove('dragging');
+      draggedLeadId = null;
+      document.querySelectorAll('.kanban-column').forEach(function(c) {
+        c.classList.remove('drag-over');
+      });
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function onDragEnter(e) {
+      e.preventDefault();
+      var col = e.target.closest('.kanban-column');
+      if (col) col.classList.add('drag-over');
+    }
+
+    function onDragLeave(e) {
+      var col = e.target.closest('.kanban-column');
+      if (col && !col.contains(e.relatedTarget)) {
+        col.classList.remove('drag-over');
+      }
+    }
+
+    function onDrop(e, newStage) {
+      e.preventDefault();
+      if (!draggedLeadId) return;
+      var lead = LEADS.find(function(l) { return l.id === draggedLeadId; });
+      if (lead && lead.stage !== newStage) {
+        var targetStage = STAGES.find(function(s) { return s.id === newStage; });
+        lead.stage = newStage;
+        lead.age = 0;
+        lead.events.unshift({
+          date: 'Mar 5',
+          text: 'Moved to ' + targetStage.label + ' by ' + (lead.owner ? PEOPLE[lead.owner].name : 'rep')
+        });
+        renderBoard();
+      }
+      document.querySelectorAll('.kanban-column').forEach(function(c) {
+        c.classList.remove('drag-over');
+      });
+    }
+
+    // ===== Filters =====
+    function setSource(source, el) {
+      currentSource = source;
+      document.querySelectorAll('[data-filter-group="source"]').forEach(function(p) {
+        p.classList.remove('active');
+      });
+      el.classList.add('active');
+      renderBoard();
+    }
+
+    // ===== URL Params =====
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'airlock') {
+      document.documentElement.setAttribute('data-theme', 'airlock');
+    }
+
+    // ===== Init =====
+    renderBoard();
+  </script>
+</body>
+</html>

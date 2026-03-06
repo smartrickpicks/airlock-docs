@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airlock — CRM Won Deals</title>
+  <style>
+    /* ===== Base Tokens ===== */
+    :root {
+      --bg-darkest: #0d1017;
+      --bg-page: #12161f;
+      --bg-input: #161b28;
+      --bg-panel: #1a1f2e;
+      --bg-card: #1e2436;
+      --bg-card-hover: #242b3d;
+      --text-primary: #e8eaed;
+      --text-secondary: #9aa0a6;
+      --text-muted: #6b7280;
+      --accent-blue: #0091ea;
+      --accent-blue-dim: rgba(0,145,234,0.15);
+      --green: #4caf50;
+      --green-dim: rgba(76,175,80,0.15);
+      --amber: #ff9800;
+      --amber-dim: rgba(255,152,0,0.12);
+      --red: #f44336;
+      --red-dim: rgba(244,67,54,0.12);
+      --teal: #26a69a;
+      --teal-dim: rgba(38,166,154,0.12);
+      --purple: #7b1fa2;
+      --purple-dim: rgba(123,31,162,0.12);
+      --border: #2a3040;
+      --border-light: #333b4f;
+      --mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+    }
+
+    html[data-theme="airlock"] {
+      --bg-darkest: #080a0f;
+      --bg-page: #0B0E14;
+      --bg-input: #0F1219;
+      --bg-panel: #0F1219;
+      --bg-card: #151923;
+      --bg-card-hover: #1a2030;
+      --border: #1E2330;
+      --border-light: #2a3040;
+      --accent-blue: #00D1FF;
+      --accent-blue-dim: rgba(0,209,255,0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ===== Layout ===== */
+    .won-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ===== Toolbar ===== */
+    .won-toolbar {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-icon {
+      font-size: 18px;
+    }
+
+    .toolbar-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toolbar-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+    }
+
+    .toolbar-spacer { flex: 1; }
+
+    .toolbar-filter {
+      display: flex;
+      gap: 6px;
+    }
+
+    .filter-pill {
+      padding: 4px 10px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+
+    .filter-pill:hover {
+      background: var(--bg-card);
+      color: var(--text-secondary);
+    }
+
+    .filter-pill.active {
+      background: var(--green-dim);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    /* ===== Summary Strip ===== */
+    .summary-strip {
+      display: flex;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .summary-card {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+
+    .summary-card:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .summary-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: var(--mono);
+      color: var(--green);
+    }
+
+    .summary-value.blue {
+      color: var(--accent-blue);
+    }
+
+    .summary-value.amber {
+      color: var(--amber);
+    }
+
+    .summary-value.teal {
+      color: var(--teal);
+    }
+
+    .summary-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Cards Grid ===== */
+    .cards-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 14px;
+    }
+
+    /* ===== Won Deal Card ===== */
+    .won-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .won-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-light);
+      border-left-color: var(--green);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    }
+
+    .won-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .won-trophy {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--green-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .won-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .won-card-deal {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .won-card-account {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .won-card-badge {
+      padding: 2px 8px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 10px;
+      background: var(--green-dim);
+      color: var(--green);
+      flex-shrink: 0;
+    }
+
+    /* Value row */
+    .won-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .won-value {
+      font-size: 24px;
+      font-weight: 800;
+      font-family: var(--mono);
+      color: var(--green);
+    }
+
+    .won-meta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .won-meta-item {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .won-meta-item span {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* Timeline bar */
+    .won-timeline {
+      background: var(--bg-panel);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .timeline-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .timeline-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--bg-darkest);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .timeline-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-blue), var(--green));
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    .timeline-days {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--green);
+      white-space: nowrap;
+    }
+
+    /* Milestones */
+    .won-milestones {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-left: 4px;
+    }
+
+    .milestone-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .milestone-check {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Actions */
+    .won-card-actions {
+      display: flex;
+      gap: 8px;
+      padding-top: 4px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-view-contract {
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--green-dim);
+      border: 1px solid rgba(76,175,80,0.3);
+      border-radius: var(--radius-sm);
+      color: var(--green);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.12s;
+    }
+
+    .btn-view-contract:hover {
+      background: rgba(76,175,80,0.25);
+      border-color: var(--green);
+    }
+
+    .btn-secondary {
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.12s;
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-secondary);
+    }
+
+    /* ===== Celebration sparkle effect ===== */
+    .sparkle-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      animation: sparkle-fall 2.5s ease-in forwards;
+      opacity: 0;
+    }
+
+    @keyframes sparkle-fall {
+      0% {
+        opacity: 1;
+        transform: translateY(0) rotate(0deg) scale(1);
+      }
+      60% {
+        opacity: 0.8;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(120px) rotate(360deg) scale(0.3);
+      }
+    }
+
+    /* ===== Scrollbar ===== */
+    .cards-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cards-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .cards-scroll::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .cards-scroll::-webkit-scrollbar-thumb:hover {
+      background: var(--border-light);
+    }
+  </style>
+</head>
+<body>
+  <div class="won-layout">
+    <!-- Toolbar -->
+    <div class="won-toolbar">
+      <span class="toolbar-icon">&#127942;</span>
+      <div>
+        <div class="toolbar-title">Won Deals</div>
+        <div class="toolbar-subtitle">Celebrate closed-won contracts and track win patterns</div>
+      </div>
+      <div class="toolbar-sep"></div>
+      <div class="toolbar-filter">
+        <button class="filter-pill active" data-range="quarter">This Quarter</button>
+        <button class="filter-pill" data-range="year">This Year</button>
+        <button class="filter-pill" data-range="all">All Time</button>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <div style="font-size:11px; color:var(--text-muted);">
+        <span style="color:var(--green); font-weight:700;">5</span> deals won
+      </div>
+    </div>
+
+    <!-- Summary Strip -->
+    <div class="summary-strip">
+      <div class="summary-card">
+        <div class="summary-label">Total Won</div>
+        <div class="summary-value" id="summaryTotal">$850K</div>
+        <div class="summary-sub">Closed revenue</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">This Quarter</div>
+        <div class="summary-value blue" id="summaryQuarter">$850K</div>
+        <div class="summary-sub">Q1 2026</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Win Rate</div>
+        <div class="summary-value amber" id="summaryWinRate">68%</div>
+        <div class="summary-sub">vs 62% last quarter</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Avg Cycle</div>
+        <div class="summary-value teal" id="summaryCycle">38 days</div>
+        <div class="summary-sub">Prospecting to close</div>
+      </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="cards-scroll">
+      <div class="cards-grid" id="cardsGrid">
+        <!-- Cards injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Sparkle overlay (on load) -->
+  <div class="sparkle-container" id="sparkleContainer"></div>
+
+  <script>
+    // ===== Theme =====
+    (function applyTheme() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('theme') === 'airlock') {
+        document.documentElement.setAttribute('data-theme', 'airlock');
+      }
+    })();
+
+    // ===== Data =====
+    const allDeals = [
+      {
+        id: 1,
+        deal: 'Distribution Agreement',
+        account: 'Ostereo Music Group',
+        value: 180000,
+        closeDate: '2026-03-10',
+        closeDateLabel: 'Mar 10, 2026',
+        owner: 'David Park',
+        ownerInitials: 'DP',
+        days: 45,
+        maxDays: 60,
+        range: 'quarter',
+        milestones: [
+          'Initial outreach via warm intro',
+          'Discovery call with VP of Distribution',
+          'Competitive proposal delivered (3 bidders)',
+          'Final terms negotiated, signed Mar 10'
+        ]
+      },
+      {
+        id: 2,
+        deal: 'Licensing Agreement',
+        account: 'Prism Studios',
+        value: 120000,
+        closeDate: '2026-02-20',
+        closeDateLabel: 'Feb 20, 2026',
+        owner: 'Sarah Miller',
+        ownerInitials: 'SM',
+        days: 30,
+        maxDays: 60,
+        range: 'quarter',
+        milestones: [
+          'Inbound lead from conference demo',
+          'Licensing scope defined in 2 meetings',
+          'Legal review completed in 5 days',
+          'Signed ahead of schedule'
+        ]
+      },
+      {
+        id: 3,
+        deal: 'Master Agreement',
+        account: 'Apex Recordings',
+        value: 340000,
+        closeDate: '2026-02-05',
+        closeDateLabel: 'Feb 5, 2026',
+        owner: 'Ana Chen',
+        ownerInitials: 'AC',
+        days: 60,
+        maxDays: 60,
+        range: 'quarter',
+        milestones: [
+          'Executive sponsor engagement early',
+          'Multi-stakeholder negotiation (4 rounds)',
+          'Custom clause library built for deal',
+          'Largest Q1 deal, closed on target date'
+        ]
+      },
+      {
+        id: 4,
+        deal: 'Sync License',
+        account: 'Silverline Media',
+        value: 95000,
+        closeDate: '2026-01-15',
+        closeDateLabel: 'Jan 15, 2026',
+        owner: 'Marcus Webb',
+        ownerInitials: 'MW',
+        days: 22,
+        maxDays: 60,
+        range: 'quarter',
+        milestones: [
+          'Repeat customer, fast-tracked intake',
+          'Standard sync terms applied',
+          'Signed in under 3 weeks'
+        ]
+      },
+      {
+        id: 5,
+        deal: 'Publishing Deal',
+        account: 'Verdant Music',
+        value: 115000,
+        closeDate: '2026-01-08',
+        closeDateLabel: 'Jan 8, 2026',
+        owner: 'Sarah Miller',
+        ownerInitials: 'SM',
+        days: 35,
+        maxDays: 60,
+        range: 'quarter',
+        milestones: [
+          'Referral from existing client',
+          'Publishing rights scope negotiated',
+          'Royalty structure finalized week 3',
+          'Clean close, no escalations'
+        ]
+      }
+    ];
+
+    const summaryData = {
+      quarter: { total: '$850K', quarter: '$850K', winRate: '68%', cycle: '38 days', cycleSub: 'Prospecting to close', quarterLabel: 'Q1 2026', totalSub: 'Closed revenue', winSub: 'vs 62% last quarter' },
+      year:    { total: '$2.1M', quarter: '$850K', winRate: '65%', cycle: '32 days', cycleSub: 'Prospecting to close', quarterLabel: 'Q1 2026', totalSub: 'Closed revenue (YTD)', winSub: 'vs 59% last year' },
+      all:     { total: '$2.1M', quarter: '$850K', winRate: '63%', cycle: '29 days', cycleSub: 'Prospecting to close', quarterLabel: 'Q1 2026', totalSub: 'All time closed revenue', winSub: 'Lifetime average' }
+    };
+
+    // ===== Formatting =====
+    function formatValue(v) {
+      if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
+      if (v >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
+      return '$' + v;
+    }
+
+    // ===== Render Cards =====
+    function renderCards(range) {
+      const grid = document.getElementById('cardsGrid');
+      const filtered = range === 'all' ? allDeals : allDeals.filter(d => d.range === range || range === 'year');
+      grid.innerHTML = filtered.map(deal => `
+        <div class="won-card" data-id="${deal.id}">
+          <div class="won-card-header">
+            <div class="won-trophy">&#127942;</div>
+            <div class="won-card-info">
+              <div class="won-card-deal">${deal.deal}</div>
+              <div class="won-card-account">${deal.account}</div>
+            </div>
+            <div class="won-card-badge">Won</div>
+          </div>
+
+          <div class="won-value-row">
+            <div class="won-value">${formatValue(deal.value)}</div>
+            <div class="won-meta">
+              <div class="won-meta-item">Closed <span>${deal.closeDateLabel}</span></div>
+              <div class="won-meta-item">Owner <span>${deal.owner}</span></div>
+            </div>
+          </div>
+
+          <div class="won-timeline">
+            <div class="timeline-label">Cycle</div>
+            <div class="timeline-bar-wrap">
+              <div class="timeline-bar-fill" style="width:${Math.round((deal.days / deal.maxDays) * 100)}%"></div>
+            </div>
+            <div class="timeline-days">${deal.days}d</div>
+          </div>
+
+          <div class="won-milestones">
+            ${deal.milestones.map(m => `
+              <div class="milestone-item">
+                <div class="milestone-check">&#10003;</div>
+                <span>${m}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="won-card-actions">
+            <button class="btn-view-contract" onclick="event.stopPropagation()">View Contract</button>
+            <button class="btn-secondary" onclick="event.stopPropagation()">Activity Log</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ===== Summary Update =====
+    function updateSummary(range) {
+      const d = summaryData[range];
+      document.getElementById('summaryTotal').textContent = d.total;
+      document.getElementById('summaryQuarter').textContent = d.quarter;
+      document.getElementById('summaryWinRate').textContent = d.winRate;
+      document.getElementById('summaryCycle').textContent = d.cycle;
+    }
+
+    // ===== Filter pills =====
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const range = pill.dataset.range;
+        renderCards(range);
+        updateSummary(range);
+      });
+    });
+
+    // ===== Celebration sparkle on load =====
+    function launchSparkles() {
+      const container = document.getElementById('sparkleContainer');
+      const colors = ['#4caf50', '#66bb6a', '#a5d6a7', '#ffd54f', '#ffab40', '#00D1FF'];
+      for (let i = 0; i < 40; i++) {
+        const el = document.createElement('div');
+        el.className = 'sparkle';
+        el.style.left = Math.random() * 100 + '%';
+        el.style.top = '-10px';
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        el.style.width = (3 + Math.random() * 4) + 'px';
+        el.style.height = el.style.width;
+        el.style.animationDelay = (Math.random() * 1.2) + 's';
+        el.style.animationDuration = (1.8 + Math.random() * 1.5) + 's';
+        container.appendChild(el);
+      }
+      setTimeout(() => { container.innerHTML = ''; }, 4000);
+    }
+
+    // ===== Init =====
+    renderCards('quarter');
+    updateSummary('quarter');
+    launchSparkles();
+  </script>
+</body>
+</html>

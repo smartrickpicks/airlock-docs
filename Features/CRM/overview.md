@@ -170,8 +170,13 @@ The CRM module uses react-admin patterns for its list/detail views:
 
 ## Related Specs
 
+- **[CRM Data Model](./crm-data-model.md)** — Complete data model: entities, contacts, communications, indexes, encryption
 - **[Vault Hierarchy](../VaultHierarchy/overview.md)** — The data model CRM views
 - **[Entity Resolution](../Record%20Inspector/entity-resolution.md)** — How new accounts get created
 - **[Tech Stack](../TechStack/overview.md)** — react-admin + Atomic CRM
 - **[Universal Task System](../TaskSystem/overview.md)** — CRM triage backed by master task table
 - **[Notifications](../Notifications/overview.md)** — CRM health alerts, new lead notifications
+- **[CRM Lifecycle Flows](./crm-lifecycle-flows.md)** — Complete state machines for lead-to-customer lifecycle, deal pipeline, health scoring, onboarding, renewals, and cross-module event triggers
+- **[CRM Automations](./crm-automations.md)** — Lead scoring formula, health score computation, SLA timers, stage gate rules, notification triggers
+- **[CRM Import Workflow](./crm-import-workflow.md)** — CSV import flow, deal creation methods, dedup strategy, empty states
+- **[CRM Permissions](./crm-permissions.md)** — Role × action matrix, self-approval prevention, data visibility per role
